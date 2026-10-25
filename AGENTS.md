@@ -132,11 +132,20 @@ decision.
 - [ ] **M0 — Foundation:** inspect the current Next.js version guidance;
   initialize shadcn/ui; add Prisma, Better Auth, Better Auth UI, the local
   database, migrations, environment validation, and a seed path for the first
-  admin. Confirm production provider and its current free-tier terms before
-  adding credentials.
-- [ ] **M1 — Identity and access:** implement invite/admin-controlled
-  email/password authentication, admin/engineer authorization, login/logout,
-  and protected routes. Do not expose public self-registration by default.
+  admin. **Progress (2026-10-25):** shadcn/ui and Better Auth UI are installed;
+  Prisma 7.10.1, Better Auth, a local SQLite database, its initial migration,
+  the server/client auth configuration, and the first-admin seed path are in
+  place. The seed script now imports its dotenv dependency explicitly.
+  **Verified 2026-10-25:** script syntax and ESLint pass; invoking the seed with
+  empty credentials loads `.env.local` and stops at the expected validation
+  before database access. Environment validation remains; confirm production
+  provider and its current free-tier terms before adding credentials.
+- [x] **M1 — Identity and access:** email/password sign-in/sign-out, protected
+  app routes, `ADMIN`/`ENGINEER` authorization, an administrator-only engineer
+  account form, and an idempotent first-admin seed command are implemented.
+  Public self-registration remains disabled. **Verified 2026-10-25:** static
+  type checking and local migration checks pass; the first-admin flow still
+  needs browser verification after credentials are seeded.
 - [ ] **M2 — Month and availability:** implement admin month/member setup and
   engineer availability submission with server-side validation and timezone-free
   ISO calendar dates. Verify the complete save/revise flow.
@@ -175,6 +184,8 @@ what was built, tests run, deviations, and any new decision.
 | 2026-10-25 | Use Prisma and SQLite semantics; choose hosted libSQL for production and local SQLite for development. | Accepted. A deployed serverless filesystem is not durable. Provider and exact adapter remain a deployment-time confirmation. |
 | 2026-10-25 | Start with Better Auth email/password, admin-controlled accounts, Better Auth UI, and shadcn/ui. | Accepted. Smallest useful secure workflow; email delivery and OAuth are deferred. |
 | 2026-10-25 | Treat the existing Python rules as v1 scheduling requirements. | Accepted. Any semantic adjustment requires a new decision entry and tests. |
+| 2026-10-25 | Use Better Auth’s standard Prisma tables with a `User.role` string defaulting to `ENGINEER`; sign-up is disabled. | Accepted. The first admin and future engineers will be provisioned by an admin in M1. |
+| 2026-10-25 | Bootstrap the first administrator through an idempotent local seed command, then create engineer credentials from an admin-only server action. | Accepted. It avoids public registration and does not require email delivery in v1. |
 
 ## Open decisions (do not guess)
 

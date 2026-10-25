@@ -45,6 +45,7 @@ import { ProviderButtons, type SocialLayout } from "./provider-buttons"
 import { ReauthenticationNotice } from "./reauthentication"
 
 export type SignInProps = {
+  allowSignUp?: boolean
   className?: string
   socialLayout?: SocialLayout
   socialPosition?: "top" | "bottom"
@@ -59,6 +60,7 @@ export type SignInProps = {
  * @returns The rendered sign-in UI as a JSX element
  */
 export function SignIn({
+  allowSignUp = true,
   className,
   socialLayout,
   socialPosition = "bottom"
@@ -362,7 +364,7 @@ export function SignIn({
             </Link>
           )}
 
-          {emailAndPassword?.enabled && (
+          {emailAndPassword?.enabled && allowSignUp && (
             <FieldDescription className="text-center">
               {localization.auth.needToCreateAnAccount}{" "}
               <Link
