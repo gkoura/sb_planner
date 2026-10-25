@@ -6,17 +6,27 @@ datasource db {
   provider = "sqlite"
 }
 
+enum PlanningStatus {
+  DRAFT
+  COLLECTING
+  READY
+  GENERATED
+  PUBLISHED
+}
+
 model User {
-  id            String    @id
-  name          String
-  email         String    @unique
-  emailVerified Boolean   @default(false)
-  image         String?
-  role          String    @default("ENGINEER")
-  createdAt     DateTime
-  updatedAt     DateTime
-  sessions      Session[]
-  accounts      Account[]
+  id                    String           @id
+  name                  String
+  email                 String           @unique
+  emailVerified         Boolean          @default(false)
+  image                 String?
+  role                  String           @default("ENGINEER")
+  createdAt             DateTime
+  updatedAt             DateTime
+  sessions              Session[]
+  accounts              Account[]
+  planningMonthsCreated PlanningMonth[]  @relation("PlanningMonthCreator")
+  planningMemberships   PlanningMember[]
 
   @@map("user")
 }
@@ -52,8 +62,8 @@ model Account {
   updatedAt             DateTime
   user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
   @@unique([providerId, accountId])
+  @@index([userId])
   @@map("account")
 }
 
@@ -67,4 +77,35 @@ model Verification {
 
   @@index([identifier])
   @@map("verification")
+}
+
+model PlanningMonth {
+  id        String           @id @default(cuid())
+  year      Int
+  month     Int
+  status    PlanningStatus   @default(DRAFT)
+  createdBy String
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  creator   User             @relation("PlanningMonthCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  members   PlanningMember[]
+
+  @@unique([year, month])
+  @@index([status])
+}
+
+model PlanningMember {
+  id              String        @id @default(cuid())
+  planningMonthId String
+  userId          String
+  nameSnapshot    String
+  emailSnapshot   String
+  roleSnapshot    String
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  planningMonth   PlanningMonth @relation(fields: [planningMonthId], references: [id], onDelete: Cascade)
+  user            User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([planningMonthId, userId])
+  @@index([userId])
 }

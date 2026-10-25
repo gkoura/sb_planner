@@ -24,7 +24,8 @@ export default async function UsersPage() {
         </div>
         <h1 className="text-3xl font-semibold tracking-tight">Engineers</h1>
         <p className="text-muted-foreground">
-          {engineerCount} of 10 engineer accounts are active.
+          {engineerCount} of 10 engineer accounts are active. Admin accounts are
+          separate and can opt into each month&apos;s rotation.
         </p>
 
         <Card className="mt-4">

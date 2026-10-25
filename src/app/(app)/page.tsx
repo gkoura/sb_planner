@@ -2,7 +2,13 @@ import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { getCurrentSession } from "@/lib/auth-guard";
 
 export default async function Home() {
@@ -26,15 +32,19 @@ export default async function Home() {
         <CardHeader>
           <CardTitle>Next step</CardTitle>
           <CardDescription>
-            Add your engineering team, then we&apos;ll create the first planning
-            month.
+            Set up a planning month and choose who will join the rotation.
           </CardDescription>
         </CardHeader>
         <CardContent>
           {session?.user.role === "ADMIN" ? (
-            <Button render={<Link href="/admin/users" />}>
-              Manage engineers
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button render={<Link href="/admin/months" />}>
+                Create planning month
+              </Button>
+              <Button render={<Link href="/admin/users" />} variant="outline">
+                Manage engineers
+              </Button>
+            </div>
           ) : (
             <p className="text-sm text-muted-foreground">
               An administrator will create the first planning month.
