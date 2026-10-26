@@ -75,7 +75,7 @@ async function HomeContent() {
     return (
       <div className="grid gap-8">
         <section className="relative isolate overflow-hidden rounded-3xl bg-primary px-6 py-8 text-primary-foreground shadow-sm sm:px-9 sm:py-10">
-          <div aria-hidden="true" className="absolute -right-20 -top-28 -z-10 size-80 rounded-full border-[36px] border-primary-foreground/10" />
+          <div aria-hidden="true" className="absolute -right-20 -top-28 -z-10 size-80 rounded-full border-36 border-primary-foreground/10" />
           <div aria-hidden="true" className="absolute -bottom-32 right-28 -z-10 size-64 rounded-full bg-primary-foreground/5 blur-2xl" />
           <Badge className="border-primary-foreground/20 bg-primary-foreground/10 text-primary-foreground" variant="outline">
             <CalendarCheck2 aria-hidden="true" />
@@ -205,7 +205,7 @@ async function HomeContent() {
   return (
     <div className="grid gap-8">
       <section className="relative isolate overflow-hidden rounded-3xl bg-primary px-6 py-8 text-primary-foreground shadow-sm sm:px-9 sm:py-10">
-        <div aria-hidden="true" className="absolute -right-20 -top-28 -z-10 size-80 rounded-full border-[36px] border-primary-foreground/10" />
+        <div aria-hidden="true" className="absolute -right-20 -top-28 -z-10 size-80 rounded-full border-36 border-primary-foreground/10" />
         <Badge className="border-primary-foreground/20 bg-primary-foreground/10 text-primary-foreground" variant="outline">
           <CalendarCheck2 aria-hidden="true" />
           Your standby rotation

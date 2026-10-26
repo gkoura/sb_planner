@@ -78,7 +78,12 @@ export default async function PublishedSchedulePage({
             <CardDescription>Official version {run.version} · fairness score {run.fairnessScore} · lower is more balanced</CardDescription>
           </div>
           <ScheduleExportMenu
-            assignments={run.assignments}
+            assignments={run.assignments.map((assignment) => ({
+              date: assignment.date,
+              nameSnapshot: assignment.nameSnapshot,
+              planningMemberId: assignment.planningMemberId,
+              roleSnapshot: assignment.roleSnapshot,
+            }))}
             members={month.members}
             month={month.month}
             title={formatMonth(month.year, month.month)}

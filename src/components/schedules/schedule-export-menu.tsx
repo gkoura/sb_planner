@@ -28,17 +28,9 @@ function weekday(date: string) {
   }).format(new Date(`${date}T00:00:00.000Z`));
 }
 
-function displayDate(date: string) {
-  return new Intl.DateTimeFormat("en", {
-    day: "numeric",
-    month: "short",
-    timeZone: "UTC",
-    year: "numeric",
-  }).format(new Date(`${date}T00:00:00.000Z`));
-}
-
 function csvCell(value: string) {
-  return `"${value.replaceAll('"', '""')}"`;
+  const safeValue = /^[=+\-@\t\r\n]/.test(value) ? `'${value}` : value;
+  return `"${safeValue.replaceAll('"', '""')}"`;
 }
 
 function escapeXml(value: string) {
@@ -55,8 +47,10 @@ function downloadBlob(blob: Blob, filename: string) {
   const anchor = document.createElement("a");
   anchor.href = url;
   anchor.download = filename;
+  document.body.append(anchor);
   anchor.click();
-  URL.revokeObjectURL(url);
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 function downloadText(content: string, filename: string, mimeType: string) {
@@ -96,6 +90,13 @@ function buildScheduleSvg({
     members.map((member, index) => [member.id, SCHEDULE_COLORS[index % SCHEDULE_COLORS.length]]),
   );
   const assignmentsByDate = new Map(assignments.map((assignment) => [assignment.date, assignment]));
+  const assignmentsByMember = new Map<string, number>();
+  assignments.forEach((assignment) => {
+    assignmentsByMember.set(
+      assignment.planningMemberId,
+      (assignmentsByMember.get(assignment.planningMemberId) ?? 0) + 1,
+    );
+  });
   const weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
   const svg = [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">`,
@@ -136,7 +137,7 @@ function buildScheduleSvg({
     const y = legendTop + row * 40;
     const color = colorsByMemberId.get(member.id);
     svg.push(`<circle cx="${x + 7}" cy="${y + 8}" r="7" fill="${color?.foreground ?? "#526967"}"/>`);
-    svg.push(`<text x="${x + 24}" y="${y + 13}" fill="#233c3b" font-family="Arial,sans-serif" font-size="14" font-weight="600">${escapeXml(member.nameSnapshot)}${member.roleSnapshot === "ADMIN" ? " (admin)" : ""}</text>`);
+    svg.push(`<text x="${x + 24}" y="${y + 13}" fill="#233c3b" font-family="Arial,sans-serif" font-size="14" font-weight="600">${escapeXml(member.nameSnapshot)}${member.roleSnapshot === "ADMIN" ? " (admin)" : ""} · ${assignmentsByMember.get(member.id) ?? 0} days</text>`);
   });
 
   svg.push("</svg>");
@@ -162,7 +163,7 @@ export function ScheduleExportMenu({
 
   async function copyMarkdown() {
     const rows = assignments.map((assignment) =>
-      `| ${assignment.date} | ${weekday(assignment.date)} | ${assignment.nameSnapshot.replaceAll("|", "\\|")} | ${assignment.roleSnapshot.toLowerCase()} |`,
+      `| ${assignment.date} | ${weekday(assignment.date)} | ${assignment.nameSnapshot.replaceAll("|", "\\|").replace(/\r?\n/g, "<br>")} | ${assignment.roleSnapshot.toLowerCase()} |`,
     );
     const markdown = [
       `# ${title} standby schedule`,
@@ -207,7 +208,12 @@ export function ScheduleExportMenu({
       canvas.width = image.naturalWidth;
       canvas.height = image.naturalHeight;
       const context = canvas.getContext("2d");
-      context?.drawImage(image, 0, 0);
+      if (!context) {
+        URL.revokeObjectURL(svgUrl);
+        toast.error("Could not create the PNG export.");
+        return;
+      }
+      context.drawImage(image, 0, 0);
       URL.revokeObjectURL(svgUrl);
       canvas.toBlob((blob) => {
         if (!blob) {

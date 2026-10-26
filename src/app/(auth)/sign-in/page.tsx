@@ -7,7 +7,7 @@ export default function SignInPage() {
   return (
     <main className="relative flex min-h-svh items-center justify-center overflow-hidden bg-background p-4 sm:p-8">
       <div aria-hidden="true" className="pointer-events-none absolute -left-40 -top-40 size-96 rounded-full bg-secondary/70 blur-3xl" />
-      <div aria-hidden="true" className="pointer-events-none absolute -bottom-48 -right-32 size-[32rem] rounded-full bg-accent/70 blur-3xl" />
+      <div aria-hidden="true" className="pointer-events-none absolute -bottom-48 -right-32 size-128 rounded-full bg-accent/70 blur-3xl" />
       <div className="absolute right-4 top-4 sm:right-8 sm:top-8">
         <ThemeToggle />
       </div>

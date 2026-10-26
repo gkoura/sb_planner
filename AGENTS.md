@@ -1,6 +1,6 @@
 <!-- BEGIN:nextjs-agent-rules -->
 
-## This is NOT the Next.js you know
+# This is NOT the Next.js you know
 
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
 
@@ -8,7 +8,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
-# SB Planner — persistent product plan
+## SB Planner — persistent product plan
 
 This file is the project’s living plan. Read it before making a product or
 architecture change. At the end of every session, update the relevant
@@ -216,6 +216,9 @@ decision.
   revision and shown to admins and on the published schedule.
   Version history supports read-only previews and restoration as a new version;
   restore operations require a reason and honor published past-date safeguards.
+  Published schedules can be copied as Markdown or downloaded as a color-coded
+  PNG calendar or CSV assignment list; these exports are generated client-side
+  without adding a package.
 - [ ] **M5 — Deploy and operate:** configure production database and secrets,
   migrate safely, deploy, create backups/export procedure, and test the
   production login → submit → generate → publish journey.
@@ -331,6 +334,7 @@ this environment.
 | 2026-10-26 | Keep each run's `publishedAt` as its first publication timestamp; latest timestamp identifies the current official version. | Accepted. This preserves the fact and time that older revisions were official while still making one version current. |
 | 2026-10-26 | Use warm neutral surfaces, deep teal actions, and compact role-aware navigation. | Accepted. It gives the small operations tool a distinct visual identity while keeping screens calm, readable, and responsive without additional dependencies. |
 | 2026-10-26 | Allow admins to delete only draft months with no schedule run history. | Accepted. Confirmation protects against accidental removal; submitted availability and published schedule history remain preserved. |
+| 2026-10-26 | Offer Markdown copy, PNG calendar, and CSV exports for published schedules. | Accepted. Generate the exports client-side from the published run and existing participant palette, avoiding an additional dependency or server workload. |
 
 ## Open decisions (do not guess)
 
