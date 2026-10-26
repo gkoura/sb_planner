@@ -31,6 +31,7 @@ export default async function SchedulesPage() {
     include: {
       scheduleRuns: {
         where: { publishedAt: { not: null } },
+        orderBy: [{ publishedAt: "desc" }, { version: "desc" }],
         select: { version: true, publishedAt: true, fairnessScore: true },
         take: 1,
       },

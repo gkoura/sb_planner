@@ -1,0 +1,392 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" modified="2026-10-26T12:00:00.000Z" agent="Codex" version="24.7.17" type="device">
+  
+  
+  
+  
+  <diagram id="sb-planner-schema" name="Database schema">
+    
+    
+    
+    
+    <mxGraphModel dx="1800" dy="1100" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2200" pageHeight="1200" math="0" shadow="0">
+      
+      
+      
+      
+      <root>
+        
+        
+        
+        
+        <mxCell id="0"/>
+        
+        
+        
+        
+        <mxCell id="1" parent="0"/>
+        
+        
+        
+        
+        <mxCell id="title" value="SB Planner · SQLite data model" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=24;fontStyle=1;fontColor=#17365D;" vertex="1" parent="1">
+          
+          
+          
+          
+          <mxGeometry x="30" y="0" width="900" height="45" as="geometry"/>
+          
+          
+        
+        
+        </mxCell>
+        
+        
+        
+        
+        <mxCell id="subtitle" value="PK = primary key · FK = foreign key · UQ = unique constraint · IDX = index  |  PlanningStatus: DRAFT → COLLECTING → READY → GENERATED → PUBLISHED  |  AvailabilityMode: AVAILABLE / UNAVAILABLE" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=12;fontColor=#475569;" vertex="1" parent="1">
+          
+          
+          
+          
+          <mxGeometry x="30" y="42" width="2100" height="30" as="geometry"/>
+          
+          
+        
+        
+        </mxCell>
+        
+        
+        
+        
+        <mxCell id="table-User" value="&lt;table cellpadding='4' cellspacing='0' style='width:100%;font-family:Arial,sans-serif;color:#0F172A'&gt;&lt;tr&gt;&lt;td colspan='2' style='font-size:16px;font-weight:bold;color:#17365D'&gt;User &lt;span style='font-size:11px;font-weight:normal;color:#64748B'&gt;(user)&lt;/span&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td colspan='2' style='font-size:11px;color:#475569;padding-bottom:8px'&gt;An authenticated person: engineer or administrator.&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&lt;b style='color:#0F766E'&gt;PK&lt;/b&gt;&lt;/td&gt;&lt;td style='font-size:11px'&gt;id: String&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&amp;nbsp;&lt;/td&gt;&lt;td style='font-size:11px'&gt;name: String&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&lt;b style='color:#0F766E'&gt;UQ&lt;/b&gt;&lt;/td&gt;&lt;td style='font-size:11px'&gt;email: String&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&amp;nbsp;&lt;/td&gt;&lt;td style='font-size:11px'&gt;emailVerified: Boolean&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&amp;nbsp;&lt;/td&gt;&lt;td style='font-size:11px'&gt;image: String?&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&amp;nbsp;&lt;/td&gt;&lt;td style='font-size:11px'&gt;role: String = ENGINEER&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&amp;nbsp;&lt;/td&gt;&lt;td style='font-size:11px'&gt;createdAt: DateTime&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&amp;nbsp;&lt;/td&gt;&lt;td style='font-size:11px'&gt;updatedAt: DateTime&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#CBD5E1;strokeWidth=1.5;shadow=1;align=left;verticalAlign=top;spacing=10;" vertex="1" parent="1">
+          
+          
+          
+          
+          <mxGeometry x="770" y="35" width="360" height="297" as="geometry"/>
+          
+          
+        
+        
+        </mxCell>
+        
+        
+        
+        
+        <mxCell id="table-Session" value="&lt;table cellpadding='4' cellspacing='0' style='width:100%;font-family:Arial,sans-serif;color:#0F172A'&gt;&lt;tr&gt;&lt;td colspan='2' style='font-size:16px;font-weight:bold;color:#17365D'&gt;Session &lt;span style='font-size:11px;font-weight:normal;color:#64748B'&gt;(session)&lt;/span&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td colspan='2' style='font-size:11px;color:#475569;padding-bottom:8px'&gt;A signed-in browser session managed by Better Auth.&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&lt;b style='color:#0F766E'&gt;PK&lt;/b&gt;&lt;/td&gt;&lt;td style='font-size:11px'&gt;id: String&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&lt;b style='color:#0F766E'&gt;UQ&lt;/b&gt;&lt;/td&gt;&lt;td style='font-size:11px'&gt;token: String&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&lt;b style='color:#0F766E'&gt;FK · IDX&lt;/b&gt;&lt;/td&gt;&lt;td style='font-size:11px'&gt;userId: String&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&amp;nbsp;&lt;/td&gt;&lt;td style='font-size:11px'&gt;expiresAt: DateTime&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&amp;nbsp;&lt;/td&gt;&lt;td style='font-size:11px'&gt;createdAt: DateTime&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&amp;nbsp;&lt;/td&gt;&lt;td style='font-size:11px'&gt;updatedAt: DateTime&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&amp;nbsp;&lt;/td&gt;&lt;td style='font-size:11px'&gt;ipAddress: String?&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&amp;nbsp;&lt;/td&gt;&lt;td style='font-size:11px'&gt;userAgent: String?&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#CBD5E1;strokeWidth=1.5;shadow=1;align=left;verticalAlign=top;spacing=10;" vertex="1" parent="1">
+          
+          
+          
+          
+          <mxGeometry x="30" y="35" width="340" height="297" as="geometry"/>
+          
+          
+        
+        
+        </mxCell>
+        
+        
+        
+        
+        <mxCell id="table-Account" value="&lt;table cellpadding='4' cellspacing='0' style='width:100%;font-family:Arial,sans-serif;color:#0F172A'&gt;&lt;tr&gt;&lt;td colspan='2' style='font-size:16px;font-weight:bold;color:#17365D'&gt;Account &lt;span style='font-size:11px;font-weight:normal;color:#64748B'&gt;(account)&lt;/span&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td colspan='2' style='font-size:11px;color:#475569;padding-bottom:8px'&gt;Authentication provider credentials and tokens.&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&lt;b style='color:#0F766E'&gt;PK&lt;/b&gt;&lt;/td&gt;&lt;td style='font-size:11px'&gt;id: String&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&lt;b style='color:#0F766E'&gt;FK · IDX&lt;/b&gt;&lt;/td&gt;&lt;td style='font-size:11px'&gt;userId: String&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&lt;b style='color:#0F766E'&gt;UQ&lt;/b&gt;&lt;/td&gt;&lt;td style='font-size:11px'&gt;providerId + accountId&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&amp;nbsp;&lt;/td&gt;&lt;td style='font-size:11px'&gt;accountId: String&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&amp;nbsp;&lt;/td&gt;&lt;td style='font-size:11px'&gt;providerId: String&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&amp;nbsp;&lt;/td&gt;&lt;td style='font-size:11px'&gt;password: String?&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&amp;nbsp;&lt;/td&gt;&lt;td style='font-size:11px'&gt;accessToken: String?&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&amp;nbsp;&lt;/td&gt;&lt;td style='font-size:11px'&gt;refreshToken: String?&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&amp;nbsp;&lt;/td&gt;&lt;td style='font-size:11px'&gt;idToken: String?&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&amp;nbsp;&lt;/td&gt;&lt;td style='font-size:11px'&gt;accessTokenExpiresAt: DateTime?&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&amp;nbsp;&lt;/td&gt;&lt;td style='font-size:11px'&gt;refreshTokenExpiresAt: DateTime?&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&amp;nbsp;&lt;/td&gt;&lt;td style='font-size:11px'&gt;scope: String?&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&amp;nbsp;&lt;/td&gt;&lt;td style='font-size:11px'&gt;createdAt: DateTime&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&amp;nbsp;&lt;/td&gt;&lt;td style='font-size:11px'&gt;updatedAt: DateTime&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#CBD5E1;strokeWidth=1.5;shadow=1;align=left;verticalAlign=top;spacing=10;" vertex="1" parent="1">
+          
+          
+          
+          
+          <mxGeometry x="30" y="405" width="340" height="441" as="geometry"/>
+          
+          
+        
+        
+        </mxCell>
+        
+        
+        
+        
+        <mxCell id="table-Verification" value="&lt;table cellpadding='4' cellspacing='0' style='width:100%;font-family:Arial,sans-serif;color:#0F172A'&gt;&lt;tr&gt;&lt;td colspan='2' style='font-size:16px;font-weight:bold;color:#17365D'&gt;Verification &lt;span style='font-size:11px;font-weight:normal;color:#64748B'&gt;(verification)&lt;/span&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td colspan='2' style='font-size:11px;color:#475569;padding-bottom:8px'&gt;Short-lived verification values for auth flows.&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&lt;b style='color:#0F766E'&gt;PK&lt;/b&gt;&lt;/td&gt;&lt;td style='font-size:11px'&gt;id: String&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&lt;b style='color:#0F766E'&gt;IDX&lt;/b&gt;&lt;/td&gt;&lt;td style='font-size:11px'&gt;identifier: String&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&amp;nbsp;&lt;/td&gt;&lt;td style='font-size:11px'&gt;value: String&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&amp;nbsp;&lt;/td&gt;&lt;td style='font-size:11px'&gt;expiresAt: DateTime&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&amp;nbsp;&lt;/td&gt;&lt;td style='font-size:11px'&gt;createdAt: DateTime&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&amp;nbsp;&lt;/td&gt;&lt;td style='font-size:11px'&gt;updatedAt: DateTime&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#CBD5E1;strokeWidth=1.5;shadow=1;align=left;verticalAlign=top;spacing=10;" vertex="1" parent="1">
+          
+          
+          
+          
+          <mxGeometry x="30" y="880" width="340" height="249" as="geometry"/>
+          
+          
+        
+        
+        </mxCell>
+        
+        
+        
+        
+        <mxCell id="table-PlanningMonth" value="&lt;table cellpadding='4' cellspacing='0' style='width:100%;font-family:Arial,sans-serif;color:#0F172A'&gt;&lt;tr&gt;&lt;td colspan='2' style='font-size:16px;font-weight:bold;color:#17365D'&gt;PlanningMonth &lt;span style='font-size:11px;font-weight:normal;color:#64748B'&gt;(PlanningMonth)&lt;/span&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td colspan='2' style='font-size:11px;color:#475569;padding-bottom:8px'&gt;A monthly planning cycle and its lifecycle status.&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&lt;b style='color:#0F766E'&gt;PK&lt;/b&gt;&lt;/td&gt;&lt;td style='font-size:11px'&gt;id: String&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&lt;b style='color:#0F766E'&gt;FK&lt;/b&gt;&lt;/td&gt;&lt;td style='font-size:11px'&gt;createdBy: String → User&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&lt;b style='color:#0F766E'&gt;UQ&lt;/b&gt;&lt;/td&gt;&lt;td style='font-size:11px'&gt;year + month&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&amp;nbsp;&lt;/td&gt;&lt;td style='font-size:11px'&gt;year: Int&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&amp;nbsp;&lt;/td&gt;&lt;td style='font-size:11px'&gt;month: Int&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&amp;nbsp;&lt;/td&gt;&lt;td style='font-size:11px'&gt;IDX · status: PlanningStatus&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&amp;nbsp;&lt;/td&gt;&lt;td style='font-size:11px'&gt;createdAt: DateTime&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&amp;nbsp;&lt;/td&gt;&lt;td style='font-size:11px'&gt;updatedAt: DateTime&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#CBD5E1;strokeWidth=1.5;shadow=1;align=left;verticalAlign=top;spacing=10;" vertex="1" parent="1">
+          
+          
+          
+          
+          <mxGeometry x="445" y="470" width="360" height="297" as="geometry"/>
+          
+          
+        
+        
+        </mxCell>
+        
+        
+        
+        
+        <mxCell id="table-PlanningMember" value="&lt;table cellpadding='4' cellspacing='0' style='width:100%;font-family:Arial,sans-serif;color:#0F172A'&gt;&lt;tr&gt;&lt;td colspan='2' style='font-size:16px;font-weight:bold;color:#17365D'&gt;PlanningMember &lt;span style='font-size:11px;font-weight:normal;color:#64748B'&gt;(PlanningMember)&lt;/span&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td colspan='2' style='font-size:11px;color:#475569;padding-bottom:8px'&gt;A month-specific participant snapshot; preserves their name, email, and role at that time.&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&lt;b style='color:#0F766E'&gt;PK&lt;/b&gt;&lt;/td&gt;&lt;td style='font-size:11px'&gt;id: String&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&lt;b style='color:#0F766E'&gt;FK&lt;/b&gt;&lt;/td&gt;&lt;td style='font-size:11px'&gt;planningMonthId: String&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&lt;b style='color:#0F766E'&gt;FK · IDX&lt;/b&gt;&lt;/td&gt;&lt;td style='font-size:11px'&gt;userId: String&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&lt;b style='color:#0F766E'&gt;UQ&lt;/b&gt;&lt;/td&gt;&lt;td style='font-size:11px'&gt;planningMonthId + userId&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&amp;nbsp;&lt;/td&gt;&lt;td style='font-size:11px'&gt;nameSnapshot: String&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&amp;nbsp;&lt;/td&gt;&lt;td style='font-size:11px'&gt;emailSnapshot: String&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&amp;nbsp;&lt;/td&gt;&lt;td style='font-size:11px'&gt;roleSnapshot: String&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&amp;nbsp;&lt;/td&gt;&lt;td style='font-size:11px'&gt;createdAt: DateTime&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&amp;nbsp;&lt;/td&gt;&lt;td style='font-size:11px'&gt;updatedAt: DateTime&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#CBD5E1;strokeWidth=1.5;shadow=1;align=left;verticalAlign=top;spacing=10;" vertex="1" parent="1">
+          
+          
+          
+          
+          <mxGeometry x="865" y="470" width="390" height="321" as="geometry"/>
+          
+          
+        
+        
+        </mxCell>
+        
+        
+        
+        
+        <mxCell id="table-AvailabilitySubmission" value="&lt;table cellpadding='4' cellspacing='0' style='width:100%;font-family:Arial,sans-serif;color:#0F172A'&gt;&lt;tr&gt;&lt;td colspan='2' style='font-size:16px;font-weight:bold;color:#17365D'&gt;AvailabilitySubmission &lt;span style='font-size:11px;font-weight:normal;color:#64748B'&gt;(AvailabilitySubmission)&lt;/span&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td colspan='2' style='font-size:11px;color:#475569;padding-bottom:8px'&gt;One replaceable availability response for a participant in a month.&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&lt;b style='color:#0F766E'&gt;PK&lt;/b&gt;&lt;/td&gt;&lt;td style='font-size:11px'&gt;id: String&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&lt;b style='color:#0F766E'&gt;FK · UQ&lt;/b&gt;&lt;/td&gt;&lt;td style='font-size:11px'&gt;planningMemberId: String&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&amp;nbsp;&lt;/td&gt;&lt;td style='font-size:11px'&gt;mode: AvailabilityMode&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&amp;nbsp;&lt;/td&gt;&lt;td style='font-size:11px'&gt;submittedAt: DateTime&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&amp;nbsp;&lt;/td&gt;&lt;td style='font-size:11px'&gt;updatedAt: DateTime&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#CBD5E1;strokeWidth=1.5;shadow=1;align=left;verticalAlign=top;spacing=10;" vertex="1" parent="1">
+          
+          
+          
+          
+          <mxGeometry x="1320" y="70" width="380" height="225" as="geometry"/>
+          
+          
+        
+        
+        </mxCell>
+        
+        
+        
+        
+        <mxCell id="table-AvailabilityDate" value="&lt;table cellpadding='4' cellspacing='0' style='width:100%;font-family:Arial,sans-serif;color:#0F172A'&gt;&lt;tr&gt;&lt;td colspan='2' style='font-size:16px;font-weight:bold;color:#17365D'&gt;AvailabilityDate &lt;span style='font-size:11px;font-weight:normal;color:#64748B'&gt;(AvailabilityDate)&lt;/span&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td colspan='2' style='font-size:11px;color:#475569;padding-bottom:8px'&gt;One selected calendar date belonging to an availability submission.&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&lt;b style='color:#0F766E'&gt;PK&lt;/b&gt;&lt;/td&gt;&lt;td style='font-size:11px'&gt;id: String&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&lt;b style='color:#0F766E'&gt;FK&lt;/b&gt;&lt;/td&gt;&lt;td style='font-size:11px'&gt;submissionId: String&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&lt;b style='color:#0F766E'&gt;UQ&lt;/b&gt;&lt;/td&gt;&lt;td style='font-size:11px'&gt;submissionId + date&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&amp;nbsp;&lt;/td&gt;&lt;td style='font-size:11px'&gt;IDX · date: ISO date string&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#CBD5E1;strokeWidth=1.5;shadow=1;align=left;verticalAlign=top;spacing=10;" vertex="1" parent="1">
+          
+          
+          
+          
+          <mxGeometry x="1740" y="70" width="360" height="201" as="geometry"/>
+          
+          
+        
+        
+        </mxCell>
+        
+        
+        
+        
+        <mxCell id="table-ScheduleRun" value="&lt;table cellpadding='4' cellspacing='0' style='width:100%;font-family:Arial,sans-serif;color:#0F172A'&gt;&lt;tr&gt;&lt;td colspan='2' style='font-size:16px;font-weight:bold;color:#17365D'&gt;ScheduleRun &lt;span style='font-size:11px;font-weight:normal;color:#64748B'&gt;(ScheduleRun)&lt;/span&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td colspan='2' style='font-size:11px;color:#475569;padding-bottom:8px'&gt;An immutable generated candidate version and input snapshot; publishedAt marks the official version.&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&lt;b style='color:#0F766E'&gt;PK&lt;/b&gt;&lt;/td&gt;&lt;td style='font-size:11px'&gt;id: String&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&lt;b style='color:#0F766E'&gt;FK&lt;/b&gt;&lt;/td&gt;&lt;td style='font-size:11px'&gt;planningMonthId: String&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&lt;b style='color:#0F766E'&gt;FK&lt;/b&gt;&lt;/td&gt;&lt;td style='font-size:11px'&gt;createdBy: String → User&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&lt;b style='color:#0F766E'&gt;UQ&lt;/b&gt;&lt;/td&gt;&lt;td style='font-size:11px'&gt;planningMonthId + version&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&amp;nbsp;&lt;/td&gt;&lt;td style='font-size:11px'&gt;version: Int&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&amp;nbsp;&lt;/td&gt;&lt;td style='font-size:11px'&gt;algorithmVersion: String&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&amp;nbsp;&lt;/td&gt;&lt;td style='font-size:11px'&gt;fairnessScore: Int&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&amp;nbsp;&lt;/td&gt;&lt;td style='font-size:11px'&gt;inputSnapshot: JSON string&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&amp;nbsp;&lt;/td&gt;&lt;td style='font-size:11px'&gt;IDX · generatedAt: DateTime&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&amp;nbsp;&lt;/td&gt;&lt;td style='font-size:11px'&gt;publishedAt: DateTime?&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#CBD5E1;strokeWidth=1.5;shadow=1;align=left;verticalAlign=top;spacing=10;" vertex="1" parent="1">
+          
+          
+          
+          
+          <mxGeometry x="1320" y="620" width="390" height="345" as="geometry"/>
+          
+          
+        
+        
+        </mxCell>
+        
+        
+        
+        
+        <mxCell id="table-ScheduleAssignment" value="&lt;table cellpadding='4' cellspacing='0' style='width:100%;font-family:Arial,sans-serif;color:#0F172A'&gt;&lt;tr&gt;&lt;td colspan='2' style='font-size:16px;font-weight:bold;color:#17365D'&gt;ScheduleAssignment &lt;span style='font-size:11px;font-weight:normal;color:#64748B'&gt;(ScheduleAssignment)&lt;/span&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td colspan='2' style='font-size:11px;color:#475569;padding-bottom:8px'&gt;The engineer assigned to one date in a specific schedule run, with historical name and role snapshots.&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&lt;b style='color:#0F766E'&gt;PK&lt;/b&gt;&lt;/td&gt;&lt;td style='font-size:11px'&gt;id: String&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&lt;b style='color:#0F766E'&gt;FK&lt;/b&gt;&lt;/td&gt;&lt;td style='font-size:11px'&gt;scheduleRunId: String&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&lt;b style='color:#0F766E'&gt;FK · IDX&lt;/b&gt;&lt;/td&gt;&lt;td style='font-size:11px'&gt;planningMemberId: String&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&lt;b style='color:#0F766E'&gt;UQ&lt;/b&gt;&lt;/td&gt;&lt;td style='font-size:11px'&gt;scheduleRunId + date&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&amp;nbsp;&lt;/td&gt;&lt;td style='font-size:11px'&gt;date: ISO date string&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&amp;nbsp;&lt;/td&gt;&lt;td style='font-size:11px'&gt;nameSnapshot: String&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style='font-size:10px;width:55px;color:#0F766E'&gt;&amp;nbsp;&lt;/td&gt;&lt;td style='font-size:11px'&gt;roleSnapshot: String&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#CBD5E1;strokeWidth=1.5;shadow=1;align=left;verticalAlign=top;spacing=10;" vertex="1" parent="1">
+          
+          
+          
+          
+          <mxGeometry x="1740" y="620" width="390" height="273" as="geometry"/>
+          
+          
+        
+        
+        </mxCell>
+        
+        
+        
+        
+        <mxCell id="rel-1" value="1 to many" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.5;fontSize=10;fontColor=#334155;labelBackgroundColor=#FFFFFF;startArrow=ERone;endArrow=ERmany;startFill=0;endFill=0;" edge="1" parent="1" source="table-User" target="table-Session">
+          
+          
+          
+          
+          <mxGeometry relative="1" as="geometry"/>
+          
+          
+        
+        
+        </mxCell>
+        
+        
+        
+        
+        <mxCell id="rel-2" value="1 to many" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.5;fontSize=10;fontColor=#334155;labelBackgroundColor=#FFFFFF;startArrow=ERone;endArrow=ERmany;startFill=0;endFill=0;" edge="1" parent="1" source="table-User" target="table-Account">
+          
+          
+          
+          
+          <mxGeometry relative="1" as="geometry"/>
+          
+          
+        
+        
+        </mxCell>
+        
+        
+        
+        
+        <mxCell id="rel-3" value="creator · 1 to many" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.5;fontSize=10;fontColor=#334155;labelBackgroundColor=#FFFFFF;startArrow=ERone;endArrow=ERmany;startFill=0;endFill=0;" edge="1" parent="1" source="table-User" target="table-PlanningMonth">
+          
+          
+          
+          
+          <mxGeometry relative="1" as="geometry"/>
+          
+          
+        
+        
+        </mxCell>
+        
+        
+        
+        
+        <mxCell id="rel-4" value="1 to many" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.5;fontSize=10;fontColor=#334155;labelBackgroundColor=#FFFFFF;startArrow=ERone;endArrow=ERmany;startFill=0;endFill=0;" edge="1" parent="1" source="table-User" target="table-PlanningMember">
+          
+          
+          
+          
+          <mxGeometry relative="1" as="geometry"/>
+          
+          
+        
+        
+        </mxCell>
+        
+        
+        
+        
+        <mxCell id="rel-5" value="creator · 1 to many" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.5;fontSize=10;fontColor=#334155;labelBackgroundColor=#FFFFFF;startArrow=ERone;endArrow=ERmany;startFill=0;endFill=0;" edge="1" parent="1" source="table-User" target="table-ScheduleRun">
+          
+          
+          
+          
+          <mxGeometry relative="1" as="geometry"/>
+          
+          
+        
+        
+        </mxCell>
+        
+        
+        
+        
+        <mxCell id="rel-6" value="1 to many" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.5;fontSize=10;fontColor=#334155;labelBackgroundColor=#FFFFFF;startArrow=ERone;endArrow=ERmany;startFill=0;endFill=0;" edge="1" parent="1" source="table-PlanningMonth" target="table-PlanningMember">
+          
+          
+          
+          
+          <mxGeometry relative="1" as="geometry"/>
+          
+          
+        
+        
+        </mxCell>
+        
+        
+        
+        
+        <mxCell id="rel-7" value="1 to 0..1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.5;fontSize=10;fontColor=#334155;labelBackgroundColor=#FFFFFF;startArrow=ERone;endArrow=ERmany;startFill=0;endFill=0;" edge="1" parent="1" source="table-PlanningMember" target="table-AvailabilitySubmission">
+          
+          
+          
+          
+          <mxGeometry relative="1" as="geometry"/>
+          
+          
+        
+        
+        </mxCell>
+        
+        
+        
+        
+        <mxCell id="rel-8" value="1 to many" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.5;fontSize=10;fontColor=#334155;labelBackgroundColor=#FFFFFF;startArrow=ERone;endArrow=ERmany;startFill=0;endFill=0;" edge="1" parent="1" source="table-AvailabilitySubmission" target="table-AvailabilityDate">
+          
+          
+          
+          
+          <mxGeometry relative="1" as="geometry"/>
+          
+          
+        
+        
+        </mxCell>
+        
+        
+        
+        
+        <mxCell id="rel-9" value="1 to many" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.5;fontSize=10;fontColor=#334155;labelBackgroundColor=#FFFFFF;startArrow=ERone;endArrow=ERmany;startFill=0;endFill=0;" edge="1" parent="1" source="table-PlanningMonth" target="table-ScheduleRun">
+          
+          
+          
+          
+          <mxGeometry relative="1" as="geometry"/>
+          
+          
+        
+        
+        </mxCell>
+        
+        
+        
+        
+        <mxCell id="rel-10" value="1 to many" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.5;fontSize=10;fontColor=#334155;labelBackgroundColor=#FFFFFF;startArrow=ERone;endArrow=ERmany;startFill=0;endFill=0;" edge="1" parent="1" source="table-ScheduleRun" target="table-ScheduleAssignment">
+          
+          
+          
+          
+          <mxGeometry relative="1" as="geometry"/>
+          
+          
+        
+        
+        </mxCell>
+        
+        
+        
+        
+        <mxCell id="rel-11" value="1 to many" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.5;fontSize=10;fontColor=#334155;labelBackgroundColor=#FFFFFF;startArrow=ERone;endArrow=ERmany;startFill=0;endFill=0;" edge="1" parent="1" source="table-PlanningMember" target="table-ScheduleAssignment">
+          
+          
+          
+          
+          <mxGeometry relative="1" as="geometry"/>
+          
+          
+        
+        
+        </mxCell>
+        
+        
+      
+      
+      </root>
+      
+      
+    
+    
+    </mxGraphModel>
+    
+    
+  
+  
+  </diagram>
+  
+  
+
+
+</mxfile>

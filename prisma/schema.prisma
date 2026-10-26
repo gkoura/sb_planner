@@ -147,10 +147,15 @@ model ScheduleRun {
   fairnessScore    Int
   inputSnapshot    String
   createdBy        String
+  basedOnRunId     String?
+  revisionReason   String?
+  validationWarnings String?
   generatedAt      DateTime             @default(now())
   publishedAt      DateTime?
   planningMonth    PlanningMonth        @relation(fields: [planningMonthId], references: [id], onDelete: Cascade)
   creator          User                 @relation("ScheduleRunCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  basedOnRun       ScheduleRun?         @relation("ScheduleRunRevisions", fields: [basedOnRunId], references: [id], onDelete: SetNull)
+  revisions        ScheduleRun[]        @relation("ScheduleRunRevisions")
   assignments      ScheduleAssignment[]
 
   @@unique([planningMonthId, version])

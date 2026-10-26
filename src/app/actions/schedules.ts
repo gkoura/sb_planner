@@ -7,6 +7,12 @@ import {
   generateSchedule,
   SCHEDULER_ALGORITHM_VERSION,
 } from "@/lib/scheduler";
+import {
+  getOperationalDate,
+  parseScheduleInputSnapshot,
+  validateScheduleEdit,
+  type ScheduleEditAssignment,
+} from "@/lib/schedule-edits";
 import { prisma } from "@/lib/prisma";
 
 export type GenerateScheduleState = {
@@ -18,6 +24,301 @@ export type PublishScheduleState = {
   error?: string;
   success?: string;
 };
+
+export type EditScheduleState = {
+  error?: string;
+  success?: string;
+};
+
+export type RestoreScheduleState = {
+  error?: string;
+  success?: string;
+};
+
+export async function restoreScheduleRun(
+  _previousState: RestoreScheduleState,
+  formData: FormData,
+): Promise<RestoreScheduleState> {
+  const admin = await requireAdmin();
+  const sourceRunId = formData.get("sourceRunId");
+  const reasonValue = formData.get("revisionReason");
+  const allowPastChanges = formData.get("allowPastChanges") === "true";
+  const reason = typeof reasonValue === "string" ? reasonValue.trim() : "";
+
+  if (typeof sourceRunId !== "string" || !sourceRunId) {
+    return { error: "Choose a schedule version to restore." };
+  }
+  if (!reason) return { error: "Add a reason for restoring this schedule version." };
+  if (reason.length > 500) return { error: "Change reasons must be 500 characters or fewer." };
+
+  const result = await prisma.$transaction(async (transaction) => {
+    const source = await transaction.scheduleRun.findUnique({
+      where: { id: sourceRunId },
+      include: { assignments: { orderBy: { date: "asc" } } },
+    });
+    if (!source) return { error: "Schedule version not found." };
+
+    const month = await transaction.planningMonth.findUnique({
+      where: { id: source.planningMonthId },
+      select: { id: true, month: true, status: true, year: true },
+    });
+    if (!month || (month.status !== "GENERATED" && month.status !== "PUBLISHED")) {
+      return { error: "Only a generated or published schedule can be restored." };
+    }
+
+    const current = await transaction.scheduleRun.findFirst({
+      where: { planningMonthId: month.id },
+      orderBy: { version: "desc" },
+      include: { assignments: { orderBy: { date: "asc" } } },
+    });
+    if (!current) return { error: "There is no current schedule version." };
+    if (current.id === source.id) return { error: "This version is already current." };
+
+    const latest = await transaction.scheduleRun.aggregate({
+      where: { planningMonthId: month.id },
+      _max: { version: true },
+    });
+    if (current.version !== latest._max.version) {
+      return { error: "The schedule has changed. Refresh the page and try again." };
+    }
+
+    const snapshot = parseScheduleInputSnapshot(current.inputSnapshot);
+    if (!snapshot || snapshot.year !== month.year || snapshot.month !== month.month) {
+      return { error: "The original availability snapshot is invalid, so this version cannot be restored." };
+    }
+    const assignments = source.assignments.map(({ date, planningMemberId }) => ({ date, planningMemberId }));
+    const validation = validateScheduleEdit(month.year, month.month, snapshot.members, assignments);
+    if (!validation.ok) return { error: validation.errors.slice(0, 3).join(" ") };
+
+    const currentByDate = new Map(
+      current.assignments.map((assignment) => [assignment.date, assignment.planningMemberId]),
+    );
+    const sourceByDate = new Map(assignments.map((assignment) => [assignment.date, assignment.planningMemberId]));
+    if (assignments.every((assignment) => currentByDate.get(assignment.date) === assignment.planningMemberId)) {
+      return { error: "This version already matches the current schedule." };
+    }
+
+    const isPublished = month.status === "PUBLISHED";
+    const operationalDate = getOperationalDate();
+    if (isPublished && !allowPastChanges && assignments.some((assignment) =>
+      assignment.date < operationalDate &&
+      currentByDate.get(assignment.date) !== sourceByDate.get(assignment.date),
+    )) {
+      return { error: "Restoring this version changes past dates. Enable past-date corrections to continue." };
+    }
+
+    const planningMembers = await transaction.planningMember.findMany({
+      where: { planningMonthId: month.id },
+      select: { id: true, nameSnapshot: true, roleSnapshot: true },
+    });
+    const memberById = new Map(planningMembers.map((member) => [member.id, member]));
+    if (assignments.some((assignment) => !memberById.has(assignment.planningMemberId))) {
+      return { error: "A participant from this version is no longer in the planning month." };
+    }
+
+    const version = (latest._max.version ?? 0) + 1;
+    const revision = await transaction.scheduleRun.create({
+      data: {
+        algorithmVersion: current.algorithmVersion,
+        basedOnRunId: current.id,
+        createdBy: admin.user.id,
+        fairnessScore: validation.fairnessScore,
+        inputSnapshot: current.inputSnapshot,
+        planningMonthId: month.id,
+        publishedAt: isPublished ? new Date() : null,
+        revisionReason: reason,
+        validationWarnings: validation.warnings.length ? JSON.stringify(validation.warnings) : null,
+        version,
+        assignments: {
+          create: assignments.map((assignment) => {
+            const member = memberById.get(assignment.planningMemberId)!;
+            return {
+              date: assignment.date,
+              nameSnapshot: member.nameSnapshot,
+              planningMemberId: member.id,
+              roleSnapshot: member.roleSnapshot,
+            };
+          }),
+        },
+      },
+    });
+
+    return { planningMonthId: month.id, revisionId: revision.id, isPublished };
+  });
+
+  if ("error" in result) return { error: result.error };
+  revalidatePath(`/admin/months/${result.planningMonthId}`);
+  revalidatePath("/schedules");
+  revalidatePath(`/schedules/${result.planningMonthId}`);
+  return {
+    success: result.isPublished
+      ? "The selected schedule was restored as a new published version."
+      : "The selected schedule was restored as a new candidate version.",
+  };
+}
+
+export async function saveScheduleEdit(
+  _previousState: EditScheduleState,
+  formData: FormData,
+): Promise<EditScheduleState> {
+  const admin = await requireAdmin();
+  const scheduleRunId = formData.get("scheduleRunId");
+  const assignmentsValue = formData.get("assignments");
+  const revisionReasonValue = formData.get("revisionReason");
+  const allowPastChanges = formData.get("allowPastChanges") === "true";
+
+  if (typeof scheduleRunId !== "string" || scheduleRunId.length === 0) {
+    return { error: "Choose a valid schedule version." };
+  }
+  if (typeof assignmentsValue !== "string") {
+    return { error: "The edited assignments could not be read." };
+  }
+
+  let assignments: ScheduleEditAssignment[];
+  try {
+    const parsed: unknown = JSON.parse(assignmentsValue);
+    if (
+      !Array.isArray(parsed) ||
+      parsed.some((assignment) =>
+        !assignment ||
+        typeof assignment.date !== "string" ||
+        typeof assignment.planningMemberId !== "string",
+      )
+    ) return { error: "The edited assignments are invalid." };
+    assignments = parsed;
+  } catch {
+    return { error: "The edited assignments are invalid." };
+  }
+
+  const revisionReason = typeof revisionReasonValue === "string"
+    ? revisionReasonValue.trim()
+    : "";
+  if (revisionReason.length > 500) {
+    return { error: "Change reasons must be 500 characters or fewer." };
+  }
+
+  const result = await prisma.$transaction(async (transaction) => {
+    const run = await transaction.scheduleRun.findUnique({
+      where: { id: scheduleRunId },
+      include: {
+        planningMonth: true,
+        assignments: { orderBy: { date: "asc" } },
+      },
+    });
+    if (!run) return { error: "Schedule version not found." };
+
+    const isPublished = run.planningMonth.status === "PUBLISHED";
+    if (isPublished && !run.publishedAt) {
+      return { error: "Only a previously published version can be edited." };
+    }
+    if (run.planningMonth.status !== "PUBLISHED" && run.planningMonth.status !== "GENERATED") {
+      return { error: "Only a generated candidate or published schedule can be edited." };
+    }
+    if (!isPublished && run.publishedAt) {
+      return { error: "This candidate is no longer current. Refresh the page and try again." };
+    }
+
+    const latest = await transaction.scheduleRun.aggregate({
+      where: { planningMonthId: run.planningMonthId },
+      _max: { version: true },
+    });
+    if (run.version !== latest._max.version) {
+      return { error: "This schedule version is no longer current. Refresh the page and try again." };
+    }
+
+    if (isPublished && !revisionReason) {
+      return { error: "Add a short reason for publishing this schedule change." };
+    }
+
+    const snapshot = parseScheduleInputSnapshot(run.inputSnapshot);
+    if (!snapshot || snapshot.year !== run.planningMonth.year || snapshot.month !== run.planningMonth.month) {
+      return { error: "The original availability snapshot is invalid, so this schedule cannot be edited." };
+    }
+
+    const validation = validateScheduleEdit(
+      snapshot.year,
+      snapshot.month,
+      snapshot.members,
+      assignments,
+    );
+    if (!validation.ok) {
+      return { error: validation.errors.slice(0, 3).join(" ") };
+    }
+    if (validation.warnings.length > 0 && !revisionReason) {
+      return { error: "Add a short reason to approve these schedule exceptions." };
+    }
+
+    const oldAssignments = new Map(
+      run.assignments.map((assignment) => [assignment.date, assignment.planningMemberId]),
+    );
+    if (assignments.every((assignment) => oldAssignments.get(assignment.date) === assignment.planningMemberId)) {
+      return { error: "Make at least one assignment change before saving." };
+    }
+
+    const operationalDate = getOperationalDate();
+    if (isPublished && !allowPastChanges && assignments.some((assignment) =>
+      assignment.date < operationalDate &&
+      oldAssignments.get(assignment.date) !== assignment.planningMemberId,
+    )) {
+      return { error: "Past published dates are locked. Enable past-date corrections and provide a reason to change them." };
+    }
+
+    const planningMembers = await transaction.planningMember.findMany({
+      where: { planningMonthId: run.planningMonthId },
+      select: { id: true, nameSnapshot: true, roleSnapshot: true },
+    });
+    const memberById = new Map(planningMembers.map((member) => [member.id, member]));
+    if (assignments.some((assignment) => !memberById.has(assignment.planningMemberId))) {
+      return { error: "A selected participant is no longer in this planning month." };
+    }
+
+    const latestVersion = (latest._max.version ?? 0) + 1;
+    const publishedAt = isPublished ? new Date() : null;
+    const revision = await transaction.scheduleRun.create({
+      data: {
+        algorithmVersion: run.algorithmVersion,
+        basedOnRunId: run.id,
+        createdBy: admin.user.id,
+        fairnessScore: validation.fairnessScore,
+        inputSnapshot: run.inputSnapshot,
+        planningMonthId: run.planningMonthId,
+        publishedAt,
+        revisionReason: revisionReason || null,
+        validationWarnings: validation.warnings.length > 0
+          ? JSON.stringify(validation.warnings)
+          : null,
+        version: latestVersion,
+        assignments: {
+          create: assignments.map((assignment) => {
+            const member = memberById.get(assignment.planningMemberId)!;
+            return {
+              date: assignment.date,
+              nameSnapshot: member.nameSnapshot,
+              planningMemberId: member.id,
+              roleSnapshot: member.roleSnapshot,
+            };
+          }),
+        },
+      },
+    });
+
+    return {
+      planningMonthId: run.planningMonthId,
+      revisionId: revision.id,
+      isPublished,
+    };
+  });
+
+  if ("error" in result) return { error: result.error };
+  revalidatePath(`/admin/months/${result.planningMonthId}`);
+  revalidatePath("/schedules");
+  revalidatePath(`/schedules/${result.planningMonthId}`);
+  return {
+    success: result.isPublished
+      ? "A new official schedule version has been published."
+      : "Your candidate edits have been saved as a new version.",
+  };
+}
 
 export async function publishScheduleRun(
   _previousState: PublishScheduleState,
@@ -39,15 +340,21 @@ export async function publishScheduleRun(
     if (!["GENERATED", "PUBLISHED"].includes(run.planningMonth.status)) {
       return { error: "Only a generated candidate can be published." };
     }
+    if (run.publishedAt) {
+      return { error: "This schedule version has already been published." };
+    }
+    const latestVersion = await transaction.scheduleRun.aggregate({
+      where: { planningMonthId: run.planningMonthId },
+      _max: { version: true },
+    });
+    if (run.version !== latestVersion._max.version) {
+      return { error: "Only the latest schedule version can be published." };
+    }
     const expectedDays = new Date(run.planningMonth.year, run.planningMonth.month, 0).getDate();
     if (run._count.assignments !== expectedDays) {
       return { error: "This candidate does not contain an assignment for every day." };
     }
 
-    await transaction.scheduleRun.updateMany({
-      where: { planningMonthId: run.planningMonthId },
-      data: { publishedAt: null },
-    });
     await transaction.scheduleRun.update({
       where: { id: run.id },
       data: { publishedAt: new Date() },
@@ -63,6 +370,8 @@ export async function publishScheduleRun(
   if ("error" in result) return { error: result.error };
   revalidatePath("/admin/months");
   revalidatePath(`/admin/months/${result.planningMonthId}`);
+  revalidatePath("/schedules");
+  revalidatePath(`/schedules/${result.planningMonthId}`);
   revalidatePath("/");
   return { success: "Schedule published. The team can now use it as the official plan." };
 }

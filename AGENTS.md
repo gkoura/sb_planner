@@ -181,7 +181,7 @@ decision.
   migration was applied to the local SQLite database and Prisma Client was
   regenerated. Static TypeScript checking passes. Manual sign-in and submission
   flow still needs browser verification.
-- [ ] **M3 — Scheduler:** add the pure TypeScript solver, fixtures and unit
+- [x] **M3 — Scheduler:** add the pure TypeScript solver, fixtures and unit
   tests for every source rule, candidate generation, constraint diagnostics,
   and admin review. **Progress (2026-10-26):** implemented deterministic
   TypeScript candidate generation, READY-only admin generation, immutable
@@ -189,16 +189,33 @@ decision.
   solver follows the Python hard constraints and fairness objective, returns
   structured infeasibility/search-limit errors, and caps search at 250,000
   states. Schedule run and assignment migrations are applied locally and the
-  Prisma Client is regenerated. Static TypeScript checking passes. Solver
-  fixtures and unit tests remain before M3 is complete.
+  Prisma Client is regenerated. **Completed (2026-10-26):** added Node built-in
+  tests backed by fixtures for available/unavailable normalization, leap-year
+  February, five-day mandatory availability, conflicting mandatory days,
+  uncovered days, 31-day fairness optimum, deterministic ordering, consecutive
+  day rules, and invalid input handling. All eight tests pass without adding a
+  test dependency.
 - [ ] **M4 — Publishing and history:** publish/version schedules, calendar and
   workload views, historical month navigation, and authorization tests.
   **Progress (2026-10-26):** admins can publish a complete generated version;
   each run records `publishedAt`, and publication atomically marks the chosen
   run as official and the month `PUBLISHED`. Authenticated team members can
   browse the published schedule archive and open a color-coded monthly view.
-  The local SQLite migration is applied. Authorization tests and end-to-end
-  browser review remain outstanding.
+  Admins can revise a generated candidate or publish an edit as a new linked
+  version. Reassignment and two-day swaps preserve hard constraints and refresh
+  fairness/workload; published past dates require an explicit correction
+  override and reason. `basedOnRunId` and `revisionReason` retain edit lineage,
+  and prior `publishedAt` timestamps remain intact. The SQLite migration is
+  applied and Prisma Client regenerated. TypeScript, ESLint, and diff checks
+  pass; editor tests and browser review remain outstanding. Authorization tests
+  also remain outstanding. The reassignment Select maps stable participant IDs
+  to their snapshot names for the visible label. The save control explains when
+  it is disabled because there is no staged change, a conflict, or a missing
+  published-change reason. Manual hard-rule violations now display as warnings;
+  any exception requires a reason, and the warning/reason are stored on the
+  revision and shown to admins and on the published schedule.
+  Version history supports read-only previews and restoration as a new version;
+  restore operations require a reason and honor published past-date safeguards.
 - [ ] **M5 — Deploy and operate:** configure production database and secrets,
   migrate safely, deploy, create backups/export procedure, and test the
   production login → submit → generate → publish journey.
@@ -219,8 +236,38 @@ for unavailable in both light and dark themes. Selected state is exposed on the
 day button itself as `data-selected`, matching DayPicker's modifier state so
 the per-state colors apply reliably.
 
+**Theme support (2026-10-26):** shadcn semantic color tokens have light and dark
+values. `next-themes` applies the `.dark` class from the saved user choice or
+system preference; a shared toggle appears in the app header and sign-in page.
+The default follows the operating system and user overrides persist locally.
+
+**Schedule editing plan (2026-10-26):** admins edit a generated candidate before
+publishing or save a new published revision afterward. The editor supports
+single-day reassignment and explicit two-day swaps; it never cascades changes
+to other dates. Hard-rule violations appear as warnings during manual edits;
+admins may save an exception only with a required reason, and the warning is
+stored with the revision. Workload/fairness are recalculated. Published past days are locked by default; an explicit
+correction override is available with a required change reason. Each edit
+creates a version linked to its source run, and a published edit becomes the
+new official version while prior run publication timestamps remain in history.
+The most recently published version is current. The current and historical
+dates use the app's operational timezone, Europe/Athens.
+
 Do one milestone at a time. Before starting the next, update this plan with
 what was built, tests run, deviations, and any new decision.
+
+**Scheduler test command:** `node --experimental-strip-types
+--experimental-default-type=module --test tests/scheduler.test.mjs` (Node 22
+built-in test runner with TypeScript stripping; no test package install
+required). The same command is exposed as `pnpm run test:scheduler`; direct
+Node invocation is the verified path because `pnpm run` stalled silently in
+this environment.
+
+## Architecture artifacts
+
+- [Database schema diagram](docs/database-schema.drawio): editable diagrams.net
+  ER diagram generated from the Prisma models. Update it when models or
+  relations change; it documents each table, keys/indexes, and relationships.
 
 ## Non-functional guardrails
 
@@ -258,7 +305,12 @@ what was built, tests run, deviations, and any new decision.
 | 2026-10-26 | Start availability and schedule calendars on Monday. | Accepted. This matches the team's weekday-first reading preference; schedule grid offsets and weekday labels follow the same ordering. |
 | 2026-10-26 | Use dark green for available calendar days and dark red for unavailable days. | Accepted. Both states use white text and remain high-contrast in light and dark themes. |
 | 2026-10-26 | Drive availability day colors from the calendar button's selected modifier. | Accepted. React Day Picker v10 exposes the selected state on the day cell, not `aria-pressed` on the button; the custom day button now mirrors that modifier as `data-selected`. |
+| 2026-10-26 | Use `next-themes` with shadcn light/dark tokens, system default, and a persistent manual toggle. | Accepted. Use the existing dependency; expose the toggle on authenticated app pages and sign-in, and prevent initial hydration mismatch on the root element. |
+| 2026-10-26 | Edit assignments through a targeted day editor and an explicit two-day swap; persist every edit as a versioned revision. | Accepted. Preserve generated and published history, enforce availability/no-consecutive/mandatory rules, recalculate fairness, and allow published past-date corrections only with an explicit override and required reason. |
+| 2026-10-26 | Allow manual schedule exceptions with visible validation warnings and a required reason. | Accepted. The solver continues to enforce its rules for generated schedules; admin-edited assignments may override availability, consecutive-day, or mandatory-availability warnings. Save the warnings and reason with the new immutable revision for audit. |
+| 2026-10-26 | Preview historical versions and restore them as a new version. | Accepted. Keep prior versions immutable; restoring creates a new linked candidate or published version, requires a reason, and applies the past-date correction safeguard. |
 | 2026-10-26 | Mark the official schedule version with `ScheduleRun.publishedAt`; show published months to all signed-in team members. | Accepted. Publication is one transaction that selects the official run and marks the month `PUBLISHED`; the immutable generation snapshot remains available for history. |
+| 2026-10-26 | Keep each run's `publishedAt` as its first publication timestamp; latest timestamp identifies the current official version. | Accepted. This preserves the fact and time that older revisions were official while still making one version current. |
 | 2026-10-26 | Use warm neutral surfaces, deep teal actions, and compact role-aware navigation. | Accepted. It gives the small operations tool a distinct visual identity while keeping screens calm, readable, and responsive without additional dependencies. |
 
 ## Open decisions (do not guess)

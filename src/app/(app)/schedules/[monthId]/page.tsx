@@ -13,6 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { getCurrentSession } from "@/lib/auth-guard";
+import { parseScheduleWarnings } from "@/lib/schedule-edits";
 import { prisma } from "@/lib/prisma";
 
 function formatMonth(year: number, month: number) {
@@ -41,7 +42,7 @@ export default async function PublishedSchedulePage({
       },
       scheduleRuns: {
         where: { publishedAt: { not: null } },
-        orderBy: { publishedAt: "desc" },
+        orderBy: [{ publishedAt: "desc" }, { version: "desc" }],
         take: 1,
         include: { assignments: { orderBy: { date: "asc" } } },
       },
@@ -50,6 +51,7 @@ export default async function PublishedSchedulePage({
 
   if (!month || !month.scheduleRuns[0]) notFound();
   const run = month.scheduleRuns[0];
+  const warnings = parseScheduleWarnings(run.validationWarnings);
 
   return (
     <div className="grid gap-8">
@@ -74,6 +76,19 @@ export default async function PublishedSchedulePage({
           <CardDescription>Official version {run.version} · fairness score {run.fairnessScore} · lower is more balanced</CardDescription>
         </CardHeader>
         <CardContent>
+          {warnings.length || run.revisionReason ? (
+            <div className="mb-5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4" role="note">
+              <p className="text-sm font-semibold">
+                {warnings.length ? "Admin-approved schedule exceptions" : "Admin revision note"}
+              </p>
+              {run.revisionReason ? <p className="mt-2 text-sm text-muted-foreground">{run.revisionReason}</p> : null}
+              {warnings.length ? (
+                <ul className="mt-2 grid gap-1 text-sm text-muted-foreground">
+                  {warnings.map((warning) => <li key={warning}>{warning}</li>)}
+                </ul>
+              ) : null}
+            </div>
+          ) : null}
           <ScheduleCalendar
             assignments={run.assignments}
             members={month.members}

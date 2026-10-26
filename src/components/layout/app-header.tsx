@@ -3,6 +3,7 @@ import { CalendarDays, LogOut, Shield, UsersRound } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 type AppHeaderProps = {
   name: string;
@@ -46,6 +47,7 @@ export function AppHeader({ name, role }: AppHeaderProps) {
           </nav>
 
           <div className="flex items-center gap-2">
+            <ThemeToggle />
             <div className="hidden items-center gap-2 rounded-full border bg-card px-3 py-1.5 lg:flex">
               <span aria-hidden="true" className="grid size-7 place-items-center rounded-full bg-secondary text-secondary-foreground">
                 {role === "ADMIN" ? <Shield className="size-3.5" /> : <UsersRound className="size-3.5" />}

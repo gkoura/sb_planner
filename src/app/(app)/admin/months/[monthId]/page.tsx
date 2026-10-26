@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 
 import { GenerateScheduleForm } from "@/components/schedules/generate-schedule-form";
 import { PublishScheduleForm } from "@/components/schedules/publish-schedule-form";
+import { RestoreScheduleForm } from "@/components/schedules/restore-schedule-form";
+import { ScheduleEditor } from "@/components/schedules/schedule-editor";
 import { ScheduleCalendar } from "@/components/schedules/schedule-calendar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,6 +17,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { requireAdmin } from "@/lib/auth-guard";
+import {
+  getOperationalDate,
+  parseScheduleInputSnapshot,
+  parseScheduleWarnings,
+} from "@/lib/schedule-edits";
 import { prisma } from "@/lib/prisma";
 
 function formatMonth(year: number, month: number) {
@@ -36,11 +43,14 @@ function formatDate(value: string) {
 
 export default async function PlanningMonthPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ monthId: string }>;
+  searchParams: Promise<{ version?: string | string[] }>;
 }) {
   await requireAdmin();
-  const { monthId } = await params;
+  const [{ monthId }, query] = await Promise.all([params, searchParams]);
+  const requestedVersionId = typeof query.version === "string" ? query.version : undefined;
   const month = await prisma.planningMonth.findUnique({
     where: { id: monthId },
     include: {
@@ -50,7 +60,6 @@ export default async function PlanningMonthPage({
       },
       scheduleRuns: {
         orderBy: { version: "desc" },
-        take: 1,
         include: {
           assignments: { orderBy: { date: "asc" } },
         },
@@ -63,7 +72,22 @@ export default async function PlanningMonthPage({
   const submittedCount = month.members.filter(
     (member) => member.availabilitySubmission,
   ).length;
-  const scheduleRun = month.scheduleRuns[0];
+  const currentScheduleRun = month.scheduleRuns[0];
+  const previewRun = requestedVersionId
+    ? month.scheduleRuns.find((run) => run.id === requestedVersionId)
+    : undefined;
+  const isPreview = !!previewRun && previewRun.id !== currentScheduleRun?.id;
+  const scheduleRun = isPreview ? previewRun : currentScheduleRun;
+  const previewWarnings = scheduleRun
+    ? parseScheduleWarnings(scheduleRun.validationWarnings)
+    : [];
+  const scheduleSnapshot = scheduleRun
+    ? parseScheduleInputSnapshot(scheduleRun.inputSnapshot)
+    : null;
+  const editorMembers = scheduleSnapshot?.members.flatMap((snapshotMember) => {
+    const member = month.members.find((candidate) => candidate.id === snapshotMember.id);
+    return member ? [{ ...snapshotMember, roleSnapshot: member.roleSnapshot }] : [];
+  }) ?? [];
 
   return (
     <div className="grid gap-8">
@@ -96,14 +120,31 @@ export default async function PlanningMonthPage({
         <>
           <Card>
             <CardHeader>
-              <CardTitle>{scheduleRun.publishedAt ? "Published schedule" : "Candidate schedule"}</CardTitle>
+              <CardTitle>
+                {isPreview
+                  ? `Preview · version ${scheduleRun.version}`
+                  : month.status === "PUBLISHED"
+                    ? "Published schedule"
+                    : "Candidate schedule"}
+              </CardTitle>
               <CardDescription>
                 Version {scheduleRun.version} · generated {formatDate(scheduleRun.generatedAt.toISOString().slice(0, 10))}
                 {" · "}fairness score {scheduleRun.fairnessScore} · lower is more balanced
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {scheduleRun.publishedAt ? (
+              {isPreview ? (
+                <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-muted/30 p-4">
+                  <p className="text-sm text-muted-foreground">
+                    Historical version preview. This is not the current schedule.
+                  </p>
+                  {currentScheduleRun ? (
+                    <Button render={<Link href={`/admin/months/${month.id}`} />} size="sm" variant="outline">
+                      Back to current version
+                    </Button>
+                  ) : null}
+                </div>
+              ) : scheduleRun.publishedAt ? (
                 <p className="mb-4 text-sm font-medium text-emerald-700 dark:text-emerald-400">
                   Published {formatDate(scheduleRun.publishedAt.toISOString().slice(0, 10))} · this is the official schedule.
                 </p>
@@ -115,14 +156,90 @@ export default async function PlanningMonthPage({
                   <PublishScheduleForm scheduleRunId={scheduleRun.id} />
                 </div>
               ) : null}
-              <ScheduleCalendar
-                assignments={scheduleRun.assignments}
-                members={month.members}
-                month={month.month}
-                year={month.year}
-              />
+              {isPreview ? (
+                <>
+                  {scheduleRun.revisionReason || previewWarnings.length ? (
+                    <div className="mb-5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
+                      {scheduleRun.revisionReason ? <p className="text-sm text-muted-foreground">{scheduleRun.revisionReason}</p> : null}
+                      {previewWarnings.length ? (
+                        <ul className="grid gap-1 text-sm text-amber-700 dark:text-amber-300">
+                          {previewWarnings.map((warning) => <li key={warning}>{warning}</li>)}
+                        </ul>
+                      ) : null}
+                    </div>
+                  ) : null}
+                  <ScheduleCalendar
+                    assignments={scheduleRun.assignments}
+                    members={month.members}
+                    month={month.month}
+                    year={month.year}
+                  />
+                </>
+              ) : scheduleSnapshot ? (
+                <ScheduleEditor
+                  key={scheduleRun.id}
+                  assignments={scheduleRun.assignments}
+                  isPublished={month.status === "PUBLISHED"}
+                  members={editorMembers}
+                  month={month.month}
+                  scheduleRunId={scheduleRun.id}
+                  today={getOperationalDate()}
+                  year={month.year}
+                />
+              ) : (
+                <p className="text-sm text-destructive">
+                  This schedule is missing its original availability snapshot and cannot be edited.
+                </p>
+              )}
+              {isPreview && currentScheduleRun ? (
+                <div className="mt-5">
+                  <RestoreScheduleForm
+                    currentScheduleHref={`/admin/months/${month.id}`}
+                    isPublished={month.status === "PUBLISHED"}
+                    sourceRunId={scheduleRun.id}
+                  />
+                </div>
+              ) : null}
             </CardContent>
           </Card>
+
+          {month.scheduleRuns.length > 1 ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Version history</CardTitle>
+                <CardDescription>Every saved edit preserves the previous schedule.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ol className="grid gap-3">
+                  {month.scheduleRuns.map((run) => {
+                    const warnings = parseScheduleWarnings(run.validationWarnings);
+                    return (
+                      <li className="rounded-lg border p-3" key={run.id}>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-sm font-semibold">Version {run.version}</span>
+                        {run.id === currentScheduleRun?.id ? <Badge variant="secondary">current</Badge> : null}
+                          {run.publishedAt ? <Badge variant="outline">published</Badge> : null}
+                          {warnings.length ? <Badge variant="outline">{warnings.length} exception{warnings.length === 1 ? "" : "s"}</Badge> : null}
+                          <span className="text-xs text-muted-foreground">{formatDate(run.generatedAt.toISOString().slice(0, 10))}</span>
+                        {run.id !== currentScheduleRun?.id ? (
+                          <Button className="ml-auto" render={<Link href={`/admin/months/${month.id}?version=${run.id}`} />} size="sm" variant="outline">
+                            Preview
+                          </Button>
+                        ) : null}
+                        </div>
+                        {run.revisionReason ? <p className="mt-2 text-sm text-muted-foreground">{run.revisionReason}</p> : null}
+                        {warnings.length ? (
+                          <ul className="mt-2 grid gap-1 text-sm text-amber-700 dark:text-amber-300">
+                            {warnings.map((warning) => <li key={warning}>{warning}</li>)}
+                          </ul>
+                        ) : null}
+                      </li>
+                    );
+                  })}
+                </ol>
+              </CardContent>
+            </Card>
+          ) : null}
 
         </>
       ) : (

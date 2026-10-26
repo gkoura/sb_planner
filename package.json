@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "test:scheduler": "node --experimental-strip-types --experimental-default-type=module --test tests/scheduler.test.mjs",
     "postinstall": "prisma generate",
     "lint": "eslint",
     "seed:admin": "node scripts/seed-admin.mjs"
