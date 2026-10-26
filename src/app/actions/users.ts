@@ -15,6 +15,57 @@ export type CreateEngineerState = {
   success?: string;
 };
 
+export type ChangeUserRoleState = {
+  error?: string;
+  success?: string;
+};
+
+export async function changeUserRole(
+  _previousState: ChangeUserRoleState,
+  formData: FormData,
+): Promise<ChangeUserRoleState> {
+  const session = await requireAdmin();
+  const userId = String(formData.get("userId") ?? "");
+  const role = String(formData.get("role") ?? "");
+
+  if (!userId || userId.length > 200 || !["ADMIN", "ENGINEER"].includes(role)) {
+    return { error: "Choose a valid team member and role." };
+  }
+  if (userId === session.user.id) {
+    return { error: "Ask another admin to change your admin access." };
+  }
+
+  try {
+    const result = await prisma.$transaction(async (transaction) => {
+      const target = await transaction.user.findUnique({
+        where: { id: userId },
+        select: { id: true, name: true, role: true },
+      });
+      if (!target) return { error: "That account no longer exists." };
+      if (target.role === role) return { success: `${target.name} already has that access.` };
+
+      if (target.role === "ADMIN" && role === "ENGINEER") {
+        const adminCount = await transaction.user.count({ where: { role: "ADMIN" } });
+        if (adminCount <= 1) return { error: "Promote another team member before removing the last admin." };
+      }
+
+      await transaction.user.update({ where: { id: target.id }, data: { role } });
+      return {
+        success: role === "ADMIN"
+          ? `${target.name} is now an admin and can manage schedules and team access.`
+          : `${target.name} is now an engineer.`,
+      };
+    });
+
+    if (result.error) return result;
+    revalidatePath("/");
+    revalidatePath("/admin/users");
+    return result;
+  } catch {
+    return { error: "Unable to update team access. Try again." };
+  }
+}
+
 export async function createEngineer(
   _previousState: CreateEngineerState,
   formData: FormData,

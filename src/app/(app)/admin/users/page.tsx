@@ -1,13 +1,14 @@
 import { UsersRound } from "lucide-react";
 
 import { CreateEngineerForm } from "@/components/users/create-engineer-form";
+import { UserRoleForm } from "@/components/users/user-role-form";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireAdmin } from "@/lib/auth-guard";
 import { prisma } from "@/lib/prisma";
 
 export default async function UsersPage() {
-  await requireAdmin();
+  const session = await requireAdmin();
 
   const users = await prisma.user.findMany({
     orderBy: [{ role: "asc" }, { name: "asc" }],
@@ -22,10 +23,11 @@ export default async function UsersPage() {
           <UsersRound className="size-5" />
           <span className="text-sm font-medium">Team access</span>
         </div>
-        <h1 className="text-3xl font-semibold tracking-tight">Engineers</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">Team access</h1>
         <p className="text-muted-foreground">
           {engineerCount} of 10 engineer accounts are active. Admin accounts are
-          separate and can opt into each month&apos;s rotation.
+          separate and can opt into each month&apos;s rotation. Admins can manage
+          schedules and team access; this permission is separate from team titles.
         </p>
 
         <Card className="mt-4">
@@ -35,14 +37,21 @@ export default async function UsersPage() {
           <CardContent>
             <ul className="divide-y">
               {users.map((user) => (
-                <li className="flex items-center justify-between gap-4 py-3" key={user.id}>
+                <li className="flex flex-wrap items-center justify-between gap-3 py-3" key={user.id}>
                   <div className="min-w-0">
-                    <p className="truncate font-medium">{user.name}</p>
+                    <p className="truncate font-medium">
+                      {user.name}{user.id === session.user.id ? <span className="ml-2 text-xs font-normal text-muted-foreground">you</span> : null}
+                    </p>
                     <p className="truncate text-sm text-muted-foreground">
                       {user.email}
                     </p>
                   </div>
-                  <Badge variant="secondary">{user.role.toLowerCase()}</Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary">{user.role.toLowerCase()}</Badge>
+                    {user.id !== session.user.id ? (
+                      <UserRoleForm role={user.role} userId={user.id} userName={user.name} />
+                    ) : null}
+                  </div>
                 </li>
               ))}
             </ul>
