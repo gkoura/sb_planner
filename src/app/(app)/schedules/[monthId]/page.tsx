@@ -39,7 +39,12 @@ export default async function PublishedSchedulePage({
     include: {
       members: {
         orderBy: { nameSnapshot: "asc" },
-        select: { id: true, nameSnapshot: true, roleSnapshot: true },
+        select: {
+          id: true,
+          nameSnapshot: true,
+          roleSnapshot: true,
+          user: { select: { phoneNumber: true } },
+        },
       },
       scheduleRuns: {
         where: { publishedAt: { not: null } },
@@ -95,7 +100,12 @@ export default async function PublishedSchedulePage({
                 kind: shadow.kind,
               })),
             }))}
-            members={month.members}
+            members={month.members.map((member) => ({
+              id: member.id,
+              nameSnapshot: member.nameSnapshot,
+              roleSnapshot: member.roleSnapshot,
+              phoneNumber: member.user.phoneNumber,
+            }))}
             month={month.month}
             title={formatMonth(month.year, month.month)}
             version={run.version}
@@ -118,7 +128,12 @@ export default async function PublishedSchedulePage({
           ) : null}
           <ScheduleCalendar
             assignments={run.assignments}
-            members={month.members}
+            members={month.members.map((member) => ({
+              id: member.id,
+              nameSnapshot: member.nameSnapshot,
+              roleSnapshot: member.roleSnapshot,
+              phoneNumber: member.user.phoneNumber,
+            }))}
             month={month.month}
             year={month.year}
           />

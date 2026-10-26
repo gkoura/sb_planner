@@ -5,6 +5,7 @@ type ScheduleMember = {
   id: string;
   nameSnapshot: string;
   roleSnapshot: string;
+  phoneNumber?: string | null;
 };
 
 type ScheduleAssignment = {
@@ -138,10 +139,15 @@ export function ScheduleCalendar({
         {members.map((member) => {
           const color = colorsByMemberId.get(member.id);
           return (
-            <li className="flex min-w-0 items-center gap-2 rounded-lg border bg-background px-3 py-2" key={member.id}>
+            <li className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 rounded-lg border bg-background px-3 py-2" key={member.id}>
               <span aria-hidden="true" className="size-3 shrink-0 rounded-sm" style={{ backgroundColor: color?.foreground }} />
               <span className="min-w-0 truncate text-sm font-medium">{member.nameSnapshot}</span>
-              <span className="ml-auto shrink-0 text-xs text-muted-foreground">
+              {member.phoneNumber ? (
+                <a className="col-start-2 w-fit text-xs text-primary underline-offset-4 hover:underline" href={`tel:${member.phoneNumber}`}>
+                  {member.phoneNumber}
+                </a>
+              ) : null}
+              <span className="col-start-3 row-start-1 row-span-2 text-xs text-muted-foreground">
                 {(assignmentsByMember.get(member.id) ?? 0) + (shadowsByMember.get(member.id) ?? 0)} duties
               </span>
             </li>

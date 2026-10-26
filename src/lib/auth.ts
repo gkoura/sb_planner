@@ -20,6 +20,11 @@ export const auth = betterAuth({
         defaultValue: "ENGINEER",
         input: false,
       },
+      phoneNumber: {
+        type: "string",
+        required: false,
+        input: false,
+      },
     },
   },
 });

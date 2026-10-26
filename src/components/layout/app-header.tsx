@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarDays, LogOut, Shield, UsersRound } from "lucide-react";
+import { CalendarDays, LogOut, Settings, Shield, UsersRound } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -33,6 +33,10 @@ export function AppHeader({ name, role }: AppHeaderProps) {
             </Button>
             <Button nativeButton={false} render={<Link href="/schedules" />} size="sm" variant="ghost">
               Schedules
+            </Button>
+            <Button nativeButton={false} render={<Link href="/account" />} size="sm" variant="ghost">
+              <Settings aria-hidden="true" />
+              Account
             </Button>
             {role === "ADMIN" ? (
               <>
@@ -71,6 +75,10 @@ export function AppHeader({ name, role }: AppHeaderProps) {
           </Button>
           <Button className="h-11 flex-1" nativeButton={false} render={<Link href="/schedules" />} size="sm" variant="ghost">
             Schedules
+          </Button>
+          <Button aria-label="Account settings" className="h-11 flex-1" nativeButton={false} render={<Link href="/account" />} size="sm" variant="ghost">
+            <Settings aria-hidden="true" />
+            <span className="hidden sm:inline">Account</span>
           </Button>
           {role === "ADMIN" ? (
             <>

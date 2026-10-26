@@ -41,6 +41,20 @@ export function CreateEngineerForm() {
         />
       </div>
       <div className="grid gap-2">
+        <Label htmlFor="engineer-phone">Phone number <span className="font-normal text-muted-foreground">(optional)</span></Label>
+        <Input
+          autoComplete="tel"
+          id="engineer-phone"
+          inputMode="tel"
+          name="phoneNumber"
+          placeholder="+306912345678"
+          type="tel"
+        />
+        <p className="text-sm text-muted-foreground">
+          Use the international format with country code. The team can see it on standby schedules.
+        </p>
+      </div>
+      <div className="grid gap-2">
         <Label htmlFor="engineer-password">Temporary password</Label>
         <Input
           autoComplete="new-password"
@@ -51,8 +65,7 @@ export function CreateEngineerForm() {
           type="password"
         />
         <p className="text-sm text-muted-foreground">
-          Share this securely. Password changes will be added with account
-          settings.
+          Share this securely. They can change it later in account settings.
         </p>
       </div>
       <div aria-atomic="true" aria-live="polite">

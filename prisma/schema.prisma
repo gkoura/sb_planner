@@ -34,6 +34,7 @@ model User {
   id                    String           @id
   name                  String
   email                 String           @unique
+  phoneNumber           String?
   emailVerified         Boolean          @default(false)
   image                 String?
   role                  String           @default("ENGINEER")

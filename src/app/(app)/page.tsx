@@ -4,6 +4,7 @@ import {
   Clock3,
   CalendarDays,
   ClipboardList,
+  Phone,
   UsersRound,
 } from "lucide-react";
 import { Suspense } from "react";
@@ -64,6 +65,7 @@ function TodayStandbyCard({
 }: {
   assignment: {
     nameSnapshot: string;
+    phoneNumber: string | null;
     planningMonth: { id: string };
   } | null;
   today: string;
@@ -83,9 +85,19 @@ function TodayStandbyCard({
           </div>
         </div>
         {assignment ? (
-          <Button nativeButton={false} render={<Link href={`/schedules/${assignment.planningMonth.id}`} />} variant="outline">
-            View schedule <ArrowRight aria-hidden="true" />
-          </Button>
+          <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+            {assignment.phoneNumber ? (
+              <Button nativeButton={false} render={<a href={`tel:${assignment.phoneNumber}`} />} variant="outline">
+                <Phone aria-hidden="true" />
+                {assignment.phoneNumber}
+              </Button>
+            ) : (
+              <p className="text-sm text-muted-foreground">No phone number on file</p>
+            )}
+            <Button nativeButton={false} render={<Link href={`/schedules/${assignment.planningMonth.id}`} />} variant="outline">
+              View schedule <ArrowRight aria-hidden="true" />
+            </Button>
+          </div>
         ) : (
           <p className="text-sm text-muted-foreground">The team schedule for today hasn’t been published.</p>
         )}
@@ -106,6 +118,7 @@ type HomepageSchedule = {
       planningMemberId: string;
       nameSnapshot: string;
       roleSnapshot: string;
+      planningMember: { user: { phoneNumber: string | null } };
       shadows: {
         shadowMemberId: string;
         kind: "TRAINING" | "MENTORING";
@@ -261,7 +274,10 @@ async function HomeContent() {
         include: {
           assignments: {
             orderBy: { date: "asc" },
-            include: { shadows: { select: { shadowMemberId: true, kind: true, nameSnapshot: true } } },
+            include: {
+              shadows: { select: { shadowMemberId: true, kind: true, nameSnapshot: true } },
+              planningMember: { select: { user: { select: { phoneNumber: true } } } },
+            },
           },
         },
       },
@@ -272,6 +288,7 @@ async function HomeContent() {
   const onCallToday = todayAssignment && publishedMonth
     ? {
         nameSnapshot: todayAssignment.nameSnapshot,
+        phoneNumber: todayAssignment.planningMember.user.phoneNumber,
         planningMonth: { id: publishedMonth.id },
       }
     : null;

@@ -4,6 +4,7 @@ import { hashPassword } from "better-auth/crypto";
 import { revalidatePath } from "next/cache";
 
 import { requireAdmin } from "@/lib/auth-guard";
+import { parseOptionalPhoneNumber } from "@/lib/phone-number";
 import { prisma } from "@/lib/prisma";
 
 const MAX_ENGINEERS = 10;
@@ -23,6 +24,9 @@ export async function createEngineer(
   const name = String(formData.get("name") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
+  const { phoneNumber, valid: validPhone } = parseOptionalPhoneNumber(
+    String(formData.get("phoneNumber") ?? ""),
+  );
 
   if (name.length < 2 || name.length > 100) {
     return { error: "Enter a name between 2 and 100 characters." };
@@ -34,6 +38,10 @@ export async function createEngineer(
 
   if (password.length < 8 || password.length > 128) {
     return { error: "Use a password between 8 and 128 characters." };
+  }
+
+  if (!validPhone) {
+    return { error: "Enter an international number, including the country code (for example, +306912345678)." };
   }
 
   const passwordHash = await hashPassword(password);
@@ -61,6 +69,7 @@ export async function createEngineer(
           id: userId,
           name,
           email,
+          phoneNumber,
           emailVerified: true,
           role: "ENGINEER",
           createdAt: now,

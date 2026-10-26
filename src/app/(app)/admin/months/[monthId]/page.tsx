@@ -57,7 +57,10 @@ export default async function PlanningMonthPage({
     include: {
       members: {
         orderBy: { nameSnapshot: "asc" },
-        include: { availabilitySubmission: { select: { id: true } } },
+        include: {
+          availabilitySubmission: { select: { id: true } },
+          user: { select: { phoneNumber: true } },
+        },
       },
       scheduleRuns: {
         orderBy: { version: "desc" },
@@ -190,7 +193,12 @@ export default async function PlanningMonthPage({
                   ) : null}
                   <ScheduleCalendar
                     assignments={scheduleRun.assignments}
-                    members={month.members}
+                    members={month.members.map((member) => ({
+                      id: member.id,
+                      nameSnapshot: member.nameSnapshot,
+                      roleSnapshot: member.roleSnapshot,
+                      phoneNumber: member.user.phoneNumber,
+                    }))}
                     month={month.month}
                     year={month.year}
                   />

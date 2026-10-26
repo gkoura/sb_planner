@@ -12,6 +12,7 @@ type ExportMember = {
   id: string;
   nameSnapshot: string;
   roleSnapshot: string;
+  phoneNumber?: string | null;
 };
 
 type ExportAssignment = {
@@ -37,6 +38,10 @@ function weekday(date: string) {
 function csvCell(value: string) {
   const safeValue = /^[=+\-@\t\r\n]/.test(value) ? `'${value}` : value;
   return `"${safeValue.replaceAll('"', '""')}"`;
+}
+
+function markdownCell(value: string) {
+  return value.replaceAll("|", "\\|").replace(/\r?\n/g, "<br>");
 }
 
 function escapeXml(value: string) {
@@ -91,7 +96,8 @@ function buildScheduleSvg({
   const legendColumns = 3;
   const legendRows = Math.ceil(members.length / legendColumns);
   const legendTop = gridTop + headerHeight + weeks.length * (rowHeight + rowGap) + 28;
-  const height = legendTop + Math.max(1, legendRows) * 40 + 48;
+  const legendRowHeight = 48;
+  const height = legendTop + Math.max(1, legendRows) * legendRowHeight + 48;
   const colorsByMemberId = new Map(
     members.map((member, index) => [member.id, SCHEDULE_COLORS[index % SCHEDULE_COLORS.length]]),
   );
@@ -149,11 +155,14 @@ function buildScheduleSvg({
     const column = index % legendColumns;
     const row = Math.floor(index / legendColumns);
     const x = padding + column * (gridWidth / legendColumns);
-    const y = legendTop + row * 40;
+    const y = legendTop + row * legendRowHeight;
     const color = colorsByMemberId.get(member.id);
     svg.push(`<circle cx="${x + 7}" cy="${y + 8}" r="7" fill="${color?.foreground ?? "#526967"}"/>`);
     const totalDays = (assignmentsByMember.get(member.id) ?? 0) + (shadowsByMember.get(member.id) ?? 0);
     svg.push(`<text x="${x + 24}" y="${y + 13}" fill="#233c3b" font-family="Arial,sans-serif" font-size="14" font-weight="600">${escapeXml(member.nameSnapshot)}${member.roleSnapshot === "ADMIN" ? " (admin)" : ""} · ${totalDays} days</text>`);
+    if (member.phoneNumber) {
+      svg.push(`<text x="${x + 24}" y="${y + 34}" fill="#526967" font-family="Arial,sans-serif" font-size="12">${escapeXml(member.phoneNumber)}</text>`);
+    }
   });
 
   svg.push("</svg>");
@@ -178,16 +187,28 @@ export function ScheduleExportMenu({
   const filename = `standby-schedule-${year}-${String(month).padStart(2, "0")}`;
 
   async function copyMarkdown() {
-    const rows = assignments.map((assignment) =>
-      `| ${assignment.date} | ${weekday(assignment.date)} | ${assignment.nameSnapshot.replaceAll("|", "\\|").replace(/\r?\n/g, "<br>")} | ${(assignment.shadows ?? []).map((shadow) => `${shadow.kind === "TRAINING" ? "Shadow" : "Mentor"}: ${shadow.nameSnapshot}`).join(", ") || "—"} |`,
-    );
+    const membersById = new Map(members.map((member) => [member.id, member]));
+    const rows = assignments.map((assignment) => {
+      const shadows = (assignment.shadows ?? []).map((shadow) => {
+        const phoneNumber = membersById.get(shadow.shadowMemberId)?.phoneNumber;
+        return `${shadow.kind === "TRAINING" ? "Shadow" : "Mentor"}: ${shadow.nameSnapshot}${phoneNumber ? ` (${phoneNumber})` : ""}`;
+      });
+      const cells = [
+        assignment.date,
+        weekday(assignment.date),
+        assignment.nameSnapshot,
+        membersById.get(assignment.planningMemberId)?.phoneNumber ?? "—",
+        shadows.join(", ") || "—",
+      ];
+      return `| ${cells.map(markdownCell).join(" | ")} |`;
+    });
     const markdown = [
       `# ${title} standby schedule`,
       "",
       `Official version ${version}`,
       "",
-      "| Date | Day | Standby engineer | Shadow / mentor |",
-      "| --- | --- | --- | --- |",
+      "| Date | Day | Standby engineer | Standby phone | Shadow / mentor (name and phone) |",
+      "| --- | --- | --- | --- | --- |",
       ...rows,
     ].join("\n");
 
@@ -200,13 +221,18 @@ export function ScheduleExportMenu({
   }
 
   function downloadCsv() {
+    const membersById = new Map(members.map((member) => [member.id, member]));
     const rows = [
-      ["Date", "Day", "Standby engineer", "Shadow / mentor"],
+      ["Date", "Day", "Standby engineer", "Standby phone", "Shadow / mentor (name and phone)"],
       ...assignments.map((assignment) => [
         assignment.date,
         weekday(assignment.date),
         assignment.nameSnapshot,
-        (assignment.shadows ?? []).map((shadow) => `${shadow.kind === "TRAINING" ? "Shadow" : "Mentor"}: ${shadow.nameSnapshot}`).join("; "),
+        membersById.get(assignment.planningMemberId)?.phoneNumber ?? "",
+        (assignment.shadows ?? []).map((shadow) => {
+          const phoneNumber = membersById.get(shadow.shadowMemberId)?.phoneNumber;
+          return `${shadow.kind === "TRAINING" ? "Shadow" : "Mentor"}: ${shadow.nameSnapshot}${phoneNumber ? ` (${phoneNumber})` : ""}`;
+        }).join("; "),
       ]),
     ];
     const csv = rows.map((row) => row.map(csvCell).join(",")).join("\r\n");
