@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { OpenCollectionForm } from "@/components/availability/open-collection-form";
 import { CreatePlanningMonthForm } from "@/components/planning-months/create-planning-month-form";
+import { DeleteDraftMonthForm } from "@/components/planning-months/delete-draft-month-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -63,6 +64,10 @@ export default async function PlanningMonthsPage() {
           Choose who will participate in each month. Membership is saved as a
           snapshot, and you can opt into a month without using an engineer slot.
         </p>
+        <p className="text-sm text-muted-foreground">
+          Only draft months without schedule history can be deleted; submitted
+          availability and published schedules remain in history.
+        </p>
       </section>
 
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
@@ -91,10 +96,16 @@ export default async function PlanningMonthsPage() {
                     </p>
                     <div className="flex flex-wrap items-center gap-3">
                       {planningMonth.status === "DRAFT" ? (
-                        <OpenCollectionForm planningMonthId={planningMonth.id} />
+                        <>
+                          <OpenCollectionForm planningMonthId={planningMonth.id} />
+                          <DeleteDraftMonthForm
+                            monthName={formatMonth(planningMonth.year, planningMonth.month)}
+                            planningMonthId={planningMonth.id}
+                          />
+                        </>
                       ) : null}
                       <Button
-                        render={<Link href={`/admin/months/${planningMonth.id}`} />}
+                        nativeButton={false} render={<Link href={`/admin/months/${planningMonth.id}`} />}
                         size="sm"
                         variant="outline"
                       >

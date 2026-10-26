@@ -12,6 +12,10 @@ export type CreatePlanningMonthState = {
   success?: string;
 };
 
+export type DeletePlanningMonthState = {
+  error?: string;
+};
+
 export async function createPlanningMonth(
   _previousState: CreatePlanningMonthState,
   formData: FormData,
@@ -128,4 +132,49 @@ export async function createPlanningMonth(
   revalidatePath("/admin/months");
   revalidatePath("/");
   return { success: "Planning month created as a draft." };
+}
+
+export async function deleteDraftPlanningMonth(
+  _previousState: DeletePlanningMonthState,
+  formData: FormData,
+): Promise<DeletePlanningMonthState> {
+  await requireAdmin();
+
+  const planningMonthId = String(formData.get("planningMonthId") ?? "").trim();
+  if (!planningMonthId) {
+    return { error: "Choose a planning month to delete." };
+  }
+
+  try {
+    await prisma.$transaction(async (transaction) => {
+      const planningMonth = await transaction.planningMonth.findUnique({
+        where: { id: planningMonthId },
+        select: {
+          scheduleRuns: { select: { id: true }, take: 1 },
+          status: true,
+        },
+      });
+
+      if (!planningMonth) {
+        throw new Error("This planning month no longer exists.");
+      }
+
+      if (planningMonth.status !== "DRAFT" || planningMonth.scheduleRuns.length) {
+        throw new Error("Only draft months without schedule history can be deleted.");
+      }
+
+      await transaction.planningMonth.delete({ where: { id: planningMonthId } });
+    });
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error
+          ? error.message
+          : "Unable to delete this planning month. Try again.",
+    };
+  }
+
+  revalidatePath("/admin/months");
+  revalidatePath("/");
+  return {};
 }

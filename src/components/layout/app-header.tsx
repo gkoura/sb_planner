@@ -28,18 +28,18 @@ export function AppHeader({ name, role }: AppHeaderProps) {
           </Link>
 
           <nav aria-label="Main navigation" className="hidden items-center gap-1 md:flex">
-            <Button render={<Link href="/availability" />} size="sm" variant="ghost">
+            <Button nativeButton={false} render={<Link href="/availability" />} size="sm" variant="ghost">
               Availability
             </Button>
-            <Button render={<Link href="/schedules" />} size="sm" variant="ghost">
+            <Button nativeButton={false} render={<Link href="/schedules" />} size="sm" variant="ghost">
               Schedules
             </Button>
             {role === "ADMIN" ? (
               <>
-                <Button render={<Link href="/admin/months" />} size="sm" variant="ghost">
+                <Button nativeButton={false} render={<Link href="/admin/months" />} size="sm" variant="ghost">
                   Planning months
                 </Button>
-                <Button render={<Link href="/admin/users" />} size="sm" variant="ghost">
+                <Button nativeButton={false} render={<Link href="/admin/users" />} size="sm" variant="ghost">
                   Team
                 </Button>
               </>
@@ -59,25 +59,25 @@ export function AppHeader({ name, role }: AppHeaderProps) {
                 </Badge>
               </span>
             </div>
-            <Button className="h-10 sm:h-7" render={<Link href="/sign-out" />} size="sm" variant="ghost">
+            <Button className="h-10 sm:h-7" nativeButton={false} render={<Link href="/sign-out" />} size="sm" variant="ghost">
               <LogOut aria-hidden="true" />
               <span className="hidden sm:inline">Sign out</span>
             </Button>
           </div>
         </div>
         <nav aria-label="Mobile navigation" className="flex min-h-12 items-center gap-1 border-t md:hidden">
-          <Button className="h-11 flex-1" render={<Link href="/availability" />} size="sm" variant="ghost">
+          <Button className="h-11 flex-1" nativeButton={false} render={<Link href="/availability" />} size="sm" variant="ghost">
             Availability
           </Button>
-          <Button className="h-11 flex-1" render={<Link href="/schedules" />} size="sm" variant="ghost">
+          <Button className="h-11 flex-1" nativeButton={false} render={<Link href="/schedules" />} size="sm" variant="ghost">
             Schedules
           </Button>
           {role === "ADMIN" ? (
             <>
-              <Button className="h-11 flex-1" render={<Link href="/admin/months" />} size="sm" variant="ghost">
+              <Button className="h-11 flex-1" nativeButton={false} render={<Link href="/admin/months" />} size="sm" variant="ghost">
                 Months
               </Button>
-              <Button className="h-11 flex-1" render={<Link href="/admin/users" />} size="sm" variant="ghost">
+              <Button className="h-11 flex-1" nativeButton={false} render={<Link href="/admin/users" />} size="sm" variant="ghost">
                 Team
               </Button>
             </>

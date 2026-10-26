@@ -94,7 +94,7 @@ export default async function PlanningMonthPage({
       <section className="grid gap-3">
         <Button
           className="w-fit px-0"
-          render={<Link href="/admin/months" />}
+          nativeButton={false} render={<Link href="/admin/months" />}
           size="sm"
           variant="ghost"
         >
@@ -139,7 +139,7 @@ export default async function PlanningMonthPage({
                     Historical version preview. This is not the current schedule.
                   </p>
                   {currentScheduleRun ? (
-                    <Button render={<Link href={`/admin/months/${month.id}`} />} size="sm" variant="outline">
+                    <Button nativeButton={false} render={<Link href={`/admin/months/${month.id}`} />} size="sm" variant="outline">
                       Back to current version
                     </Button>
                   ) : null}
@@ -222,7 +222,7 @@ export default async function PlanningMonthPage({
                           {warnings.length ? <Badge variant="outline">{warnings.length} exception{warnings.length === 1 ? "" : "s"}</Badge> : null}
                           <span className="text-xs text-muted-foreground">{formatDate(run.generatedAt.toISOString().slice(0, 10))}</span>
                         {run.id !== currentScheduleRun?.id ? (
-                          <Button className="ml-auto" render={<Link href={`/admin/months/${month.id}?version=${run.id}`} />} size="sm" variant="outline">
+                          <Button className="ml-auto" nativeButton={false} render={<Link href={`/admin/months/${month.id}?version=${run.id}`} />} size="sm" variant="outline">
                             Preview
                           </Button>
                         ) : null}

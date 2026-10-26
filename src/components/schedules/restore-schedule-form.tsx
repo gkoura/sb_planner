@@ -53,7 +53,7 @@ export function RestoreScheduleForm({
       {state.success ? (
         <div aria-live="polite" className="grid gap-2">
           <p className="text-sm text-emerald-700 dark:text-emerald-400" role="status">{state.success}</p>
-          <Button className="w-fit" render={<Link href={currentScheduleHref} />} size="sm" variant="outline">
+          <Button className="w-fit" nativeButton={false} render={<Link href={currentScheduleHref} />} size="sm" variant="outline">
             View current version
           </Button>
         </div>

@@ -5,6 +5,7 @@ import {
   ClipboardList,
   UsersRound,
 } from "lucide-react";
+import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -28,7 +29,33 @@ function formatMonth(year: number, month: number) {
   }).format(new Date(Date.UTC(year, month - 1, 1)));
 }
 
-export default async function Home() {
+function HomeFallback() {
+  return (
+    <div aria-label="Loading planning overview" className="grid gap-8" role="status">
+      <section className="rounded-3xl bg-primary px-6 py-8 text-primary-foreground shadow-sm sm:px-9 sm:py-10">
+        <p className="text-sm font-medium text-primary-foreground/80">SB Planner</p>
+        <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">Your standby desk</h1>
+        <p className="mt-3 max-w-xl text-sm leading-relaxed text-primary-foreground/80 sm:text-base">
+          Loading your planning overview…
+        </p>
+      </section>
+      <section aria-hidden="true" className="grid gap-4 sm:grid-cols-2">
+        <div className="h-24 animate-pulse rounded-2xl bg-muted" />
+        <div className="h-24 animate-pulse rounded-2xl bg-muted" />
+      </section>
+    </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={<HomeFallback />}>
+      <HomeContent />
+    </Suspense>
+  );
+}
+
+async function HomeContent() {
   const session = await getCurrentSession();
   if (!session) redirect("/sign-in");
 
@@ -61,11 +88,11 @@ export default async function Home() {
             Keep the monthly rotation clear, balanced, and ready for the whole team.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
-            <Button className="bg-background text-foreground hover:bg-background/90" render={<Link href="/admin/months" />}>
+            <Button className="bg-background text-foreground hover:bg-background/90" nativeButton={false} render={<Link href="/admin/months" />}>
               Manage planning months
               <ArrowRight aria-hidden="true" />
             </Button>
-            <Button className="border-primary-foreground/25 bg-primary-foreground/10 text-primary-foreground hover:bg-primary-foreground/15" render={<Link href="/admin/users" />} variant="outline">
+            <Button className="border-primary-foreground/25 bg-primary-foreground/10 text-primary-foreground hover:bg-primary-foreground/15" nativeButton={false} render={<Link href="/admin/users" />} variant="outline">
               Manage team
             </Button>
           </div>
@@ -102,7 +129,7 @@ export default async function Home() {
               <p className="text-sm font-medium text-primary">Planning overview</p>
               <h2 className="mt-1 text-xl font-semibold tracking-tight">Latest months</h2>
             </div>
-            <Button render={<Link href="/admin/months" />} size="sm" variant="ghost">
+            <Button nativeButton={false} render={<Link href="/admin/months" />} size="sm" variant="ghost">
               All months <ArrowRight aria-hidden="true" />
             </Button>
           </div>
@@ -152,7 +179,7 @@ export default async function Home() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Button render={<Link href="/admin/months" />}>
+                <Button nativeButton={false} render={<Link href="/admin/months" />}>
                   Create a planning month <ArrowRight aria-hidden="true" />
                 </Button>
               </CardContent>
@@ -189,7 +216,7 @@ export default async function Home() {
         <p className="mt-3 max-w-xl text-sm leading-relaxed text-primary-foreground/80 sm:text-base">
           Keep your dates up to date so your team can build a balanced schedule.
         </p>
-        <Button className="mt-6 bg-background text-foreground hover:bg-background/90" render={<Link href="/availability" />}>
+        <Button className="mt-6 bg-background text-foreground hover:bg-background/90" nativeButton={false} render={<Link href="/availability" />}>
           Update availability <ArrowRight aria-hidden="true" />
         </Button>
       </section>

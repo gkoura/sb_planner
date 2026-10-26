@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import { ScheduleCalendar } from "@/components/schedules/schedule-calendar";
+import { ScheduleExportMenu } from "@/components/schedules/schedule-export-menu";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -56,7 +57,7 @@ export default async function PublishedSchedulePage({
   return (
     <div className="grid gap-8">
       <section className="grid gap-3">
-        <Button className="w-fit px-0" render={<Link href="/schedules" />} size="sm" variant="ghost">
+        <Button className="w-fit px-0" nativeButton={false} render={<Link href="/schedules" />} size="sm" variant="ghost">
           <ArrowLeft aria-hidden="true" />
           Published schedules
         </Button>
@@ -71,9 +72,19 @@ export default async function PublishedSchedulePage({
       </section>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Standby schedule</CardTitle>
-          <CardDescription>Official version {run.version} · fairness score {run.fairnessScore} · lower is more balanced</CardDescription>
+        <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-4">
+          <div className="grid gap-1.5">
+            <CardTitle>Standby schedule</CardTitle>
+            <CardDescription>Official version {run.version} · fairness score {run.fairnessScore} · lower is more balanced</CardDescription>
+          </div>
+          <ScheduleExportMenu
+            assignments={run.assignments}
+            members={month.members}
+            month={month.month}
+            title={formatMonth(month.year, month.month)}
+            version={run.version}
+            year={month.year}
+          />
         </CardHeader>
         <CardContent>
           {warnings.length || run.revisionReason ? (
