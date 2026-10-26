@@ -3,6 +3,8 @@ export type ScheduleInputMember = {
   name: string;
   mode: "AVAILABLE" | "UNAVAILABLE";
   dates: string[];
+  participationMode?: "NORMAL" | "TRAINEE" | "MENTORED";
+  shadowDayCount?: number;
 };
 
 export type ScheduleInputSnapshot = {
@@ -46,15 +48,19 @@ export function parseScheduleInputSnapshot(value: string): ScheduleInputSnapshot
     ) return null;
 
     const members = candidate.members.map((member) => {
+      const participationMode = member?.participationMode ?? "NORMAL";
+      const shadowDayCount = member?.shadowDayCount ?? 0;
       if (
         !member ||
         typeof member.id !== "string" ||
         typeof member.name !== "string" ||
         !["AVAILABLE", "UNAVAILABLE"].includes(member.mode) ||
         !Array.isArray(member.dates) ||
-        member.dates.some((date) => typeof date !== "string")
+        member.dates.some((date) => typeof date !== "string") ||
+        !["NORMAL", "TRAINEE", "MENTORED"].includes(participationMode) ||
+        !Number.isInteger(shadowDayCount) || shadowDayCount < 0
       ) return null;
-      return member as ScheduleInputMember;
+      return { ...member, participationMode, shadowDayCount } as ScheduleInputMember;
     });
     if (members.some((member) => member === null)) return null;
 
@@ -98,6 +104,7 @@ export function validateScheduleEdit(
   const errors: string[] = [];
   const warnings: string[] = [];
   const memberById = new Map(members.map((member) => [member.id, member]));
+  const primaryMembers = members.filter((member) => member.participationMode !== "TRAINEE");
   const availableDatesByMember = new Map(
     members.map((member) => [member.id, getAvailableDates(year, month, member)]),
   );
@@ -114,6 +121,10 @@ export function validateScheduleEdit(
     }
     if (!memberById.has(assignment.planningMemberId)) {
       errors.push(`The selected participant for ${assignment.date} is not in this month.`);
+      continue;
+    }
+    if (memberById.get(assignment.planningMemberId)?.participationMode === "TRAINEE") {
+      errors.push(`${memberById.get(assignment.planningMemberId)?.name} is configured as a trainee and cannot receive a primary assignment.`);
       continue;
     }
     assignmentByDate.set(assignment.date, assignment.planningMemberId);
@@ -141,7 +152,7 @@ export function validateScheduleEdit(
     }
   }
 
-  for (const member of members) {
+  for (const member of primaryMembers) {
     const availableDates = availableDatesByMember.get(member.id);
     if (!availableDates || availableDates.size > 5) continue;
     for (const date of availableDates) {
@@ -153,12 +164,12 @@ export function validateScheduleEdit(
 
   if (errors.length > 0) return { ok: false, errors, warnings };
 
-  const counts = new Map(members.map((member) => [member.id, 0]));
+  const counts = new Map(primaryMembers.map((member) => [member.id, 0]));
   for (const memberId of assignmentByDate.values()) {
     counts.set(memberId, (counts.get(memberId) ?? 0) + 1);
   }
-  const participantCount = members.length;
-  const fairnessScore = members.reduce(
+  const participantCount = primaryMembers.length;
+  const fairnessScore = primaryMembers.reduce(
     (score, member) => score + Math.abs(participantCount * (counts.get(member.id) ?? 0) - totalDays),
     0,
   );

@@ -27,6 +27,12 @@ type EditorMember = ScheduleInputMember & {
 type EditorAssignment = ScheduleEditAssignment & {
   nameSnapshot: string;
   roleSnapshot: string;
+  shadows?: {
+    id: string;
+    shadowMemberId: string;
+    kind: "TRAINING" | "MENTORING";
+    nameSnapshot: string;
+  }[];
 };
 
 const WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -42,12 +48,7 @@ function formatDate(value: string) {
 }
 
 function toEditorAssignments(assignments: EditorAssignment[]): EditorAssignment[] {
-  return assignments.map(({ date, nameSnapshot, planningMemberId, roleSnapshot }) => ({
-    date,
-    nameSnapshot,
-    planningMemberId,
-    roleSnapshot,
-  }));
+  return assignments.map((assignment) => ({ ...assignment }));
 }
 
 export function ScheduleEditor({
@@ -93,16 +94,22 @@ export function ScheduleEditor({
     () => validateScheduleEdit(year, month, members, assignments),
     [assignments, members, month, year],
   );
-  const initialStateJson = useMemo(() => JSON.stringify(toEditorAssignments(initialAssignments)), [initialAssignments]);
-  const assignmentsJson = JSON.stringify(assignments);
-  const hasChanges = assignmentsJson !== initialStateJson;
+  const primaryAssignmentsJson = JSON.stringify(assignments.map(({ date, planningMemberId }) => ({ date, planningMemberId })));
+  const initialPrimaryAssignmentsJson = JSON.stringify(initialAssignments.map(({ date, planningMemberId }) => ({ date, planningMemberId })));
+  const hasChanges = primaryAssignmentsJson !== initialPrimaryAssignmentsJson;
   const selectedAssignment = activeDate ? assignmentsByDate.get(activeDate) : undefined;
   const membersForDate = activeDate
-    ? members
+    ? members.filter((member) => member.participationMode !== "TRAINEE")
     : [];
   const workloads = new Map(members.map((member) => [member.id, 0]));
+  const shadowWorkloads = new Map(members.map((member) => [member.id, 0]));
   for (const assignment of assignments) {
     workloads.set(assignment.planningMemberId, (workloads.get(assignment.planningMemberId) ?? 0) + 1);
+  }
+  for (const assignment of initialAssignments) {
+    for (const shadow of assignment.shadows ?? []) {
+      shadowWorkloads.set(shadow.shadowMemberId, (shadowWorkloads.get(shadow.shadowMemberId) ?? 0) + 1);
+    }
   }
   const lockedPastChange = isPublished && !allowPastChanges && assignments.some((assignment) =>
     assignment.date < today &&
@@ -187,7 +194,7 @@ export function ScheduleEditor({
   return (
     <form action={formAction} className="grid gap-5">
       <input name="scheduleRunId" type="hidden" value={scheduleRunId} />
-      <input name="assignments" type="hidden" value={assignmentsJson} />
+      <input name="assignments" type="hidden" value={primaryAssignmentsJson} />
       <input name="allowPastChanges" type="hidden" value={String(allowPastChanges)} />
 
       <Card className="border-dashed shadow-none">
@@ -195,7 +202,7 @@ export function ScheduleEditor({
           <div>
             <CardTitle>{isPublished ? "Adjust the official schedule" : "Adjust this candidate"}</CardTitle>
             <CardDescription className="mt-1">
-              Change one day at a time, or swap two days. Other dates stay where they are.
+              Change one day at a time, or swap two days. Other dates stay where they are; shadow pairings are recalculated when you save.
             </CardDescription>
           </div>
           <div className="flex gap-2">
@@ -265,6 +272,11 @@ export function ScheduleEditor({
                               <>
                                 <span className="my-1 grid size-6 place-items-center self-center rounded-full text-[0.6rem] font-bold sm:hidden" style={{ backgroundColor: color?.foreground, color: color?.background }}>{initials}</span>
                                 <span className="hidden truncate text-[0.7rem] font-semibold leading-tight sm:block" style={{ color: color?.foreground }}>{assignment.nameSnapshot}</span>
+                                {!hasChanges ? (assignment.shadows ?? []).map((shadow) => (
+                                  <span className="hidden truncate text-[0.6rem] font-medium leading-tight sm:block" key={shadow.id}>
+                                    {shadow.kind === "TRAINING" ? "Shadow" : "Mentor"}: {shadow.nameSnapshot}
+                                  </span>
+                                )) : null}
                               </>
                             ) : <span className="text-[0.6rem] text-muted-foreground">Open</span>}
                             {isLocked ? <span className="hidden text-[0.55rem] text-muted-foreground sm:block">Past</span> : null}
@@ -327,10 +339,16 @@ export function ScheduleEditor({
           )}
 
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="secondary">Fairness score {validation.ok ? validation.fairnessScore : "Needs attention"}</Badge>
+            <Badge variant="secondary">Primary fairness {validation.ok ? validation.fairnessScore : "Needs attention"}</Badge>
             {validation.ok && validation.warnings.length > 0 ? <Badge variant="outline">{validation.warnings.length} exception{validation.warnings.length === 1 ? "" : "s"}</Badge> : null}
             {isPublished ? <Badge variant="outline">New edits publish as a new version</Badge> : <Badge variant="outline">Candidate only · not published</Badge>}
           </div>
+
+          {hasChanges && initialAssignments.some((assignment) => assignment.shadows?.length) ? (
+            <p className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
+              Shadow pairings will be recalculated and checked against availability and consecutive-day rules when this revision is saved.
+            </p>
+          ) : null}
 
           <div aria-live="polite" className="grid gap-1" role="status">
             {feedback ? <p className="text-sm text-muted-foreground">{feedback}</p> : null}
@@ -342,7 +360,14 @@ export function ScheduleEditor({
                   <li className="flex items-center gap-2 rounded-lg border bg-background px-3 py-2" key={member.id}>
                     <span aria-hidden="true" className="size-3 shrink-0 rounded-sm" style={{ backgroundColor: colorsByMemberId.get(member.id)?.foreground }} />
                     <span className="min-w-0 truncate text-sm font-medium">{member.name}</span>
-                    <span className="ml-auto shrink-0 text-xs text-muted-foreground">{workloads.get(member.id) ?? 0} days</span>
+                    <span className="ml-auto shrink-0 text-right text-xs text-muted-foreground">
+                      {workloads.get(member.id) ?? 0} primary
+                      {hasChanges
+                        ? <span className="block">shadow count updates on save</span>
+                        : (shadowWorkloads.get(member.id) ?? 0) > 0
+                          ? <span className="block">{shadowWorkloads.get(member.id)} shadow</span>
+                          : null}
+                    </span>
                   </li>
                 ))}
               </ul>

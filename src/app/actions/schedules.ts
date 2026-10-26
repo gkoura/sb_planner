@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { requireAdmin } from "@/lib/auth-guard";
 import {
+  generateShadowsForAssignments,
   generateSchedule,
   SCHEDULER_ALGORITHM_VERSION,
 } from "@/lib/scheduler";
@@ -54,7 +55,7 @@ export async function restoreScheduleRun(
   const result = await prisma.$transaction(async (transaction) => {
     const source = await transaction.scheduleRun.findUnique({
       where: { id: sourceRunId },
-      include: { assignments: { orderBy: { date: "asc" } } },
+      include: { assignments: { orderBy: { date: "asc" }, include: { shadows: true } } },
     });
     if (!source) return { error: "Schedule version not found." };
 
@@ -69,7 +70,7 @@ export async function restoreScheduleRun(
     const current = await transaction.scheduleRun.findFirst({
       where: { planningMonthId: month.id },
       orderBy: { version: "desc" },
-      include: { assignments: { orderBy: { date: "asc" } } },
+      include: { assignments: { orderBy: { date: "asc" }, include: { shadows: true } } },
     });
     if (!current) return { error: "There is no current schedule version." };
     if (current.id === source.id) return { error: "This version is already current." };
@@ -94,6 +95,16 @@ export async function restoreScheduleRun(
       current.assignments.map((assignment) => [assignment.date, assignment.planningMemberId]),
     );
     const sourceByDate = new Map(assignments.map((assignment) => [assignment.date, assignment.planningMemberId]));
+    const shadowSignature = (shadows: { kind: string; shadowMemberId: string }[]) =>
+      shadows.map((shadow) => `${shadow.kind}:${shadow.shadowMemberId}`).sort().join("|");
+    const sourceShadowsByDate = new Map(source.assignments.map((assignment) => [
+      assignment.date,
+      shadowSignature(assignment.shadows),
+    ]));
+    const currentShadowsByDate = new Map(current.assignments.map((assignment) => [
+      assignment.date,
+      shadowSignature(assignment.shadows),
+    ]));
     if (assignments.every((assignment) => currentByDate.get(assignment.date) === assignment.planningMemberId)) {
       return { error: "This version already matches the current schedule." };
     }
@@ -105,6 +116,12 @@ export async function restoreScheduleRun(
       currentByDate.get(assignment.date) !== sourceByDate.get(assignment.date),
     )) {
       return { error: "Restoring this version changes past dates. Enable past-date corrections to continue." };
+    }
+    if (isPublished && !allowPastChanges && assignments.some((assignment) =>
+      assignment.date < operationalDate &&
+      currentShadowsByDate.get(assignment.date) !== sourceShadowsByDate.get(assignment.date),
+    )) {
+      return { error: "Restoring this version changes past shadow pairings. Enable past-date corrections to continue." };
     }
 
     const planningMembers = await transaction.planningMember.findMany({
@@ -137,6 +154,16 @@ export async function restoreScheduleRun(
               nameSnapshot: member.nameSnapshot,
               planningMemberId: member.id,
               roleSnapshot: member.roleSnapshot,
+              shadows: {
+                create: source.assignments
+                  .find((sourceAssignment) => sourceAssignment.date === assignment.date)!
+                  .shadows.map((shadow) => ({
+                    kind: shadow.kind,
+                    nameSnapshot: shadow.nameSnapshot,
+                    roleSnapshot: shadow.roleSnapshot,
+                    shadowMemberId: shadow.shadowMemberId,
+                  })),
+              },
             };
           }),
         },
@@ -202,7 +229,7 @@ export async function saveScheduleEdit(
       where: { id: scheduleRunId },
       include: {
         planningMonth: true,
-        assignments: { orderBy: { date: "asc" } },
+        assignments: { orderBy: { date: "asc" }, include: { shadows: true } },
       },
     });
     if (!run) return { error: "Schedule version not found." };
@@ -272,6 +299,37 @@ export async function saveScheduleEdit(
       return { error: "A selected participant is no longer in this planning month." };
     }
 
+    const shadowPlan = generateShadowsForAssignments(
+      snapshot.year,
+      snapshot.month,
+      snapshot.members,
+      assignments,
+    );
+    if (!shadowPlan.ok) {
+      return { error: `Could not place the required shadows: ${shadowPlan.message}` };
+    }
+    if (isPublished && !allowPastChanges) {
+      const shadowSignature = (shadows: { kind: string; shadowMemberId: string }[]) =>
+        shadows.map((shadow) => `${shadow.kind}:${shadow.shadowMemberId}`).sort().join("|");
+      const oldShadowsByDate = new Map(run.assignments.map((assignment) => [
+        assignment.date,
+        shadowSignature(assignment.shadows),
+      ]));
+      const newShadowsByDate = new Map<string, string>();
+      for (const shadow of shadowPlan.shadows) {
+        newShadowsByDate.set(
+          shadow.date,
+          [...(newShadowsByDate.get(shadow.date) ? [newShadowsByDate.get(shadow.date)!] : []), `${shadow.kind}:${shadow.shadowMemberId}`].sort().join("|"),
+        );
+      }
+      if (assignments.some((assignment) =>
+        assignment.date < operationalDate &&
+        oldShadowsByDate.get(assignment.date) !== newShadowsByDate.get(assignment.date),
+      )) {
+        return { error: "This edit changes past shadow pairings. Enable past-date corrections to continue." };
+      }
+    }
+
     const latestVersion = (latest._max.version ?? 0) + 1;
     const publishedAt = isPublished ? new Date() : null;
     const revision = await transaction.scheduleRun.create({
@@ -296,6 +354,19 @@ export async function saveScheduleEdit(
               nameSnapshot: member.nameSnapshot,
               planningMemberId: member.id,
               roleSnapshot: member.roleSnapshot,
+              shadows: {
+                create: shadowPlan.shadows
+                  .filter((shadow) => shadow.date === assignment.date)
+                  .map((shadow) => {
+                    const shadowMember = memberById.get(shadow.shadowMemberId)!;
+                    return {
+                      kind: shadow.kind,
+                      nameSnapshot: shadow.name,
+                      roleSnapshot: shadowMember.roleSnapshot,
+                      shadowMemberId: shadowMember.id,
+                    };
+                  }),
+              },
             };
           }),
         },
@@ -415,6 +486,8 @@ export async function createScheduleRun(
       name: member.nameSnapshot,
       mode: member.availabilitySubmission!.mode,
       dates: member.availabilitySubmission!.dates.map(({ date }) => date),
+      participationMode: member.participationMode,
+      shadowDayCount: member.shadowDayCount,
     }));
     const generated = generateSchedule(month.year, month.month, members);
 
@@ -438,6 +511,8 @@ export async function createScheduleRun(
             mode: member.availabilitySubmission!.mode,
             name: member.nameSnapshot,
             dates: member.availabilitySubmission!.dates.map(({ date }) => date),
+            participationMode: member.participationMode,
+            shadowDayCount: member.shadowDayCount,
           })),
           month: month.month,
           year: month.year,
@@ -454,6 +529,20 @@ export async function createScheduleRun(
               nameSnapshot: assignment.name,
               planningMemberId: member.id,
               roleSnapshot: member.roleSnapshot,
+              shadows: {
+                create: generated.shadows
+                  .filter((shadow) => shadow.date === assignment.date)
+                  .map((shadow) => {
+                    const shadowMember = memberById.get(shadow.shadowMemberId);
+                    if (!shadowMember) throw new Error("A generated shadow has an unknown participant.");
+                    return {
+                      kind: shadow.kind,
+                      nameSnapshot: shadow.name,
+                      roleSnapshot: shadowMember.roleSnapshot,
+                      shadowMemberId: shadowMember.id,
+                    };
+                  }),
+              },
             };
           }),
         },

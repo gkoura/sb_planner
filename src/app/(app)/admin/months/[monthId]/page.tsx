@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { GenerateScheduleForm } from "@/components/schedules/generate-schedule-form";
+import { ParticipationSettingsForm } from "@/components/planning-months/participation-settings-form";
 import { PublishScheduleForm } from "@/components/schedules/publish-schedule-form";
 import { RestoreScheduleForm } from "@/components/schedules/restore-schedule-form";
 import { ScheduleEditor } from "@/components/schedules/schedule-editor";
@@ -61,7 +62,10 @@ export default async function PlanningMonthPage({
       scheduleRuns: {
         orderBy: { version: "desc" },
         include: {
-          assignments: { orderBy: { date: "asc" } },
+          assignments: {
+            orderBy: { date: "asc" },
+            include: { shadows: { select: { id: true, shadowMemberId: true, kind: true, nameSnapshot: true } } },
+          },
         },
       },
     },
@@ -88,6 +92,8 @@ export default async function PlanningMonthPage({
     const member = month.members.find((candidate) => candidate.id === snapshotMember.id);
     return member ? [{ ...snapshotMember, roleSnapshot: member.roleSnapshot }] : [];
   }) ?? [];
+  const canEditParticipation = ["DRAFT", "COLLECTING", "READY"].includes(month.status) && month.scheduleRuns.length === 0;
+  const maxShadowDays = Math.ceil(new Date(Date.UTC(month.year, month.month, 0)).getUTCDate() / 2);
 
   return (
     <div className="grid gap-8">
@@ -116,6 +122,20 @@ export default async function PlanningMonthPage({
         </p>
       </section>
 
+      {canEditParticipation ? (
+        <ParticipationSettingsForm
+          key={month.updatedAt.toISOString()}
+          maxShadowDays={maxShadowDays}
+          members={month.members.map((member) => ({
+            id: member.id,
+            nameSnapshot: member.nameSnapshot,
+            participationMode: member.participationMode,
+            shadowDayCount: member.shadowDayCount,
+          }))}
+          planningMonthId={month.id}
+        />
+      ) : null}
+
       {scheduleRun ? (
         <>
           <Card>
@@ -129,7 +149,7 @@ export default async function PlanningMonthPage({
               </CardTitle>
               <CardDescription>
                 Version {scheduleRun.version} · generated {formatDate(scheduleRun.generatedAt.toISOString().slice(0, 10))}
-                {" · "}fairness score {scheduleRun.fairnessScore} · lower is more balanced
+                {" · "}primary fairness score {scheduleRun.fairnessScore} · lower is more balanced
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -151,7 +171,7 @@ export default async function PlanningMonthPage({
               ) : month.status === "GENERATED" ? (
                 <div className="mb-5 rounded-xl border bg-muted/30 p-4">
                   <p className="mb-3 text-sm text-muted-foreground">
-                    Review the assignments and workload above, then publish this candidate for the team.
+                    Review the primary assignments, shadow pairings, and workload above, then publish this candidate for the team.
                   </p>
                   <PublishScheduleForm scheduleRunId={scheduleRun.id} />
                 </div>
@@ -248,7 +268,7 @@ export default async function PlanningMonthPage({
             <CardTitle>{month.status === "READY" ? "Ready to generate" : "Schedule not ready"}</CardTitle>
             <CardDescription>
               {month.status === "READY"
-                ? "Everyone has submitted. Generate a candidate to review the daily assignments and workload."
+                ? "Everyone has submitted. Generate a candidate to review primary assignments, shadow pairings, and workload."
                 : "The candidate schedule becomes available after every participant submits availability."}
             </CardDescription>
           </CardHeader>

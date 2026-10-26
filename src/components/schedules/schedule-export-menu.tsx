@@ -19,6 +19,12 @@ type ExportAssignment = {
   planningMemberId: string;
   nameSnapshot: string;
   roleSnapshot: string;
+  shadows?: {
+    shadowMemberId: string;
+    nameSnapshot: string;
+    roleSnapshot: string;
+    kind: "TRAINING" | "MENTORING";
+  }[];
 };
 
 function weekday(date: string) {
@@ -91,11 +97,15 @@ function buildScheduleSvg({
   );
   const assignmentsByDate = new Map(assignments.map((assignment) => [assignment.date, assignment]));
   const assignmentsByMember = new Map<string, number>();
+  const shadowsByMember = new Map<string, number>();
   assignments.forEach((assignment) => {
     assignmentsByMember.set(
       assignment.planningMemberId,
       (assignmentsByMember.get(assignment.planningMemberId) ?? 0) + 1,
     );
+    for (const shadow of assignment.shadows ?? []) {
+      shadowsByMember.set(shadow.shadowMemberId, (shadowsByMember.get(shadow.shadowMemberId) ?? 0) + 1);
+    }
   });
   const weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
   const svg = [
@@ -124,8 +134,13 @@ function buildScheduleSvg({
       svg.push(`<rect x="${x}" y="${y}" width="${columnWidth}" height="${rowHeight}" rx="14" fill="${background}" stroke="${foreground}" stroke-opacity="0.28"/>`);
       svg.push(`<text x="${x + 14}" y="${y + 24}" fill="${foreground}" font-family="Arial,sans-serif" font-size="15" font-weight="700">${cell.day}</text>`);
       svg.push(`<text x="${x + 14}" y="${y + 65}" fill="${foreground}" font-family="Arial,sans-serif" font-size="14" font-weight="700">${escapeXml(visibleName)}</text>`);
+      const shadowLabels = (assignment?.shadows ?? []).map((shadow) => `${shadow.kind === "TRAINING" ? "Shadow" : "Mentor"}: ${shadow.nameSnapshot}`).join(", ");
+      if (shadowLabels) {
+        const visibleShadows = shadowLabels.length > 28 ? `${shadowLabels.slice(0, 27)}…` : shadowLabels;
+        svg.push(`<text x="${x + 14}" y="${y + 87}" fill="#334155" font-family="Arial,sans-serif" font-size="10">${escapeXml(visibleShadows)}</text>`);
+      }
       if (assignment?.roleSnapshot === "ADMIN") {
-        svg.push(`<text x="${x + 14}" y="${y + 85}" fill="${foreground}" font-family="Arial,sans-serif" font-size="11">ADMIN</text>`);
+        svg.push(`<text x="${x + 14}" y="${y + (shadowLabels ? 99 : 85)}" fill="${foreground}" font-family="Arial,sans-serif" font-size="11">ADMIN</text>`);
       }
     });
   });
@@ -137,7 +152,8 @@ function buildScheduleSvg({
     const y = legendTop + row * 40;
     const color = colorsByMemberId.get(member.id);
     svg.push(`<circle cx="${x + 7}" cy="${y + 8}" r="7" fill="${color?.foreground ?? "#526967"}"/>`);
-    svg.push(`<text x="${x + 24}" y="${y + 13}" fill="#233c3b" font-family="Arial,sans-serif" font-size="14" font-weight="600">${escapeXml(member.nameSnapshot)}${member.roleSnapshot === "ADMIN" ? " (admin)" : ""} · ${assignmentsByMember.get(member.id) ?? 0} days</text>`);
+    const totalDays = (assignmentsByMember.get(member.id) ?? 0) + (shadowsByMember.get(member.id) ?? 0);
+    svg.push(`<text x="${x + 24}" y="${y + 13}" fill="#233c3b" font-family="Arial,sans-serif" font-size="14" font-weight="600">${escapeXml(member.nameSnapshot)}${member.roleSnapshot === "ADMIN" ? " (admin)" : ""} · ${totalDays} days</text>`);
   });
 
   svg.push("</svg>");
@@ -163,14 +179,14 @@ export function ScheduleExportMenu({
 
   async function copyMarkdown() {
     const rows = assignments.map((assignment) =>
-      `| ${assignment.date} | ${weekday(assignment.date)} | ${assignment.nameSnapshot.replaceAll("|", "\\|").replace(/\r?\n/g, "<br>")} | ${assignment.roleSnapshot.toLowerCase()} |`,
+      `| ${assignment.date} | ${weekday(assignment.date)} | ${assignment.nameSnapshot.replaceAll("|", "\\|").replace(/\r?\n/g, "<br>")} | ${(assignment.shadows ?? []).map((shadow) => `${shadow.kind === "TRAINING" ? "Shadow" : "Mentor"}: ${shadow.nameSnapshot}`).join(", ") || "—"} |`,
     );
     const markdown = [
       `# ${title} standby schedule`,
       "",
       `Official version ${version}`,
       "",
-      "| Date | Day | Engineer | Role |",
+      "| Date | Day | Standby engineer | Shadow / mentor |",
       "| --- | --- | --- | --- |",
       ...rows,
     ].join("\n");
@@ -185,12 +201,12 @@ export function ScheduleExportMenu({
 
   function downloadCsv() {
     const rows = [
-      ["Date", "Day", "Engineer", "Role"],
+      ["Date", "Day", "Standby engineer", "Shadow / mentor"],
       ...assignments.map((assignment) => [
         assignment.date,
         weekday(assignment.date),
         assignment.nameSnapshot,
-        assignment.roleSnapshot.toLowerCase(),
+        (assignment.shadows ?? []).map((shadow) => `${shadow.kind === "TRAINING" ? "Shadow" : "Mentor"}: ${shadow.nameSnapshot}`).join("; "),
       ]),
     ];
     const csv = rows.map((row) => row.map(csvCell).join(",")).join("\r\n");

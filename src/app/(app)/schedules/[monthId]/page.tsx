@@ -45,7 +45,12 @@ export default async function PublishedSchedulePage({
         where: { publishedAt: { not: null } },
         orderBy: [{ publishedAt: "desc" }, { version: "desc" }],
         take: 1,
-        include: { assignments: { orderBy: { date: "asc" } } },
+        include: {
+          assignments: {
+            orderBy: { date: "asc" },
+            include: { shadows: { select: { id: true, shadowMemberId: true, kind: true, nameSnapshot: true, roleSnapshot: true } } },
+          },
+        },
       },
     },
   });
@@ -83,6 +88,12 @@ export default async function PublishedSchedulePage({
               nameSnapshot: assignment.nameSnapshot,
               planningMemberId: assignment.planningMemberId,
               roleSnapshot: assignment.roleSnapshot,
+              shadows: assignment.shadows.map((shadow) => ({
+                shadowMemberId: shadow.shadowMemberId,
+                nameSnapshot: shadow.nameSnapshot,
+                roleSnapshot: shadow.roleSnapshot,
+                kind: shadow.kind,
+              })),
             }))}
             members={month.members}
             month={month.month}

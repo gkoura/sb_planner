@@ -12,6 +12,12 @@ type ScheduleAssignment = {
   planningMemberId: string;
   nameSnapshot: string;
   roleSnapshot: string;
+  shadows?: {
+    id: string;
+    shadowMemberId: string;
+    nameSnapshot: string;
+    kind: "TRAINING" | "MENTORING";
+  }[];
 };
 
 const WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -42,11 +48,15 @@ export function ScheduleCalendar({
   );
   const assignmentsByDate = new Map(assignments.map((assignment) => [assignment.date, assignment]));
   const assignmentsByMember = new Map<string, number>();
+  const shadowsByMember = new Map<string, number>();
   for (const assignment of assignments) {
     assignmentsByMember.set(
       assignment.planningMemberId,
       (assignmentsByMember.get(assignment.planningMemberId) ?? 0) + 1,
     );
+    for (const shadow of assignment.shadows ?? []) {
+      shadowsByMember.set(shadow.shadowMemberId, (shadowsByMember.get(shadow.shadowMemberId) ?? 0) + 1);
+    }
   }
 
   return (
@@ -80,12 +90,12 @@ export function ScheduleCalendar({
 
                   return (
                     <td
-                      aria-label={assignment ? `${formatDate(cell.date)}: ${assignment.nameSnapshot}${assignment.roleSnapshot === "ADMIN" ? ", admin" : ""}` : `${formatDate(cell.date)}: unassigned`}
+                      aria-label={assignment ? `${formatDate(cell.date)}: ${assignment.nameSnapshot}${assignment.roleSnapshot === "ADMIN" ? ", admin" : ""}${(assignment.shadows ?? []).map((shadow) => `; ${shadow.kind === "TRAINING" ? "shadowing" : "mentoring"} ${shadow.nameSnapshot}`).join("")}` : `${formatDate(cell.date)}: unassigned`}
                       className="align-top p-0"
                       key={cell.date}
                     >
                       <div
-                        className="flex min-h-12 flex-col justify-between rounded-lg border p-1.5 sm:min-h-20 sm:p-2.5"
+                        className="flex min-h-14 flex-col justify-between gap-1 rounded-lg border p-1.5 sm:min-h-24 sm:p-2.5"
                         style={color ? { backgroundColor: color.background, borderColor: `${color.foreground}55` } : undefined}
                         title={assignment?.nameSnapshot}
                       >
@@ -100,6 +110,21 @@ export function ScheduleCalendar({
                             </span>
                           </>
                         ) : <span className="text-[0.6rem] text-muted-foreground">Open</span>}
+                        {(assignment?.shadows ?? []).map((shadow) => {
+                          const shadowColor = colorsByMemberId.get(shadow.shadowMemberId);
+                          const label = shadow.kind === "TRAINING" ? "Shadow" : "Mentor";
+                          return (
+                            <span
+                              className="truncate rounded-md px-1 py-0.5 text-[0.55rem] font-semibold leading-tight sm:text-[0.65rem]"
+                              key={shadow.id}
+                              style={shadowColor ? { backgroundColor: shadowColor.foreground, color: shadowColor.background } : undefined}
+                              title={`${label}: ${shadow.nameSnapshot}`}
+                            >
+                              <span className="sm:hidden">{label}: {shadow.nameSnapshot.slice(0, 1).toUpperCase()}</span>
+                              <span className="hidden sm:inline">{label}: {shadow.nameSnapshot}</span>
+                            </span>
+                          );
+                        })}
                       </div>
                     </td>
                   );
@@ -109,7 +134,7 @@ export function ScheduleCalendar({
           </tbody>
         </table>
       </div>
-      <ul aria-label="Engineer color legend" className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+      <ul aria-label="Participant colors and total primary and shadow duties" className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {members.map((member) => {
           const color = colorsByMemberId.get(member.id);
           return (
@@ -117,7 +142,7 @@ export function ScheduleCalendar({
               <span aria-hidden="true" className="size-3 shrink-0 rounded-sm" style={{ backgroundColor: color?.foreground }} />
               <span className="min-w-0 truncate text-sm font-medium">{member.nameSnapshot}</span>
               <span className="ml-auto shrink-0 text-xs text-muted-foreground">
-                {assignmentsByMember.get(member.id) ?? 0} days
+                {(assignmentsByMember.get(member.id) ?? 0) + (shadowsByMember.get(member.id) ?? 0)} duties
               </span>
             </li>
           );

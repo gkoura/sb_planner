@@ -19,6 +19,17 @@ enum AvailabilityMode {
   UNAVAILABLE
 }
 
+enum ParticipationMode {
+  NORMAL
+  TRAINEE
+  MENTORED
+}
+
+enum ShadowKind {
+  TRAINING
+  MENTORING
+}
+
 model User {
   id                    String           @id
   name                  String
@@ -108,12 +119,15 @@ model PlanningMember {
   nameSnapshot           String
   emailSnapshot          String
   roleSnapshot           String
+  participationMode      ParticipationMode       @default(NORMAL)
+  shadowDayCount         Int                     @default(0)
   createdAt              DateTime                @default(now())
   updatedAt              DateTime                @updatedAt
   planningMonth          PlanningMonth           @relation(fields: [planningMonthId], references: [id], onDelete: Cascade)
   user                   User                    @relation(fields: [userId], references: [id], onDelete: Restrict)
   availabilitySubmission AvailabilitySubmission?
   scheduleAssignments    ScheduleAssignment[]
+  shadowsGiven           ScheduleShadow[]        @relation("ShadowParticipant")
 
   @@unique([planningMonthId, userId])
   @@index([userId])
@@ -140,38 +154,54 @@ model AvailabilityDate {
 }
 
 model ScheduleRun {
-  id               String               @id @default(cuid())
-  planningMonthId  String
-  version          Int
-  algorithmVersion String
-  fairnessScore    Int
-  inputSnapshot    String
-  createdBy        String
-  basedOnRunId     String?
-  revisionReason   String?
+  id                 String               @id @default(cuid())
+  planningMonthId    String
+  version            Int
+  algorithmVersion   String
+  fairnessScore      Int
+  inputSnapshot      String
+  createdBy          String
+  basedOnRunId       String?
+  revisionReason     String?
   validationWarnings String?
-  generatedAt      DateTime             @default(now())
-  publishedAt      DateTime?
-  planningMonth    PlanningMonth        @relation(fields: [planningMonthId], references: [id], onDelete: Cascade)
-  creator          User                 @relation("ScheduleRunCreator", fields: [createdBy], references: [id], onDelete: Restrict)
-  basedOnRun       ScheduleRun?         @relation("ScheduleRunRevisions", fields: [basedOnRunId], references: [id], onDelete: SetNull)
-  revisions        ScheduleRun[]        @relation("ScheduleRunRevisions")
-  assignments      ScheduleAssignment[]
+  generatedAt        DateTime             @default(now())
+  publishedAt        DateTime?
+  planningMonth      PlanningMonth        @relation(fields: [planningMonthId], references: [id], onDelete: Cascade)
+  creator            User                 @relation("ScheduleRunCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  basedOnRun         ScheduleRun?         @relation("ScheduleRunRevisions", fields: [basedOnRunId], references: [id], onDelete: SetNull)
+  revisions          ScheduleRun[]        @relation("ScheduleRunRevisions")
+  assignments        ScheduleAssignment[]
 
   @@unique([planningMonthId, version])
   @@index([generatedAt])
 }
 
 model ScheduleAssignment {
-  id               String         @id @default(cuid())
+  id               String           @id @default(cuid())
   scheduleRunId    String
   planningMemberId String
   date             String
   nameSnapshot     String
   roleSnapshot     String
-  scheduleRun      ScheduleRun    @relation(fields: [scheduleRunId], references: [id], onDelete: Cascade)
-  planningMember   PlanningMember @relation(fields: [planningMemberId], references: [id], onDelete: Restrict)
+  scheduleRun      ScheduleRun      @relation(fields: [scheduleRunId], references: [id], onDelete: Cascade)
+  planningMember   PlanningMember   @relation(fields: [planningMemberId], references: [id], onDelete: Restrict)
+  shadows          ScheduleShadow[]
 
   @@unique([scheduleRunId, date])
   @@index([planningMemberId])
+}
+
+model ScheduleShadow {
+  id                   String             @id @default(cuid())
+  scheduleAssignmentId String
+  shadowMemberId       String
+  kind                 ShadowKind
+  nameSnapshot         String
+  roleSnapshot         String
+  createdAt            DateTime           @default(now())
+  scheduleAssignment   ScheduleAssignment @relation(fields: [scheduleAssignmentId], references: [id], onDelete: Cascade)
+  shadowMember         PlanningMember     @relation("ShadowParticipant", fields: [shadowMemberId], references: [id], onDelete: Restrict)
+
+  @@unique([scheduleAssignmentId, shadowMemberId])
+  @@index([shadowMemberId])
 }

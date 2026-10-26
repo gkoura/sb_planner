@@ -17,12 +17,14 @@ change a recorded decision: add a dated superseding decision with the reason.
 
 ## Product goal
 
-SB Planner creates one monthly standby/on-call assignment per calendar day for
-a small engineering team (maximum 10 people). Each engineer signs in and
-submits the dates they are available or unavailable. Once everyone has
-submitted, an administrator generates, reviews, and publishes the schedule.
-Published schedules and the submitted availability that produced them remain
-available as historical records.
+SB Planner is a lightweight team hub for a small engineering team (maximum 10
+engineers), with monthly standby/on-call planning as its first core workflow.
+Team members sign in to see who is on standby today, access the team's
+published schedules, and take part in monthly planning. Each engineer submits
+the dates they are available or unavailable. Once everyone has submitted, an
+administrator generates, reviews, and publishes the schedule. Published
+schedules and the submitted availability that produced them remain available
+as historical records.
 
 The product must feel fast and intentionally small. It is a single team tool,
 not a multi-tenant SaaS.
@@ -70,15 +72,17 @@ constraint search/branch-and-bound solver with these characteristics:
 1. Validate and normalize input before solving.
 2. Assign constrained days first (fewest eligible engineers) and use a stable
    name/id tie-breaker, so identical input produces identical output.
-3. Enforce hard constraints while searching: one assignee per day, submitted
-   availability, no adjacent assignments, and mandatory availability.
-4. Minimize a documented fairness score, initially the sum of absolute
-   deviation from the ideal number of assignments, matching the Python
-   script’s intent.
+3. Enforce primary hard constraints while searching: one primary assignee per
+   day, submitted availability, no adjacent primary assignments, and mandatory
+   availability for participants with five or fewer available dates.
+4. Minimize primary workload imbalance first, then place shadow duties with
+   both participants available, no participant working consecutive dates, one
+   shadow pair per date, and balanced mentor load. Prefer spread trainee days
+   and distinct mentors when feasible.
 5. Return structured infeasibility explanations that the admin can act on;
    never publish a partial or invalid schedule.
 6. Unit-test parity against representative fixtures derived from the Python
-   script, including invalid and infeasible cases.
+   script and shadowing cases, including invalid and infeasible inputs.
 
 The first implementation must include an explicit search-state limit and a
 clear failure result. At this input size it should complete well below a second;
@@ -112,6 +116,37 @@ Published schedules are immutable. A correction creates a new run/version;
 the UI identifies which version is currently published. Availability is frozen
 when an admin begins generation unless the admin explicitly reopens collection.
 
+## Shadowing requirements (accepted; implementation in progress)
+
+Participation mode is selected per engineer per planning month, so onboarding
+is not tied to a fixed first-month/second-month workflow:
+
+- `NORMAL`: the existing primary on-call participation.
+- `TRAINEE`: no primary days; the admin sets a shadow-day count. The scheduler
+  spreads those shadow days through the month and rotates across mentors,
+  avoiding repeat mentors when possible.
+- `MENTORED`: the engineer has primary on-call days, with a senior mentor as a
+  second participant on each of those days. The mentor cannot also be primary
+  on that date, and mentor shadow work counts toward workload fairness.
+
+Mentor candidates default to all other non-trainee members in that month's
+rotation. Trainee and mentor availability are both hard constraints. Primary
+assignments are balanced first; then shadow duties are spread fairly among
+eligible mentors. A shadow duty counts as a work day for the no-consecutive
+rule, and any conflict makes generation fail rather than creating a warning.
+Each shadow date contains one pair only: one trainee and one mentor. Do not
+schedule a second shadow pair on the same date, even with another mentor.
+
+The existing one-primary-assignee-per-day schedule remains. Shadowing adds a
+second assignment layer on selected dates; it does not change historical runs.
+Store shadow assignments as separate records attached to a primary date,
+allowing multiple trainees in a month without changing the one-primary-per-day
+constraint. Snapshot participation settings with each schedule run so editing
+and restoring historical versions uses the original rules. Admin primary-day
+edits regenerate shadow pairings; published past shadow pairings stay locked
+unless the admin enables past-date corrections. Restoring a version copies its
+saved pairings.
+
 ## UI/UX direction
 
 - Keep the app focused and calm: warm neutral page surfaces, deep teal primary
@@ -119,13 +154,22 @@ when an admin begins generation unless the admin explicitly reopens collection.
 - Keep navigation and primary actions reachable on mobile. Use the existing
   shadcn components and Tailwind tokens; do not add a UI dependency without a
   concrete need.
+- The signed-in home page is the team hub: prominently show today's on-standby
+  person from the current published schedule, the date in Europe/Athens, and a
+  link to that schedule. If no published assignment exists for today, say so
+  clearly. Show the same team-wide on-call information to admins and engineers.
+- Show each signed-in participant's own assigned days for the current month,
+  with the next upcoming assignment highlighted by date and a link to the full
+  team schedule. Do not put the full schedule calendar on the home page.
 - Availability entry is a fixed, accessible month calendar with every day
   defaulting to available. Each day toggles green/available ↔ red/unavailable;
   the form persists the unavailable dates as date-only ISO values.
 - Schedule review uses a Monday-first monthly calendar. Each participant gets
   a distinct pastel/ink color inspired by the Python export, with a name and
-  workload legend so color is never the only identifier. On narrow screens the
-  calendar uses initials and the legend keeps full names visible.
+  workload legend so color is never the only identifier. Shadow pairings are
+  labeled in the day cell; participant totals include primary and shadow duties.
+  On narrow screens the calendar uses initials and the legend keeps full names
+  visible.
 
 ## v1 scope and user flow
 
@@ -195,6 +239,18 @@ decision.
   uncovered days, 31-day fairness optimum, deterministic ordering, consecutive
   day rules, and invalid input handling. All eight tests pass without adding a
   test dependency.
+- [ ] **M3 extension — Shadow participation:** add per-month normal, trainee,
+  and mentored settings; a shadow-aware scheduler; schedule display and exports;
+  and version-safe admin editing/restoration. **Progress (2026-10-26):** added
+  `ParticipationMode`, trainee shadow counts, and `ScheduleShadow`; applied the
+  SQLite migration locally and regenerated Prisma Client. Admins can configure
+  modes before generation. Generation keeps primary fairness separate, spreads
+  trainee days, rotates mentors, and enforces availability, one shadow pair per
+  date, and no consecutive work days. Calendars, personal month reports, and
+  exports show shadow duties. Admin edits regenerate pairings, and historical
+  restores retain saved pairings. TypeScript, ESLint, `git diff --check`, and
+  drawio XML validation pass. Scheduler-specific tests and browser review remain
+  pending.
 - [ ] **M4 — Publishing and history:** publish/version schedules, calendar and
   workload views, historical month navigation, and authorization tests.
   **Progress (2026-10-26):** admins can publish a complete generated version;
@@ -219,6 +275,8 @@ decision.
   Published schedules can be copied as Markdown or downloaded as a color-coded
   PNG calendar or CSV assignment list; these exports are generated client-side
   without adding a package.
+  Shadow names and duty types are included in the calendar and exports; the
+  legend counts both primary and shadow duties.
 - [ ] **M5 — Deploy and operate:** configure production database and secrets,
   migrate safely, deploy, create backups/export procedure, and test the
   production login → submit → generate → publish journey.
@@ -227,6 +285,23 @@ decision.
 navigation, a calmer color system, a fixed-month availability calendar, and a
 color-coded schedule calendar with workload legend. TypeScript and ESLint pass;
 visual browser review remains pending.
+
+**Team hub home page (2026-10-26):** both admins and engineers see today's
+on-standby person at the top of the signed-in home page, sourced from the
+current published schedule. The date is resolved in Europe/Athens to match the
+schedule's operational timezone. If no published assignment exists, the card
+states that directly; when an assignment exists it links to its schedule.
+
+**Current month overview (2026-10-26):** revised the home page overview to a
+personal report: each member sees their own standby dates for the current
+published month, with their next upcoming day highlighted. The full team
+calendar remains one click away on the schedule page. If the current month is
+not published, the report explains that.
+
+**Availability home CTA (2026-10-26):** show the home page's availability
+action only when the signed-in participant has at least one open month without
+a submission. Label it "Submit availability"; hide it when no submission is
+needed. The Availability navigation remains available for optional revisions.
 
 **Availability calendar update (2026-10-26):** every day now starts green and
 available; tapping toggles that date red/unavailable and tapping again restores
@@ -335,6 +410,11 @@ this environment.
 | 2026-10-26 | Use warm neutral surfaces, deep teal actions, and compact role-aware navigation. | Accepted. It gives the small operations tool a distinct visual identity while keeping screens calm, readable, and responsive without additional dependencies. |
 | 2026-10-26 | Allow admins to delete only draft months with no schedule run history. | Accepted. Confirmation protects against accidental removal; submitted availability and published schedule history remain preserved. |
 | 2026-10-26 | Offer Markdown copy, PNG calendar, and CSV exports for published schedules. | Accepted. Generate the exports client-side from the published run and existing participant palette, avoiding an additional dependency or server workload. |
+| 2026-10-26 | Position the app as a team hub, with today's published standby assignment prominent on the signed-in home page for every role. | Accepted and implemented. The current on-call person is a high-priority team-wide status; the date follows Europe/Athens and links to the official schedule. |
+| 2026-10-26 | Show the complete current month's published standby calendar on the signed-in home page. | Accepted and implemented. Reuse the existing color-coded Monday-first calendar and workload legend, with a link to the official schedule and an unpublished empty state. |
+| 2026-10-26 | Replace the homepage's full month calendar with a user-specific report of that member's shifts; highlight their next upcoming day and keep the whole schedule behind a button. | Accepted; supersedes the previous homepage full-calendar decision after usability review. This lets each person find their own dates immediately without scanning the team calendar. |
+| 2026-10-26 | Show the homepage availability action only while a participant still owes a submission. | Accepted and implemented. Once all open months have a submission, remove the redundant call to action; availability remains reachable for optional revisions. |
+| 2026-10-26 | Configure participation per engineer per month as normal, trainee (shadow-only, admin-configured count), or mentored (primary shifts with a second mentor). | Accepted. All other non-trainee participants form the default mentor pool. Both trainee and mentor must be available; shadows count as work for the hard no-consecutive-days rule. Balance primary assignments separately, then distribute mentor duties fairly; avoid repeating a trainee's mentor where possible. Each date may contain at most one shadow pair. Store shadows separately from one-primary-per-day assignments and snapshot settings per run; historical runs retain their old semantics. |
 
 ## Open decisions (do not guess)
 

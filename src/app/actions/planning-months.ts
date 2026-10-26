@@ -16,6 +16,91 @@ export type DeletePlanningMonthState = {
   error?: string;
 };
 
+export type ParticipationSettingsState = {
+  error?: string;
+  success?: string;
+};
+
+export async function saveParticipationSettings(
+  _previousState: ParticipationSettingsState,
+  formData: FormData,
+): Promise<ParticipationSettingsState> {
+  await requireAdmin();
+
+  const planningMonthId = String(formData.get("planningMonthId") ?? "").trim();
+  if (!planningMonthId) return { error: "Planning month is missing." };
+
+  try {
+    await prisma.$transaction(async (transaction) => {
+      const month = await transaction.planningMonth.findUnique({
+        where: { id: planningMonthId },
+        include: {
+          members: { select: { id: true, participationMode: true, shadowDayCount: true } },
+          scheduleRuns: { select: { id: true }, take: 1 },
+        },
+      });
+      if (!month) throw new Error("Planning month not found.");
+      if (!["DRAFT", "COLLECTING", "READY"].includes(month.status)) {
+        throw new Error("Participation settings are locked after schedule generation.");
+      }
+      if (month.scheduleRuns.length) {
+        throw new Error("Participation settings are locked after schedule generation.");
+      }
+
+      const daysInMonth = new Date(Date.UTC(month.year, month.month, 0)).getUTCDate();
+      const maxShadowDays = Math.ceil(daysInMonth / 2);
+      const settings = month.members.map((member) => {
+        const rawMode = formData.get(`mode:${member.id}`);
+        const rawShadowDays = formData.get(`shadowDays:${member.id}`);
+        if (rawMode !== "NORMAL" && rawMode !== "TRAINEE" && rawMode !== "MENTORED") {
+          throw new Error("Choose a valid participation mode for every participant.");
+        }
+        const shadowDayCount = rawMode === "TRAINEE"
+          ? Number(rawShadowDays)
+          : 0;
+        if (
+          rawMode === "TRAINEE" &&
+          (!Number.isInteger(shadowDayCount) || shadowDayCount < 1 || shadowDayCount > maxShadowDays)
+        ) {
+          throw new Error(`Trainee shadow days must be between 1 and ${maxShadowDays} for this month.`);
+        }
+        return {
+          id: member.id,
+          participationMode: rawMode as "NORMAL" | "TRAINEE" | "MENTORED",
+          shadowDayCount,
+        };
+      });
+
+      const primaryMembers = settings.filter((setting) => setting.participationMode !== "TRAINEE");
+      if (primaryMembers.length === 0) {
+        throw new Error("At least one participant must have primary standby days.");
+      }
+      if (settings.some((setting) =>
+        setting.participationMode === "MENTORED" &&
+        primaryMembers.filter((candidate) => candidate.id !== setting.id).length === 0
+      )) {
+        throw new Error("Each mentored participant needs at least one other eligible mentor.");
+      }
+
+      await Promise.all(settings.map((setting) => transaction.planningMember.update({
+        where: { id: setting.id },
+        data: {
+          participationMode: setting.participationMode,
+          shadowDayCount: setting.shadowDayCount,
+        },
+      })));
+    });
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "Unable to save participation settings.",
+    };
+  }
+
+  revalidatePath(`/admin/months/${planningMonthId}`);
+  revalidatePath("/");
+  return { success: "Participation settings saved." };
+}
+
 export async function createPlanningMonth(
   _previousState: CreatePlanningMonthState,
   formData: FormData,

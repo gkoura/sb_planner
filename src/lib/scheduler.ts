@@ -1,4 +1,4 @@
-export const SCHEDULER_ALGORITHM_VERSION = "v1";
+export const SCHEDULER_ALGORITHM_VERSION = "v2-shadow";
 
 const MAX_SEARCH_STATES = 250_000;
 const MANDATORY_AVAILABILITY_LIMIT = 5;
@@ -8,6 +8,8 @@ export type SchedulerMemberInput = {
   name: string;
   mode: "AVAILABLE" | "UNAVAILABLE";
   dates: string[];
+  participationMode?: "NORMAL" | "TRAINEE" | "MENTORED";
+  shadowDayCount?: number;
 };
 
 export type ScheduleAssignmentResult = {
@@ -17,10 +19,18 @@ export type ScheduleAssignmentResult = {
   name: string;
 };
 
+export type ScheduleShadowResult = {
+  date: string;
+  shadowMemberId: string;
+  name: string;
+  kind: "TRAINING" | "MENTORING";
+};
+
 export type ScheduleResult =
   | {
       ok: true;
       assignments: ScheduleAssignmentResult[];
+      shadows: ScheduleShadowResult[];
       fairnessScore: number;
       visitedStates: number;
       workloads: { assignedDays: number; memberId: string; name: string }[];
@@ -57,7 +67,7 @@ function failure(
   return { ok: false, code, message, visitedStates };
 }
 
-export function generateSchedule(
+function generatePrimarySchedule(
   year: number,
   month: number,
   input: SchedulerMemberInput[],
@@ -342,8 +352,277 @@ export function generateSchedule(
   return {
     ok: true,
     assignments: finalAssignments,
+    shadows: [],
     fairnessScore: bestScore,
     visitedStates,
     workloads: finalWorkloads,
   };
+}
+
+const MAX_SHADOW_SEARCH_STATES = 250_000;
+
+export function generateSchedule(
+  year: number,
+  month: number,
+  input: SchedulerMemberInput[],
+  fixedPrimaryAssignments?: ScheduleAssignmentResult[],
+): ScheduleResult {
+  const days = daysInMonth(year, month);
+  if (input.length === 0 || input.length > 11) {
+    return failure("INVALID_INPUT", "A plan needs between 1 and 11 participants.");
+  }
+  const ids = new Set<string>();
+  const names = new Set<string>();
+  for (const member of input) {
+    if (!member.id || !member.name.trim() || ids.has(member.id) || names.has(member.name)) {
+      return failure("INVALID_INPUT", "Participant names and IDs must be unique and non-empty.");
+    }
+    if (!["NORMAL", "TRAINEE", "MENTORED", undefined].includes(member.participationMode)) {
+      return failure("INVALID_INPUT", `${member.name} has an invalid participation mode.`);
+    }
+    ids.add(member.id);
+    names.add(member.name);
+  }
+  if (!Number.isInteger(year) || year < 1 || year > 9999 || !Number.isInteger(month) || month < 1 || month > 12) {
+    return failure("INVALID_INPUT", "Choose a valid planning month.");
+  }
+
+  const maxShadowDays = Math.ceil(days / 2);
+  for (const member of input) {
+    if (member.participationMode === "TRAINEE") {
+      if (!Number.isInteger(member.shadowDayCount) || (member.shadowDayCount ?? 0) < 1 || (member.shadowDayCount ?? 0) > maxShadowDays) {
+        return failure("INVALID_INPUT", `${member.name} must have between 1 and ${maxShadowDays} trainee shadow days.`);
+      }
+    }
+  }
+
+  const primaryMembers = input.filter((member) => member.participationMode !== "TRAINEE");
+  if (primaryMembers.length === 0) {
+    return failure("INFEASIBLE", "At least one participant must be available for primary standby assignments.");
+  }
+  let primaryResult: ScheduleResult;
+  if (fixedPrimaryAssignments) {
+    const primaryByDate = new Map(fixedPrimaryAssignments.map((assignment) => [assignment.date, assignment]));
+    const allDates = Array.from({ length: days }, (_, index) => dateLabel(year, month, index + 1));
+    if (
+      fixedPrimaryAssignments.length !== days ||
+      primaryByDate.size !== days ||
+      allDates.some((date) => !primaryByDate.has(date)) ||
+      fixedPrimaryAssignments.some((assignment) => !primaryMembers.some((member) => member.id === assignment.memberId))
+    ) {
+      return failure("INVALID_INPUT", "The fixed primary assignments must cover every date with an eligible participant.");
+    }
+    primaryResult = {
+      ok: true,
+      assignments: fixedPrimaryAssignments,
+      shadows: [],
+      fairnessScore: 0,
+      visitedStates: 0,
+      workloads: [],
+    };
+  } else {
+    primaryResult = generatePrimarySchedule(year, month, primaryMembers);
+  }
+  if (!primaryResult.ok) return primaryResult;
+
+  const membersById = new Map(input.map((member) => [member.id, member]));
+  const availabilityById = new Map<string, Set<number>>();
+  for (const member of input) {
+    const selected = new Set<number>();
+    for (const date of member.dates) {
+      const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+      if (
+        !match || Number(match[1]) !== year || Number(match[2]) !== month ||
+        Number(match[3]) < 1 || Number(match[3]) > days || selected.has(Number(match[3]))
+      ) {
+        return failure("INVALID_INPUT", `${member.name} has an invalid availability date.`);
+      }
+      selected.add(Number(match[3]));
+    }
+    availabilityById.set(member.id, new Set(
+      member.mode === "AVAILABLE"
+        ? selected
+        : Array.from({ length: days }, (_, index) => index + 1).filter((day) => !selected.has(day)),
+    ));
+  }
+
+  const primaryByDay = new Map(primaryResult.assignments.map((assignment) => [assignment.day, assignment.memberId]));
+  const workDaysByMember = new Map<string, Set<number>>(
+    input.map((member) => [member.id, new Set<number>()]),
+  );
+  for (const assignment of primaryResult.assignments) {
+    workDaysByMember.get(assignment.memberId)!.add(assignment.day);
+  }
+  const shadowCountByMember = new Map(input.map((member) => [member.id, 0]));
+  const trainingMentorsByTrainee = new Map(input.map((member) => [member.id, new Map<string, number>()]));
+  const occupiedShadowDates = new Set<number>();
+  const shadows: ScheduleShadowResult[] = [];
+  let shadowStates = 0;
+  let shadowLimitReached = false;
+
+  const tasks: (
+    | { kind: "MENTORING"; day: number; shadowMemberId: string; shadowedMemberId: string }
+    | { kind: "TRAINING"; shadowMemberId: string }
+  )[] = [];
+  for (const assignment of primaryResult.assignments) {
+    const member = membersById.get(assignment.memberId)!;
+    if (member.participationMode === "MENTORED") {
+      tasks.push({ kind: "MENTORING", day: assignment.day, shadowMemberId: "", shadowedMemberId: member.id });
+    }
+  }
+  const traineeMembers = input
+    .filter((member) => member.participationMode === "TRAINEE")
+    .sort((left, right) => left.name.localeCompare(right.name));
+  for (const trainee of traineeMembers) {
+    for (let index = 0; index < (trainee.shadowDayCount ?? 0); index += 1) {
+      tasks.push({ kind: "TRAINING", shadowMemberId: trainee.id });
+    }
+  }
+
+  const mentorCandidatesFor = (task: (typeof tasks)[number]) => {
+    if (task.kind === "TRAINING") return [];
+    return primaryMembers
+      .filter((member) => member.id !== task.shadowedMemberId)
+      .filter((member) => availabilityById.get(member.id)!.has(task.day))
+      .filter((member) => {
+        const workDays = workDaysByMember.get(member.id)!;
+        return !workDays.has(task.day - 1) && !workDays.has(task.day) && !workDays.has(task.day + 1);
+      });
+  };
+
+  const orderedTasks = [
+    ...tasks.filter((task) => task.kind === "MENTORING").sort((left, right) => {
+      if (left.kind !== "MENTORING" || right.kind !== "MENTORING") return 0;
+      return mentorCandidatesFor(left).length - mentorCandidatesFor(right).length || left.day - right.day;
+    }),
+    ...tasks.filter((task) => task.kind === "TRAINING"),
+  ];
+
+  const canWork = (memberId: string, day: number) => {
+    const workDays = workDaysByMember.get(memberId)!;
+    return !workDays.has(day - 1) && !workDays.has(day) && !workDays.has(day + 1);
+  };
+
+  const searchShadows = (taskIndex: number): boolean => {
+    shadowStates += 1;
+    if (shadowStates > MAX_SHADOW_SEARCH_STATES) {
+      shadowLimitReached = true;
+      return false;
+    }
+    if (taskIndex >= orderedTasks.length) return true;
+    const task = orderedTasks[taskIndex];
+
+    if (task.kind === "MENTORING") {
+      const candidates = mentorCandidatesFor(task).sort((left, right) =>
+        shadowCountByMember.get(left.id)! - shadowCountByMember.get(right.id)! ||
+        left.name.localeCompare(right.name),
+      );
+      if (occupiedShadowDates.has(task.day)) return false;
+      for (const mentor of candidates) {
+        workDaysByMember.get(mentor.id)!.add(task.day);
+        occupiedShadowDates.add(task.day);
+        shadowCountByMember.set(mentor.id, shadowCountByMember.get(mentor.id)! + 1);
+        shadows.push({
+          date: primaryResult.assignments[task.day - 1].date,
+          shadowMemberId: mentor.id,
+          name: mentor.name,
+          kind: "MENTORING",
+        });
+        if (searchShadows(taskIndex + 1)) return true;
+        shadows.pop();
+        shadowCountByMember.set(mentor.id, shadowCountByMember.get(mentor.id)! - 1);
+        occupiedShadowDates.delete(task.day);
+        workDaysByMember.get(mentor.id)!.delete(task.day);
+        if (shadowLimitReached) return false;
+      }
+      return false;
+    }
+
+    const traineeId = task.shadowMemberId;
+    const trainee = membersById.get(traineeId)!;
+    const availableDays = Array.from(primaryByDay.keys())
+      .filter((day) => availabilityById.get(traineeId)!.has(day) && canWork(traineeId, day))
+      .sort((left, right) => {
+        const leftMentor = primaryByDay.get(left)!;
+        const rightMentor = primaryByDay.get(right)!;
+        const leftRepeat = trainingMentorsByTrainee.get(traineeId)!.get(leftMentor) ?? 0;
+        const rightRepeat = trainingMentorsByTrainee.get(traineeId)!.get(rightMentor) ?? 0;
+        if (leftRepeat !== rightRepeat) return leftRepeat - rightRepeat;
+
+        const priorDays = shadows
+          .filter((shadow) => shadow.kind === "TRAINING" && shadow.shadowMemberId === traineeId)
+          .map((shadow) => Number(shadow.date.slice(-2)));
+        const leftSpacing = priorDays.length
+          ? Math.min(...priorDays.map((day) => Math.abs(day - left)))
+          : -Math.abs(left - (days + 1) / 2);
+        const rightSpacing = priorDays.length
+          ? Math.min(...priorDays.map((day) => Math.abs(day - right)))
+          : -Math.abs(right - (days + 1) / 2);
+        return rightSpacing - leftSpacing || left - right;
+      });
+
+    for (const day of availableDays) {
+      const mentorId = primaryByDay.get(day)!;
+      if (occupiedShadowDates.has(day)) continue;
+      workDaysByMember.get(traineeId)!.add(day);
+      occupiedShadowDates.add(day);
+      const mentorCounts = trainingMentorsByTrainee.get(traineeId)!;
+      mentorCounts.set(mentorId, (mentorCounts.get(mentorId) ?? 0) + 1);
+      shadows.push({
+        date: primaryResult.assignments[day - 1].date,
+        shadowMemberId: trainee.id,
+        name: trainee.name,
+        kind: "TRAINING",
+      });
+      if (searchShadows(taskIndex + 1)) return true;
+      shadows.pop();
+      const remaining = mentorCounts.get(mentorId)! - 1;
+      if (remaining) mentorCounts.set(mentorId, remaining);
+      else mentorCounts.delete(mentorId);
+      occupiedShadowDates.delete(day);
+      workDaysByMember.get(traineeId)!.delete(day);
+      if (shadowLimitReached) return false;
+    }
+    return false;
+  };
+
+  if (!searchShadows(0)) {
+    if (shadowLimitReached) {
+      return failure("SEARCH_LIMIT", "Shadow assignments reached the search limit before finding a conflict-free arrangement.", primaryResult.visitedStates + shadowStates);
+    }
+    return failure(
+      "INFEASIBLE",
+      "No shadow plan satisfies availability, mentor capacity, and the no-consecutive-days rule. Review shadow counts or participant availability.",
+      primaryResult.visitedStates + shadowStates,
+    );
+  }
+
+  return {
+    ...primaryResult,
+    assignments: primaryResult.assignments,
+    shadows: [...shadows].sort((left, right) => left.date.localeCompare(right.date) || left.name.localeCompare(right.name)),
+    visitedStates: primaryResult.visitedStates + shadowStates,
+  };
+}
+
+export function generateShadowsForAssignments(
+  year: number,
+  month: number,
+  members: SchedulerMemberInput[],
+  assignments: { date: string; planningMemberId: string }[],
+): { ok: true; shadows: ScheduleShadowResult[] } | { ok: false; message: string } {
+  const memberById = new Map(members.map((member) => [member.id, member]));
+  const fixedAssignments = assignments.map((assignment) => {
+    const day = Number(assignment.date.slice(-2));
+    const member = memberById.get(assignment.planningMemberId);
+    return {
+      date: assignment.date,
+      day,
+      memberId: assignment.planningMemberId,
+      name: member?.name ?? "",
+    };
+  });
+  const result = generateSchedule(year, month, members, fixedAssignments);
+  if (!result.ok) return { ok: false, message: result.message };
+  return { ok: true, shadows: result.shadows };
 }
