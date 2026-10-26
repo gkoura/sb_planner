@@ -1,7 +1,12 @@
 "use client";
 
 import { Menu } from "@base-ui/react/menu";
-import { ChevronDown, Clipboard, FileImage, FileSpreadsheet } from "lucide-react";
+import {
+  ChevronDown,
+  Clipboard,
+  FileImage,
+  FileSpreadsheet,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { buildMonthWeeks } from "@/lib/month-calendar";
@@ -65,7 +70,10 @@ function downloadBlob(blob: Blob, filename: string) {
 }
 
 function downloadText(content: string, filename: string, mimeType: string) {
-  downloadBlob(new Blob([content], { type: `${mimeType};charset=utf-8` }), filename);
+  downloadBlob(
+    new Blob([content], { type: `${mimeType};charset=utf-8` }),
+    filename,
+  );
 }
 
 function buildScheduleSvg({
@@ -95,13 +103,19 @@ function buildScheduleSvg({
   const weeks = buildMonthWeeks(year, month);
   const legendColumns = 3;
   const legendRows = Math.ceil(members.length / legendColumns);
-  const legendTop = gridTop + headerHeight + weeks.length * (rowHeight + rowGap) + 28;
+  const legendTop =
+    gridTop + headerHeight + weeks.length * (rowHeight + rowGap) + 28;
   const legendRowHeight = 48;
   const height = legendTop + Math.max(1, legendRows) * legendRowHeight + 48;
   const colorsByMemberId = new Map(
-    members.map((member, index) => [member.id, SCHEDULE_COLORS[index % SCHEDULE_COLORS.length]]),
+    members.map((member, index) => [
+      member.id,
+      SCHEDULE_COLORS[index % SCHEDULE_COLORS.length],
+    ]),
   );
-  const assignmentsByDate = new Map(assignments.map((assignment) => [assignment.date, assignment]));
+  const assignmentsByDate = new Map(
+    assignments.map((assignment) => [assignment.date, assignment]),
+  );
   const assignmentsByMember = new Map<string, number>();
   const shadowsByMember = new Map<string, number>();
   assignments.forEach((assignment) => {
@@ -110,10 +124,21 @@ function buildScheduleSvg({
       (assignmentsByMember.get(assignment.planningMemberId) ?? 0) + 1,
     );
     for (const shadow of assignment.shadows ?? []) {
-      shadowsByMember.set(shadow.shadowMemberId, (shadowsByMember.get(shadow.shadowMemberId) ?? 0) + 1);
+      shadowsByMember.set(
+        shadow.shadowMemberId,
+        (shadowsByMember.get(shadow.shadowMemberId) ?? 0) + 1,
+      );
     }
   });
-  const weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+  const weekdays = [
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+    "Sunday",
+  ];
   const svg = [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">`,
     `<rect width="${width}" height="${height}" rx="28" fill="#f8faf9"/>`,
@@ -123,7 +148,9 @@ function buildScheduleSvg({
 
   weekdays.forEach((label, index) => {
     const x = padding + index * (columnWidth + columnGap) + columnWidth / 2;
-    svg.push(`<text x="${x}" y="${gridTop + 26}" text-anchor="middle" fill="#526967" font-family="Arial,sans-serif" font-size="13" font-weight="700" letter-spacing="1">${label.toUpperCase()}</text>`);
+    svg.push(
+      `<text x="${x}" y="${gridTop + 26}" text-anchor="middle" fill="#526967" font-family="Arial,sans-serif" font-size="13" font-weight="700" letter-spacing="1">${label.toUpperCase()}</text>`,
+    );
   });
 
   weeks.forEach((week, weekIndex) => {
@@ -132,21 +159,41 @@ function buildScheduleSvg({
       const x = padding + weekdayIndex * (columnWidth + columnGap);
       const y = gridTop + headerHeight + weekIndex * (rowHeight + rowGap);
       const assignment = assignmentsByDate.get(cell.date);
-      const color = assignment ? colorsByMemberId.get(assignment.planningMemberId) : undefined;
+      const color = assignment
+        ? colorsByMemberId.get(assignment.planningMemberId)
+        : undefined;
       const background = color?.background ?? "#ffffff";
       const foreground = color?.foreground ?? "#647574";
       const label = assignment?.nameSnapshot ?? "Open";
       const visibleName = label.length > 19 ? `${label.slice(0, 18)}…` : label;
-      svg.push(`<rect x="${x}" y="${y}" width="${columnWidth}" height="${rowHeight}" rx="14" fill="${background}" stroke="${foreground}" stroke-opacity="0.28"/>`);
-      svg.push(`<text x="${x + 14}" y="${y + 24}" fill="${foreground}" font-family="Arial,sans-serif" font-size="15" font-weight="700">${cell.day}</text>`);
-      svg.push(`<text x="${x + 14}" y="${y + 65}" fill="${foreground}" font-family="Arial,sans-serif" font-size="14" font-weight="700">${escapeXml(visibleName)}</text>`);
-      const shadowLabels = (assignment?.shadows ?? []).map((shadow) => `${shadow.kind === "TRAINING" ? "Shadow" : "Mentor"}: ${shadow.nameSnapshot}`).join(", ");
+      svg.push(
+        `<rect x="${x}" y="${y}" width="${columnWidth}" height="${rowHeight}" rx="14" fill="${background}" stroke="${foreground}" stroke-opacity="0.28"/>`,
+      );
+      svg.push(
+        `<text x="${x + 14}" y="${y + 24}" fill="${foreground}" font-family="Arial,sans-serif" font-size="15" font-weight="700">${cell.day}</text>`,
+      );
+      svg.push(
+        `<text x="${x + 14}" y="${y + 65}" fill="${foreground}" font-family="Arial,sans-serif" font-size="14" font-weight="700">${escapeXml(visibleName)}</text>`,
+      );
+      const shadowLabels = (assignment?.shadows ?? [])
+        .map(
+          (shadow) =>
+            `${shadow.kind === "TRAINING" ? "Shadow" : "Mentor"}: ${shadow.nameSnapshot}`,
+        )
+        .join(", ");
       if (shadowLabels) {
-        const visibleShadows = shadowLabels.length > 28 ? `${shadowLabels.slice(0, 27)}…` : shadowLabels;
-        svg.push(`<text x="${x + 14}" y="${y + 87}" fill="#334155" font-family="Arial,sans-serif" font-size="10">${escapeXml(visibleShadows)}</text>`);
+        const visibleShadows =
+          shadowLabels.length > 28
+            ? `${shadowLabels.slice(0, 27)}…`
+            : shadowLabels;
+        svg.push(
+          `<text x="${x + 14}" y="${y + 87}" fill="#334155" font-family="Arial,sans-serif" font-size="10">${escapeXml(visibleShadows)}</text>`,
+        );
       }
       if (assignment?.roleSnapshot === "ADMIN") {
-        svg.push(`<text x="${x + 14}" y="${y + (shadowLabels ? 99 : 85)}" fill="${foreground}" font-family="Arial,sans-serif" font-size="11">ADMIN</text>`);
+        svg.push(
+          `<text x="${x + 14}" y="${y + (shadowLabels ? 99 : 85)}" fill="${foreground}" font-family="Arial,sans-serif" font-size="11">ADMIN</text>`,
+        );
       }
     });
   });
@@ -157,11 +204,19 @@ function buildScheduleSvg({
     const x = padding + column * (gridWidth / legendColumns);
     const y = legendTop + row * legendRowHeight;
     const color = colorsByMemberId.get(member.id);
-    svg.push(`<circle cx="${x + 7}" cy="${y + 8}" r="7" fill="${color?.foreground ?? "#526967"}"/>`);
-    const totalDays = (assignmentsByMember.get(member.id) ?? 0) + (shadowsByMember.get(member.id) ?? 0);
-    svg.push(`<text x="${x + 24}" y="${y + 13}" fill="#233c3b" font-family="Arial,sans-serif" font-size="14" font-weight="600">${escapeXml(member.nameSnapshot)}${member.roleSnapshot === "ADMIN" ? " (admin)" : ""} · ${totalDays} days</text>`);
+    svg.push(
+      `<circle cx="${x + 7}" cy="${y + 8}" r="7" fill="${color?.foreground ?? "#526967"}"/>`,
+    );
+    const totalDays =
+      (assignmentsByMember.get(member.id) ?? 0) +
+      (shadowsByMember.get(member.id) ?? 0);
+    svg.push(
+      `<text x="${x + 24}" y="${y + 13}" fill="#233c3b" font-family="Arial,sans-serif" font-size="14" font-weight="600">${escapeXml(member.nameSnapshot)}${member.roleSnapshot === "ADMIN" ? " (admin)" : ""} · ${totalDays} days</text>`,
+    );
     if (member.phoneNumber) {
-      svg.push(`<text x="${x + 24}" y="${y + 34}" fill="#526967" font-family="Arial,sans-serif" font-size="12">${escapeXml(member.phoneNumber)}</text>`);
+      svg.push(
+        `<text x="${x + 24}" y="${y + 34}" fill="#526967" font-family="Arial,sans-serif" font-size="12">${escapeXml(member.phoneNumber)}</text>`,
+      );
     }
   });
 
@@ -216,23 +271,35 @@ export function ScheduleExportMenu({
       await navigator.clipboard.writeText(markdown);
       toast.success("Schedule copied as Markdown.");
     } catch {
-      toast.error("Could not access the clipboard. Check your browser permissions.");
+      toast.error(
+        "Could not access the clipboard. Check your browser permissions.",
+      );
     }
   }
 
   function downloadCsv() {
     const membersById = new Map(members.map((member) => [member.id, member]));
     const rows = [
-      ["Date", "Day", "Standby engineer", "Standby phone", "Shadow / mentor (name and phone)"],
+      [
+        "Date",
+        "Day",
+        "Standby engineer",
+        "Standby phone",
+        "Shadow / mentor (name and phone)",
+      ],
       ...assignments.map((assignment) => [
         assignment.date,
         weekday(assignment.date),
         assignment.nameSnapshot,
         membersById.get(assignment.planningMemberId)?.phoneNumber ?? "",
-        (assignment.shadows ?? []).map((shadow) => {
-          const phoneNumber = membersById.get(shadow.shadowMemberId)?.phoneNumber;
-          return `${shadow.kind === "TRAINING" ? "Shadow" : "Mentor"}: ${shadow.nameSnapshot}${phoneNumber ? ` (${phoneNumber})` : ""}`;
-        }).join("; "),
+        (assignment.shadows ?? [])
+          .map((shadow) => {
+            const phoneNumber = membersById.get(
+              shadow.shadowMemberId,
+            )?.phoneNumber;
+            return `${shadow.kind === "TRAINING" ? "Shadow" : "Mentor"}: ${shadow.nameSnapshot}${phoneNumber ? ` (${phoneNumber})` : ""}`;
+          })
+          .join("; "),
       ]),
     ];
     const csv = rows.map((row) => row.map(csvCell).join(",")).join("\r\n");
@@ -241,8 +308,17 @@ export function ScheduleExportMenu({
   }
 
   function downloadPng() {
-    const svg = buildScheduleSvg({ year, month, version, members, assignments, title });
-    const svgUrl = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml;charset=utf-8" }));
+    const svg = buildScheduleSvg({
+      year,
+      month,
+      version,
+      members,
+      assignments,
+      title,
+    });
+    const svgUrl = URL.createObjectURL(
+      new Blob([svg], { type: "image/svg+xml;charset=utf-8" }),
+    );
     const image = new Image();
 
     image.onload = () => {
@@ -286,21 +362,30 @@ export function ScheduleExportMenu({
               className="flex cursor-default items-center gap-2 rounded-lg px-3 py-2 text-sm outline-none hover:bg-accent focus:bg-accent"
               onClick={() => void copyMarkdown()}
             >
-              <Clipboard aria-hidden="true" className="size-4 text-muted-foreground" />
+              <Clipboard
+                aria-hidden="true"
+                className="size-4 text-muted-foreground"
+              />
               Copy as Markdown
             </Menu.Item>
             <Menu.Item
               className="flex cursor-default items-center gap-2 rounded-lg px-3 py-2 text-sm outline-none hover:bg-accent focus:bg-accent"
               onClick={downloadPng}
             >
-              <FileImage aria-hidden="true" className="size-4 text-muted-foreground" />
+              <FileImage
+                aria-hidden="true"
+                className="size-4 text-muted-foreground"
+              />
               Export PNG
             </Menu.Item>
             <Menu.Item
               className="flex cursor-default items-center gap-2 rounded-lg px-3 py-2 text-sm outline-none hover:bg-accent focus:bg-accent"
               onClick={downloadCsv}
             >
-              <FileSpreadsheet aria-hidden="true" className="size-4 text-muted-foreground" />
+              <FileSpreadsheet
+                aria-hidden="true"
+                className="size-4 text-muted-foreground"
+              />
               Export CSV
             </Menu.Item>
           </Menu.Popup>

@@ -6,7 +6,10 @@ import { generateSchedule } from "../src/lib/scheduler.ts";
 
 async function fixture(name) {
   return JSON.parse(
-    await readFile(new URL(`./fixtures/scheduler/${name}.json`, import.meta.url), "utf8"),
+    await readFile(
+      new URL(`./fixtures/scheduler/${name}.json`, import.meta.url),
+      "utf8",
+    ),
   );
 }
 
@@ -21,36 +24,65 @@ function assertValidSchedule(result, year, month, members) {
     const assignment = result.assignments[index];
     const day = index + 1;
     assert.equal(assignment.day, day);
-    assert.equal(assignment.date, `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`);
+    assert.equal(
+      assignment.date,
+      `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
+    );
 
     const member = memberById.get(assignment.memberId);
     assert.ok(member, `day ${day} must be assigned to a known participant`);
     const selectedDates = new Set(member.dates);
-    const isAvailable = member.mode === "AVAILABLE"
-      ? selectedDates.has(assignment.date)
-      : !selectedDates.has(assignment.date);
-    assert.ok(isAvailable, `${member.name} must be available on ${assignment.date}`);
-    assert.notEqual(priorMemberByDate.get(index), assignment.memberId, "adjacent days cannot use the same participant");
+    const isAvailable =
+      member.mode === "AVAILABLE"
+        ? selectedDates.has(assignment.date)
+        : !selectedDates.has(assignment.date);
+    assert.ok(
+      isAvailable,
+      `${member.name} must be available on ${assignment.date}`,
+    );
+    assert.notEqual(
+      priorMemberByDate.get(index),
+      assignment.memberId,
+      "adjacent days cannot use the same participant",
+    );
     priorMemberByDate.set(index + 1, assignment.memberId);
   }
 
-  const workloadTotal = result.workloads.reduce((total, workload) => total + workload.assignedDays, 0);
+  const workloadTotal = result.workloads.reduce(
+    (total, workload) => total + workload.assignedDays,
+    0,
+  );
   assert.equal(workloadTotal, expectedDays);
   for (const workload of result.workloads) {
     assert.equal(
       workload.assignedDays,
-      result.assignments.filter((assignment) => assignment.memberId === workload.memberId).length,
+      result.assignments.filter(
+        (assignment) => assignment.memberId === workload.memberId,
+      ).length,
     );
   }
 }
 
 test("available and unavailable modes normalize to the same leap-year schedule", async () => {
   const data = await fixture("mode-parity");
-  const availableMode = generateSchedule(data.year, data.month, data.availableMode);
-  const unavailableMode = generateSchedule(data.year, data.month, data.unavailableMode);
+  const availableMode = generateSchedule(
+    data.year,
+    data.month,
+    data.availableMode,
+  );
+  const unavailableMode = generateSchedule(
+    data.year,
+    data.month,
+    data.unavailableMode,
+  );
 
   assertValidSchedule(availableMode, data.year, data.month, data.availableMode);
-  assertValidSchedule(unavailableMode, data.year, data.month, data.unavailableMode);
+  assertValidSchedule(
+    unavailableMode,
+    data.year,
+    data.month,
+    data.unavailableMode,
+  );
   assert.deepEqual(availableMode.assignments, unavailableMode.assignments);
   assert.equal(availableMode.assignments.length, 29);
   assert.equal(availableMode.fairnessScore, data.expectedFairnessScore);
@@ -96,7 +128,9 @@ test("fairness minimizes the Python absolute-deviation objective", async () => {
   assertValidSchedule(result, data.year, data.month, data.members);
   assert.equal(result.fairnessScore, data.expectedFairnessScore);
   assert.deepEqual(
-    result.workloads.map((workload) => workload.assignedDays).sort((a, b) => a - b),
+    result.workloads
+      .map((workload) => workload.assignedDays)
+      .sort((a, b) => a - b),
     data.expectedWorkloads,
   );
 });
@@ -104,7 +138,11 @@ test("fairness minimizes the Python absolute-deviation objective", async () => {
 test("the result is deterministic when input members are reordered", async () => {
   const data = await fixture("fairness-31-days");
   const first = generateSchedule(data.year, data.month, data.members);
-  const second = generateSchedule(data.year, data.month, [...data.members].reverse());
+  const second = generateSchedule(
+    data.year,
+    data.month,
+    [...data.members].reverse(),
+  );
 
   assert.equal(first.ok, true);
   assert.equal(second.ok, true);
@@ -121,7 +159,12 @@ test("an alternating-day constraint that cannot be met is infeasible", () => {
 });
 
 test("invalid inputs return structured validation failures", () => {
-  const validMember = { id: "a", name: "Alice", mode: "UNAVAILABLE", dates: [] };
+  const validMember = {
+    id: "a",
+    name: "Alice",
+    mode: "UNAVAILABLE",
+    dates: [],
+  };
   const cases = [
     [2024, 0, [validMember]],
     [0, 1, [validMember]],
@@ -130,9 +173,27 @@ test("invalid inputs return structured validation failures", () => {
     [2024, 1, [validMember, { ...validMember, id: "a", name: "Bob" }]],
     [2024, 2, [{ ...validMember, mode: "INVALID" }]],
     [2024, 2, [{ ...validMember, mode: "AVAILABLE", dates: ["2024-02-30"] }]],
-    [2024, 2, [{ ...validMember, mode: "AVAILABLE", dates: ["2024-02-01", "2024-02-01"] }]],
+    [
+      2024,
+      2,
+      [
+        {
+          ...validMember,
+          mode: "AVAILABLE",
+          dates: ["2024-02-01", "2024-02-01"],
+        },
+      ],
+    ],
     [2024, 2, [{ ...validMember, mode: "AVAILABLE", dates: ["2024-01-31"] }]],
-    [2024, 2, Array.from({ length: 12 }, (_, index) => ({ ...validMember, id: `id-${index}`, name: `Engineer ${index}` }))],
+    [
+      2024,
+      2,
+      Array.from({ length: 12 }, (_, index) => ({
+        ...validMember,
+        id: `id-${index}`,
+        name: `Engineer ${index}`,
+      })),
+    ],
   ];
 
   for (const [year, month, members] of cases) {

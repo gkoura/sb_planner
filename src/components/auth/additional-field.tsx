@@ -1,91 +1,91 @@
-"use client"
+"use client";
 
 import {
   type AdditionalField as AdditionalFieldConfig,
   type AdditionalFieldFormValue,
   getFormFieldErrors,
-  resolveInputType
-} from "@better-auth-ui/core"
-import { useAuth, useCopyToClipboard } from "@better-auth-ui/react"
-import { format } from "date-fns"
-import { CalendarIcon, Check, ChevronDownIcon, Copy } from "lucide-react"
-import { type ComponentType, useRef, useState } from "react"
-import { toast } from "sonner"
+  resolveInputType,
+} from "@better-auth-ui/core";
+import { useAuth, useCopyToClipboard } from "@better-auth-ui/react";
+import { format } from "date-fns";
+import { CalendarIcon, Check, ChevronDownIcon, Copy } from "lucide-react";
+import { type ComponentType, useRef, useState } from "react";
+import { toast } from "sonner";
 
-import { buttonVariants } from "@/components/ui/button"
-import { Calendar } from "@/components/ui/calendar"
-import { Checkbox } from "@/components/ui/checkbox"
+import { buttonVariants } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Combobox,
   ComboboxContent,
   ComboboxEmpty,
   ComboboxInput,
   ComboboxItem,
-  ComboboxList
-} from "@/components/ui/combobox"
+  ComboboxList,
+} from "@/components/ui/combobox";
 import {
   Field,
   FieldContent,
   FieldError,
-  FieldLabel
-} from "@/components/ui/field"
-import { Input } from "@/components/ui/input"
+  FieldLabel,
+} from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupButton,
-  InputGroupInput
-} from "@/components/ui/input-group"
+  InputGroupInput,
+} from "@/components/ui/input-group";
 import {
   Popover,
   PopoverContent,
-  PopoverTrigger
-} from "@/components/ui/popover"
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
   SelectGroup,
   SelectItem,
   SelectTrigger,
-  SelectValue
-} from "@/components/ui/select"
-import { Slider } from "@/components/ui/slider"
-import { Switch } from "@/components/ui/switch"
-import { Textarea } from "@/components/ui/textarea"
-import { cn } from "cn"
+  SelectValue,
+} from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import { cn } from "cn";
 
 export type AdditionalFieldProps = {
-  name: string
-  field: AdditionalFieldConfig
-  value: AdditionalFieldFormValue
-  onBlur: () => void
-  onChange: (value: AdditionalFieldFormValue) => void
-  isInvalid?: boolean
-  errors?: unknown[]
-  isPending?: boolean
+  name: string;
+  field: AdditionalFieldConfig;
+  value: AdditionalFieldFormValue;
+  onBlur: () => void;
+  onChange: (value: AdditionalFieldFormValue) => void;
+  isInvalid?: boolean;
+  errors?: unknown[];
+  isPending?: boolean;
   /** Complete suffix appended to labels for fields that are not required. */
-  optionalLabel?: string
-}
+  optionalLabel?: string;
+};
 
 function valueToString(value: AdditionalFieldFormValue) {
-  if (value == null) return ""
-  return value instanceof Date ? value.toISOString() : String(value)
+  if (value == null) return "";
+  return value instanceof Date ? value.toISOString() : String(value);
 }
 
 /** Convert a `defaultValue` into a `Date` for the calendar. */
 function toDate(value: unknown): Date | undefined {
-  if (value instanceof Date) return value
+  if (value instanceof Date) return value;
   if (typeof value === "string") {
-    const parsed = new Date(value)
-    return Number.isNaN(parsed.getTime()) ? undefined : parsed
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? undefined : parsed;
   }
-  return undefined
+  return undefined;
 }
 
 /** Format a Date as `HH:mm:ss` for an `<input type="time">`. */
 function formatTime(date: Date) {
-  const pad = (n: number) => n.toString().padStart(2, "0")
-  return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
 }
 
 /**
@@ -95,24 +95,24 @@ function formatTime(date: Date) {
  */
 function CopyButton({
   getValue,
-  isDisabled
+  isDisabled,
 }: {
-  getValue: () => string | undefined
-  isDisabled?: boolean
+  getValue: () => string | undefined;
+  isDisabled?: boolean;
 }) {
-  const { localization } = useAuth()
+  const { localization } = useAuth();
   const { copied, copy } = useCopyToClipboard({
     onError: (error) => {
-      console.error("[Better Auth UI] Copy failed", error)
-      toast.error(localization.errors.copyFailed)
-    }
-  })
+      console.error("[Better Auth UI] Copy failed", error);
+      toast.error(localization.errors.copyFailed);
+    },
+  });
 
   async function handleCopy() {
-    const value = getValue()
-    if (!value) return
+    const value = getValue();
+    if (!value) return;
 
-    await copy(value)
+    await copy(value);
   }
 
   return (
@@ -132,7 +132,7 @@ function CopyButton({
     >
       {copied ? <Check /> : <Copy />}
     </InputGroupButton>
-  )
+  );
 }
 
 /** Renders a single additional user field via shadcn primitives. */
@@ -145,7 +145,7 @@ export function AdditionalField({
   isInvalid,
   errors,
   isPending,
-  optionalLabel
+  optionalLabel,
 }: AdditionalFieldProps) {
   const field =
     optionalLabel && !configuredField.required
@@ -156,14 +156,14 @@ export function AdditionalField({
               {configuredField.label}
               {optionalLabel}
             </>
-          )
+          ),
         }
-      : configuredField
-  const inputType = resolveInputType(field)
-  const fieldErrors = getFormFieldErrors(errors ?? [])
+      : configuredField;
+  const inputType = resolveInputType(field);
+  const fieldErrors = getFormFieldErrors(errors ?? []);
 
   if (field.render) {
-    const FieldRenderer = field.render as ComponentType<AdditionalFieldProps>
+    const FieldRenderer = field.render as ComponentType<AdditionalFieldProps>;
     return (
       <FieldRenderer
         name={name}
@@ -176,13 +176,13 @@ export function AdditionalField({
         isPending={isPending}
         optionalLabel={optionalLabel}
       />
-    )
+    );
   }
 
   if (inputType === "hidden") {
     return (
       <input type="hidden" name={name} value={valueToString(value)} readOnly />
-    )
+    );
   }
 
   if (inputType === "textarea") {
@@ -205,11 +205,11 @@ export function AdditionalField({
 
         <FieldError errors={fieldErrors} />
       </Field>
-    )
+    );
   }
 
   if (inputType === "number") {
-    const maxFractionDigits = field.formatOptions?.maximumFractionDigits
+    const maxFractionDigits = field.formatOptions?.maximumFractionDigits;
 
     return (
       <Field data-invalid={isInvalid}>
@@ -230,7 +230,7 @@ export function AdditionalField({
           onBlur={onBlur}
           onChange={(event) =>
             onChange(
-              event.target.value === "" ? null : event.target.valueAsNumber
+              event.target.value === "" ? null : event.target.valueAsNumber,
             )
           }
           placeholder={field.placeholder}
@@ -242,7 +242,7 @@ export function AdditionalField({
 
         <FieldError errors={fieldErrors} />
       </Field>
-    )
+    );
   }
 
   if (inputType === "slider") {
@@ -257,7 +257,7 @@ export function AdditionalField({
         errors={errors}
         isPending={isPending}
       />
-    )
+    );
   }
 
   if (inputType === "switch") {
@@ -278,7 +278,7 @@ export function AdditionalField({
         </FieldContent>
         <FieldError errors={fieldErrors} />
       </Field>
-    )
+    );
   }
 
   if (inputType === "checkbox") {
@@ -300,7 +300,7 @@ export function AdditionalField({
         </FieldContent>
         <FieldError errors={fieldErrors} />
       </Field>
-    )
+    );
   }
 
   if (inputType === "select") {
@@ -338,13 +338,13 @@ export function AdditionalField({
 
         <FieldError errors={fieldErrors} />
       </Field>
-    )
+    );
   }
 
   if (inputType === "combobox") {
     const selectedOption = field.options?.find(
-      (option) => option.value === valueToString(value)
-    )
+      (option) => option.value === valueToString(value),
+    );
 
     return (
       <Field data-invalid={isInvalid}>
@@ -380,7 +380,7 @@ export function AdditionalField({
 
         <FieldError errors={fieldErrors} />
       </Field>
-    )
+    );
   }
 
   if (inputType === "date" || inputType === "datetime") {
@@ -395,7 +395,7 @@ export function AdditionalField({
         errors={errors}
         isPending={isPending}
       />
-    )
+    );
   }
 
   return (
@@ -409,7 +409,7 @@ export function AdditionalField({
       errors={errors}
       isPending={isPending}
     />
-  )
+  );
 }
 
 function InputField({
@@ -420,23 +420,25 @@ function InputField({
   onChange,
   isInvalid,
   errors,
-  isPending
+  isPending,
 }: AdditionalFieldProps) {
-  const inputRef = useRef<HTMLInputElement>(null)
-  const fieldErrors = getFormFieldErrors(errors ?? [])
+  const inputRef = useRef<HTMLInputElement>(null);
+  const fieldErrors = getFormFieldErrors(errors ?? []);
 
-  const hasPrefix = field.prefix != null
-  const hasSuffix = field.suffix != null || field.copyable
+  const hasPrefix = field.prefix != null;
+  const hasSuffix = field.suffix != null || field.copyable;
 
-  const isNumeric = field.type === "number"
-  const maxFractionDigits = field.formatOptions?.maximumFractionDigits
-  const nativeInputType = isNumeric ? "number" : undefined
+  const isNumeric = field.type === "number";
+  const maxFractionDigits = field.formatOptions?.maximumFractionDigits;
+  const nativeInputType = isNumeric ? "number" : undefined;
   const nativeInputMode = isNumeric
     ? maxFractionDigits
       ? "decimal"
       : "numeric"
-    : undefined
-  const nativeStep = maxFractionDigits ? 1 / 10 ** maxFractionDigits : undefined
+    : undefined;
+  const nativeStep = maxFractionDigits
+    ? 1 / 10 ** maxFractionDigits
+    : undefined;
 
   if (hasPrefix || hasSuffix) {
     return (
@@ -485,7 +487,7 @@ function InputField({
 
         <FieldError errors={fieldErrors} />
       </Field>
-    )
+    );
   }
 
   return (
@@ -510,7 +512,7 @@ function InputField({
 
       <FieldError errors={fieldErrors} />
     </Field>
-  )
+  );
 }
 
 /**
@@ -526,17 +528,17 @@ function SliderField({
   onChange,
   isInvalid,
   errors,
-  isPending
+  isPending,
 }: AdditionalFieldProps) {
-  const maxFractionDigits = field.formatOptions?.maximumFractionDigits
-  const min = field.min ?? 0
-  const max = field.max ?? 100
+  const maxFractionDigits = field.formatOptions?.maximumFractionDigits;
+  const min = field.min ?? 0;
+  const max = field.max ?? 100;
   const step =
-    field.step ?? (maxFractionDigits ? 1 / 10 ** maxFractionDigits : 1)
-  const numericValue = typeof value === "number" ? value : min
-  const fieldErrors = getFormFieldErrors(errors ?? [])
+    field.step ?? (maxFractionDigits ? 1 / 10 ** maxFractionDigits : 1);
+  const numericValue = typeof value === "number" ? value : min;
+  const fieldErrors = getFormFieldErrors(errors ?? []);
 
-  const formatter = new Intl.NumberFormat(undefined, field.formatOptions)
+  const formatter = new Intl.NumberFormat(undefined, field.formatOptions);
 
   return (
     <Field data-invalid={isInvalid}>
@@ -564,7 +566,7 @@ function SliderField({
 
       <FieldError errors={fieldErrors} />
     </Field>
-  )
+  );
 }
 
 /**
@@ -580,18 +582,18 @@ function DateInput({
   onChange,
   isInvalid,
   errors,
-  isPending
+  isPending,
 }: AdditionalFieldProps) {
-  const { localization } = useAuth()
-  const inputType = resolveInputType(field)
-  const isDateTime = inputType === "datetime"
-  const fieldErrors = getFormFieldErrors(errors ?? [])
+  const { localization } = useAuth();
+  const inputType = resolveInputType(field);
+  const isDateTime = inputType === "datetime";
+  const fieldErrors = getFormFieldErrors(errors ?? []);
 
-  const date = toDate(value)
+  const date = toDate(value);
   const [time, setTime] = useState<string>(
-    isDateTime && date ? formatTime(date) : ""
-  )
-  const [open, setOpen] = useState(false)
+    isDateTime && date ? formatTime(date) : "",
+  );
+  const [open, setOpen] = useState(false);
 
   // Compose the hidden form value: ISO date for "date", ISO datetime for
   // "datetime" (date + time).
@@ -612,7 +614,7 @@ function DateInput({
             className={cn(
               buttonVariants({ variant: "outline" }),
               "flex-1 justify-between font-normal",
-              "data-[empty=true]:text-muted-foreground"
+              "data-[empty=true]:text-muted-foreground",
             )}
           >
             {date ? format(date, "PPP") : <span>{field.placeholder}</span>}
@@ -628,24 +630,24 @@ function DateInput({
               captionLayout="dropdown"
               onSelect={(value) => {
                 if (!value) {
-                  onChange(null)
+                  onChange(null);
                 } else {
-                  const nextValue = new Date(value)
+                  const nextValue = new Date(value);
                   if (isDateTime && time.trim()) {
                     const [hours = "0", minutes = "0", seconds = "0"] =
-                      time.split(":")
+                      time.split(":");
                     nextValue.setHours(
                       Number(hours),
                       Number(minutes),
                       Number(seconds),
-                      0
-                    )
+                      0,
+                    );
                   } else {
-                    nextValue.setHours(0, 0, 0, 0)
+                    nextValue.setHours(0, 0, 0, 0);
                   }
-                  onChange(nextValue)
+                  onChange(nextValue);
                 }
-                if (!isDateTime) setOpen(false)
+                if (!isDateTime) setOpen(false);
               }}
             />
           </PopoverContent>
@@ -663,19 +665,19 @@ function DateInput({
               step="1"
               value={time}
               onChange={(event) => {
-                const nextTime = event.target.value
-                setTime(nextTime)
-                if (!date) return
-                const nextValue = new Date(date)
+                const nextTime = event.target.value;
+                setTime(nextTime);
+                if (!date) return;
+                const nextValue = new Date(date);
                 const [hours = "0", minutes = "0", seconds = "0"] =
-                  nextTime.split(":")
+                  nextTime.split(":");
                 nextValue.setHours(
                   Number(hours),
                   Number(minutes),
                   Number(seconds),
-                  0
-                )
-                onChange(nextValue)
+                  0,
+                );
+                onChange(nextValue);
               }}
               disabled={isPending || field.readOnly}
               className="appearance-none bg-background [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
@@ -686,5 +688,5 @@ function DateInput({
 
       <FieldError errors={fieldErrors} />
     </Field>
-  )
+  );
 }

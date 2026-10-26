@@ -3,7 +3,13 @@ export type CalendarCell = { day: number; date: string } | null;
 export function buildMonthWeeks(year: number, month: number): CalendarCell[][] {
   const leapYear = year % 400 === 0 || (year % 4 === 0 && year % 100 !== 0);
   const totalDays =
-    month === 2 ? (leapYear ? 29 : 28) : [4, 6, 9, 11].includes(month) ? 30 : 31;
+    month === 2
+      ? leapYear
+        ? 29
+        : 28
+      : [4, 6, 9, 11].includes(month)
+        ? 30
+        : 31;
   const firstDate = new Date(0);
   firstDate.setUTCFullYear(year, month - 1, 1);
   firstDate.setUTCHours(0, 0, 0, 0);

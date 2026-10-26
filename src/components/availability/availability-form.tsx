@@ -36,8 +36,10 @@ function toDateValue(value: Date) {
 
 function getMonthDateValues(year: number, month: number) {
   const dayCount = new Date(year, month, 0).getDate();
-  return Array.from({ length: dayCount }, (_, index) =>
-    `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(index + 1).padStart(2, "0")}`,
+  return Array.from(
+    { length: dayCount },
+    (_, index) =>
+      `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(index + 1).padStart(2, "0")}`,
   );
 }
 
@@ -52,7 +54,10 @@ export function AvailabilityForm({
     submitAvailability,
     initialState,
   );
-  const monthDateValues = useMemo(() => getMonthDateValues(year, month), [month, year]);
+  const monthDateValues = useMemo(
+    () => getMonthDateValues(year, month),
+    [month, year],
+  );
   const [selectedDates, setSelectedDates] = useState<Date[]>(() =>
     (mode === "UNAVAILABLE"
       ? checkedDates
@@ -73,17 +78,25 @@ export function AvailabilityForm({
       <section aria-label="Choose calendar dates" className="grid gap-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h2 className="text-sm font-semibold">Tap any day you can&apos;t cover</h2>
+            <h2 className="text-sm font-semibold">
+              Tap any day you can&apos;t cover
+            </h2>
             <p className="text-sm text-muted-foreground">
               Days start green (available). Tap once to mark a day unavailable;
               tap again to make it available.
             </p>
           </div>
           <div aria-live="polite" className="flex items-center gap-2">
-            <Badge className="border-emerald-300 bg-emerald-100 text-emerald-900" variant="outline">
+            <Badge
+              className="border-emerald-300 bg-emerald-100 text-emerald-900"
+              variant="outline"
+            >
               {availableCount} available
             </Badge>
-            <Badge className="border-red-300 bg-red-100 text-red-900" variant="outline">
+            <Badge
+              className="border-red-300 bg-red-100 text-red-900"
+              variant="outline"
+            >
               {selectedDates.length} unavailable
             </Badge>
           </div>
@@ -96,7 +109,8 @@ export function AvailabilityForm({
           month={new Date(year, month - 1, 1)}
           onSelect={(dates) => setSelectedDates(dates ?? [])}
           classNames={{
-            day_button: "bg-emerald-700 text-white hover:bg-emerald-800 data-[selected=true]:bg-red-700 data-[selected=true]:text-white data-[selected=true]:hover:bg-red-800 dark:bg-emerald-700 dark:text-white dark:hover:bg-emerald-800 dark:data-[selected=true]:bg-red-700 dark:data-[selected=true]:text-white dark:data-[selected=true]:hover:bg-red-800",
+            day_button:
+              "bg-emerald-700 text-white hover:bg-emerald-800 data-[selected=true]:bg-red-700 data-[selected=true]:text-white data-[selected=true]:hover:bg-red-800 dark:bg-emerald-700 dark:text-white dark:hover:bg-emerald-800 dark:data-[selected=true]:bg-red-700 dark:data-[selected=true]:text-white dark:data-[selected=true]:hover:bg-red-800",
           }}
           selected={selectedDates}
           showOutsideDays={false}
@@ -117,8 +131,19 @@ export function AvailabilityForm({
       </section>
 
       <div aria-atomic="true" aria-live="polite">
-        {state.error ? <p className="text-sm text-destructive" role="alert">{state.error}</p> : null}
-        {state.success ? <p className="text-sm text-emerald-700 dark:text-emerald-400" role="status">{state.success}</p> : null}
+        {state.error ? (
+          <p className="text-sm text-destructive" role="alert">
+            {state.error}
+          </p>
+        ) : null}
+        {state.success ? (
+          <p
+            className="text-sm text-emerald-700 dark:text-emerald-400"
+            role="status"
+          >
+            {state.success}
+          </p>
+        ) : null}
       </div>
       <Button className="h-11 w-fit px-5" disabled={isPending} type="submit">
         {isPending ? "Submitting…" : "Submit availability"}

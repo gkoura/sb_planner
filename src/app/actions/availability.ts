@@ -87,7 +87,9 @@ export async function submitAvailability(
     return { error: "Availability collection is not open for this month." };
   }
 
-  const daysInMonth = new Date(Date.UTC(month.year, month.month, 0)).getUTCDate();
+  const daysInMonth = new Date(
+    Date.UTC(month.year, month.month, 0),
+  ).getUTCDate();
   const datePattern = new RegExp(
     `^${month.year}-${String(month.month).padStart(2, "0")}-(\\d{2})$`,
   );
@@ -122,7 +124,8 @@ export async function submitAvailability(
       select: { id: true },
     });
 
-    if (!member) throw new Error("Your planning membership could not be found.");
+    if (!member)
+      throw new Error("Your planning membership could not be found.");
 
     await transaction.availabilitySubmission.upsert({
       where: { planningMemberId: member.id },
@@ -144,7 +147,8 @@ export async function submitAvailability(
     const submittedCount = await transaction.availabilitySubmission.count({
       where: { planningMember: { planningMonthId: month.id } },
     });
-    const nextStatus = submittedCount === month.members.length ? "READY" : "COLLECTING";
+    const nextStatus =
+      submittedCount === month.members.length ? "READY" : "COLLECTING";
 
     await transaction.planningMonth.update({
       where: { id: month.id },

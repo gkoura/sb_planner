@@ -17,7 +17,9 @@ if (!name || !email || !password) {
 }
 
 if (password.length < 8 || password.length > 128) {
-  throw new Error("INITIAL_ADMIN_PASSWORD must be between 8 and 128 characters.");
+  throw new Error(
+    "INITIAL_ADMIN_PASSWORD must be between 8 and 128 characters.",
+  );
 }
 
 const prisma = new PrismaClient({

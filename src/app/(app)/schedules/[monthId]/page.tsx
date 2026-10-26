@@ -53,7 +53,17 @@ export default async function PublishedSchedulePage({
         include: {
           assignments: {
             orderBy: { date: "asc" },
-            include: { shadows: { select: { id: true, shadowMemberId: true, kind: true, nameSnapshot: true, roleSnapshot: true } } },
+            include: {
+              shadows: {
+                select: {
+                  id: true,
+                  shadowMemberId: true,
+                  kind: true,
+                  nameSnapshot: true,
+                  roleSnapshot: true,
+                },
+              },
+            },
           },
         },
       },
@@ -67,7 +77,13 @@ export default async function PublishedSchedulePage({
   return (
     <div className="grid gap-8">
       <section className="grid gap-3">
-        <Button className="w-fit px-0" nativeButton={false} render={<Link href="/schedules" />} size="sm" variant="ghost">
+        <Button
+          className="w-fit px-0"
+          nativeButton={false}
+          render={<Link href="/schedules" />}
+          size="sm"
+          variant="ghost"
+        >
           <ArrowLeft aria-hidden="true" />
           Published schedules
         </Button>
@@ -76,7 +92,9 @@ export default async function PublishedSchedulePage({
           <span className="text-sm font-medium">Official standby plan</span>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-3xl font-semibold tracking-tight">{formatMonth(month.year, month.month)}</h1>
+          <h1 className="text-3xl font-semibold tracking-tight">
+            {formatMonth(month.year, month.month)}
+          </h1>
           <Badge variant="secondary">published</Badge>
         </div>
       </section>
@@ -85,7 +103,10 @@ export default async function PublishedSchedulePage({
         <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-4">
           <div className="grid gap-1.5">
             <CardTitle>Standby schedule</CardTitle>
-            <CardDescription>Official version {run.version} · fairness score {run.fairnessScore} · lower is more balanced</CardDescription>
+            <CardDescription>
+              Official version {run.version} · fairness score{" "}
+              {run.fairnessScore} · lower is more balanced
+            </CardDescription>
           </div>
           <ScheduleExportMenu
             assignments={run.assignments.map((assignment) => ({
@@ -114,14 +135,25 @@ export default async function PublishedSchedulePage({
         </CardHeader>
         <CardContent>
           {warnings.length || run.revisionReason ? (
-            <div className="mb-5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4" role="note">
+            <div
+              className="mb-5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4"
+              role="note"
+            >
               <p className="text-sm font-semibold">
-                {warnings.length ? "Admin-approved schedule exceptions" : "Admin revision note"}
+                {warnings.length
+                  ? "Admin-approved schedule exceptions"
+                  : "Admin revision note"}
               </p>
-              {run.revisionReason ? <p className="mt-2 text-sm text-muted-foreground">{run.revisionReason}</p> : null}
+              {run.revisionReason ? (
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {run.revisionReason}
+                </p>
+              ) : null}
               {warnings.length ? (
                 <ul className="mt-2 grid gap-1 text-sm text-muted-foreground">
-                  {warnings.map((warning) => <li key={warning}>{warning}</li>)}
+                  {warnings.map((warning) => (
+                    <li key={warning}>{warning}</li>
+                  ))}
                 </ul>
               ) : null}
             </div>

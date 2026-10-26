@@ -17,7 +17,10 @@ export function UserRoleForm({
   userName: string;
   role: string;
 }) {
-  const [state, formAction, pending] = useActionState(changeUserRole, initialState);
+  const [state, formAction, pending] = useActionState(
+    changeUserRole,
+    initialState,
+  );
   const nextRole = role === "ADMIN" ? "ENGINEER" : "ADMIN";
   const label = role === "ADMIN" ? "Remove admin" : "Make admin";
 
@@ -26,13 +29,26 @@ export function UserRoleForm({
       <form action={formAction}>
         <input name="userId" type="hidden" value={userId} />
         <input name="role" type="hidden" value={nextRole} />
-        <Button aria-label={`${label}: ${userName}`} disabled={pending} size="sm" type="submit" variant="outline">
-          {role === "ADMIN" ? <ShieldOff aria-hidden="true" /> : <ShieldCheck aria-hidden="true" />}
+        <Button
+          aria-label={`${label}: ${userName}`}
+          disabled={pending}
+          size="sm"
+          type="submit"
+          variant="outline"
+        >
+          {role === "ADMIN" ? (
+            <ShieldOff aria-hidden="true" />
+          ) : (
+            <ShieldCheck aria-hidden="true" />
+          )}
           {pending ? "Saving…" : label}
         </Button>
       </form>
       {state.error || state.success ? (
-        <p aria-live="polite" className={`max-w-56 text-right text-xs ${state.error ? "text-destructive" : "text-muted-foreground"}`}>
+        <p
+          aria-live="polite"
+          className={`max-w-56 text-right text-xs ${state.error ? "text-destructive" : "text-muted-foreground"}`}
+        >
           {state.error ?? state.success}
         </p>
       ) : null}

@@ -42,18 +42,29 @@ export async function changeUserRole(
         select: { id: true, name: true, role: true },
       });
       if (!target) return { error: "That account no longer exists." };
-      if (target.role === role) return { success: `${target.name} already has that access.` };
+      if (target.role === role)
+        return { success: `${target.name} already has that access.` };
 
       if (target.role === "ADMIN" && role === "ENGINEER") {
-        const adminCount = await transaction.user.count({ where: { role: "ADMIN" } });
-        if (adminCount <= 1) return { error: "Promote another team member before removing the last admin." };
+        const adminCount = await transaction.user.count({
+          where: { role: "ADMIN" },
+        });
+        if (adminCount <= 1)
+          return {
+            error:
+              "Promote another team member before removing the last admin.",
+          };
       }
 
-      await transaction.user.update({ where: { id: target.id }, data: { role } });
+      await transaction.user.update({
+        where: { id: target.id },
+        data: { role },
+      });
       return {
-        success: role === "ADMIN"
-          ? `${target.name} is now an admin and can manage schedules and team access.`
-          : `${target.name} is now an engineer.`,
+        success:
+          role === "ADMIN"
+            ? `${target.name} is now an admin and can manage schedules and team access.`
+            : `${target.name} is now an engineer.`,
       };
     });
 
@@ -73,7 +84,9 @@ export async function createEngineer(
   await requireAdmin();
 
   const name = String(formData.get("name") ?? "").trim();
-  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const email = String(formData.get("email") ?? "")
+    .trim()
+    .toLowerCase();
   const password = String(formData.get("password") ?? "");
   const { phoneNumber, valid: validPhone } = parseOptionalPhoneNumber(
     String(formData.get("phoneNumber") ?? ""),
@@ -92,7 +105,10 @@ export async function createEngineer(
   }
 
   if (!validPhone) {
-    return { error: "Enter an international number, including the country code (for example, +306912345678)." };
+    return {
+      error:
+        "Enter an international number, including the country code (for example, +306912345678).",
+    };
   }
 
   const passwordHash = await hashPassword(password);

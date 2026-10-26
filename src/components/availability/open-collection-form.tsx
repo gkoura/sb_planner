@@ -10,7 +10,11 @@ import { Button } from "@/components/ui/button";
 
 const initialState: AvailabilityState = {};
 
-export function OpenCollectionForm({ planningMonthId }: { planningMonthId: string }) {
+export function OpenCollectionForm({
+  planningMonthId,
+}: {
+  planningMonthId: string;
+}) {
   const [state, formAction, isPending] = useActionState(
     openPlanningCollection,
     initialState,
@@ -23,8 +27,16 @@ export function OpenCollectionForm({ planningMonthId }: { planningMonthId: strin
         {isPending ? "Opening…" : "Open availability"}
       </Button>
       <div aria-atomic="true" aria-live="polite">
-        {state.error ? <p className="text-sm text-destructive" role="alert">{state.error}</p> : null}
-        {state.success ? <p className="text-sm text-emerald-700 dark:text-emerald-400">{state.success}</p> : null}
+        {state.error ? (
+          <p className="text-sm text-destructive" role="alert">
+            {state.error}
+          </p>
+        ) : null}
+        {state.success ? (
+          <p className="text-sm text-emerald-700 dark:text-emerald-400">
+            {state.success}
+          </p>
+        ) : null}
       </div>
     </form>
   );

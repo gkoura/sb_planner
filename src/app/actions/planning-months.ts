@@ -35,34 +35,51 @@ export async function saveParticipationSettings(
       const month = await transaction.planningMonth.findUnique({
         where: { id: planningMonthId },
         include: {
-          members: { select: { id: true, participationMode: true, shadowDayCount: true } },
+          members: {
+            select: { id: true, participationMode: true, shadowDayCount: true },
+          },
           scheduleRuns: { select: { id: true }, take: 1 },
         },
       });
       if (!month) throw new Error("Planning month not found.");
       if (!["DRAFT", "COLLECTING", "READY"].includes(month.status)) {
-        throw new Error("Participation settings are locked after schedule generation.");
+        throw new Error(
+          "Participation settings are locked after schedule generation.",
+        );
       }
       if (month.scheduleRuns.length) {
-        throw new Error("Participation settings are locked after schedule generation.");
+        throw new Error(
+          "Participation settings are locked after schedule generation.",
+        );
       }
 
-      const daysInMonth = new Date(Date.UTC(month.year, month.month, 0)).getUTCDate();
+      const daysInMonth = new Date(
+        Date.UTC(month.year, month.month, 0),
+      ).getUTCDate();
       const maxShadowDays = Math.ceil(daysInMonth / 2);
       const settings = month.members.map((member) => {
         const rawMode = formData.get(`mode:${member.id}`);
         const rawShadowDays = formData.get(`shadowDays:${member.id}`);
-        if (rawMode !== "NORMAL" && rawMode !== "TRAINEE" && rawMode !== "MENTORED") {
-          throw new Error("Choose a valid participation mode for every participant.");
+        if (
+          rawMode !== "NORMAL" &&
+          rawMode !== "TRAINEE" &&
+          rawMode !== "MENTORED"
+        ) {
+          throw new Error(
+            "Choose a valid participation mode for every participant.",
+          );
         }
-        const shadowDayCount = rawMode === "TRAINEE"
-          ? Number(rawShadowDays)
-          : 0;
+        const shadowDayCount =
+          rawMode === "TRAINEE" ? Number(rawShadowDays) : 0;
         if (
           rawMode === "TRAINEE" &&
-          (!Number.isInteger(shadowDayCount) || shadowDayCount < 1 || shadowDayCount > maxShadowDays)
+          (!Number.isInteger(shadowDayCount) ||
+            shadowDayCount < 1 ||
+            shadowDayCount > maxShadowDays)
         ) {
-          throw new Error(`Trainee shadow days must be between 1 and ${maxShadowDays} for this month.`);
+          throw new Error(
+            `Trainee shadow days must be between 1 and ${maxShadowDays} for this month.`,
+          );
         }
         return {
           id: member.id,
@@ -71,28 +88,45 @@ export async function saveParticipationSettings(
         };
       });
 
-      const primaryMembers = settings.filter((setting) => setting.participationMode !== "TRAINEE");
+      const primaryMembers = settings.filter(
+        (setting) => setting.participationMode !== "TRAINEE",
+      );
       if (primaryMembers.length === 0) {
-        throw new Error("At least one participant must have primary standby days.");
+        throw new Error(
+          "At least one participant must have primary standby days.",
+        );
       }
-      if (settings.some((setting) =>
-        setting.participationMode === "MENTORED" &&
-        primaryMembers.filter((candidate) => candidate.id !== setting.id).length === 0
-      )) {
-        throw new Error("Each mentored participant needs at least one other eligible mentor.");
+      if (
+        settings.some(
+          (setting) =>
+            setting.participationMode === "MENTORED" &&
+            primaryMembers.filter((candidate) => candidate.id !== setting.id)
+              .length === 0,
+        )
+      ) {
+        throw new Error(
+          "Each mentored participant needs at least one other eligible mentor.",
+        );
       }
 
-      await Promise.all(settings.map((setting) => transaction.planningMember.update({
-        where: { id: setting.id },
-        data: {
-          participationMode: setting.participationMode,
-          shadowDayCount: setting.shadowDayCount,
-        },
-      })));
+      await Promise.all(
+        settings.map((setting) =>
+          transaction.planningMember.update({
+            where: { id: setting.id },
+            data: {
+              participationMode: setting.participationMode,
+              shadowDayCount: setting.shadowDayCount,
+            },
+          }),
+        ),
+      );
     });
   } catch (error) {
     return {
-      error: error instanceof Error ? error.message : "Unable to save participation settings.",
+      error:
+        error instanceof Error
+          ? error.message
+          : "Unable to save participation settings.",
     };
   }
 
@@ -244,11 +278,18 @@ export async function deleteDraftPlanningMonth(
         throw new Error("This planning month no longer exists.");
       }
 
-      if (planningMonth.status !== "DRAFT" || planningMonth.scheduleRuns.length) {
-        throw new Error("Only draft months without schedule history can be deleted.");
+      if (
+        planningMonth.status !== "DRAFT" ||
+        planningMonth.scheduleRuns.length
+      ) {
+        throw new Error(
+          "Only draft months without schedule history can be deleted.",
+        );
       }
 
-      await transaction.planningMonth.delete({ where: { id: planningMonthId } });
+      await transaction.planningMonth.delete({
+        where: { id: planningMonthId },
+      });
     });
   } catch (error) {
     return {
