@@ -151,16 +151,32 @@ decision.
   Public self-registration remains disabled. **Verified 2026-10-25:** static
   type checking and local migration checks pass; the first-admin flow still
   needs browser verification after credentials are seeded.
-- [ ] **M2 — Month and availability:** implement admin month/member setup and
+- [x] **M2 — Month and availability:** implement admin month/member setup and
   engineer availability submission with server-side validation and timezone-free
   ISO calendar dates. **Progress (2026-10-26):** admin month creation and
   participant snapshots are implemented; the admin can opt into a month.
   Months are unique per year/month and start as drafts. Prisma Client
   regeneration is automated with `postinstall` so schema updates do not leave
-  model delegates missing. Availability submission remains the next M2 slice.
+  model delegates missing. Admins can open collection for a draft month.
+  Participants submit either selected available dates or selected unavailable
+  dates using ISO date strings; each participant has one replaceable submission.
+  A month becomes `READY` when all participants have submitted and returns to
+  `COLLECTING` if a submission is later removed by future admin tooling.
+  Participants may revise while status is `COLLECTING` or `READY`; schedule
+  generation will freeze changes. **Applied 2026-10-26:** the availability
+  migration was applied to the local SQLite database and Prisma Client was
+  regenerated. Static TypeScript checking passes. Manual sign-in and submission
+  flow still needs browser verification.
 - [ ] **M3 — Scheduler:** add the pure TypeScript solver, fixtures and unit
   tests for every source rule, candidate generation, constraint diagnostics,
-  and admin review.
+  and admin review. **Progress (2026-10-26):** implemented deterministic
+  TypeScript candidate generation, READY-only admin generation, immutable
+  versioned run/input snapshots, and an assignment/workload review page. The
+  solver follows the Python hard constraints and fairness objective, returns
+  structured infeasibility/search-limit errors, and caps search at 250,000
+  states. Schedule run and assignment migrations are applied locally and the
+  Prisma Client is regenerated. Static TypeScript checking passes. Solver
+  fixtures and unit tests remain before M3 is complete.
 - [ ] **M4 — Publishing and history:** publish/version schedules, calendar and
   workload views, historical month navigation, and authorization tests.
 - [ ] **M5 — Deploy and operate:** configure production database and secrets,
@@ -197,14 +213,18 @@ what was built, tests run, deviations, and any new decision.
 | 2026-10-25 | Bootstrap the first administrator through an idempotent local seed command, then create engineer credentials from an admin-only server action. | Accepted. It avoids public registration and does not require email delivery in v1. |
 | 2026-10-26 | An administrator may opt into a month as a scheduler participant. | Accepted. Planning membership is independent of the account's `ADMIN` role and does not consume one of the 10 engineer slots. |
 | 2026-10-26 | Permit one planning month per calendar month and create it as `DRAFT`. | Accepted. This prevents duplicate monthly plans; the later availability step will define when collection opens. |
+| 2026-10-26 | Admins explicitly open collection; all participants must submit before a month reaches `READY`. | Accepted. The status gives the admin a clear readiness signal for generation. Submissions remain editable through `READY` until generation begins; generation will only accept fully submitted months. |
+| 2026-10-26 | Store availability as one replaceable submission per planning member, with a mode and full ISO calendar-date strings. | Accepted. The selected dates mean either the complete available-date set or the unavailable-date set, matching the Python script's normalization rule while keeping date-only values timezone safe. |
+| 2026-10-26 | Generate schedules in the Next.js app with a deterministic TypeScript constraint search that preserves the Python rules. | Accepted. At most 11 participants including an optional admin and 31 dates fit a bounded in-process search; an external Python service adds deployment and operational cost. Stop after 250,000 states with a clear failure instead of saving a non-optimal or invalid candidate. |
+| 2026-10-26 | Only generate from `READY`; save each candidate as a versioned run with an input snapshot and freeze availability at generation. | Accepted. This ensures the saved assignments can be audited against the exact submissions used, and publishing remains a separate admin decision in M4. |
 
 ## Open decisions (do not guess)
 
 1. Who creates engineer accounts: admin-created temporary passwords, invitation
    emails, or a closed sign-up allowlist? This determines whether an email
    service is needed.
-2. Does “all have submitted” strictly block generation, or may an admin
-   explicitly generate early after recording an exception?
+2. **Resolved:** generation is blocked until all planning members have
+   submitted; early generation exceptions are not in v1.
 3. Are weekends/holidays weighted differently, and should fairness carry over
    from previous months? Current source behaviour treats every date equally and
    each month independently.

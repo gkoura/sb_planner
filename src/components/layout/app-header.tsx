@@ -15,16 +15,21 @@ export function AppHeader({ name, role }: AppHeaderProps) {
         <Link className="font-semibold tracking-tight" href="/">
           SB Planner
         </Link>
-        {role === "ADMIN" ? (
-          <nav aria-label="Admin navigation" className="hidden items-center gap-1 sm:flex">
-            <Button render={<Link href="/admin/months" />} size="sm" variant="ghost">
-              Planning months
-            </Button>
-            <Button render={<Link href="/admin/users" />} size="sm" variant="ghost">
-              Engineers
-            </Button>
-          </nav>
-        ) : null}
+        <nav aria-label="Main navigation" className="flex items-center gap-1">
+          <Button render={<Link href="/availability" />} size="sm" variant="ghost">
+            Availability
+          </Button>
+          {role === "ADMIN" ? (
+            <div className="hidden items-center gap-1 sm:flex">
+              <Button render={<Link href="/admin/months" />} size="sm" variant="ghost">
+                Planning months
+              </Button>
+              <Button render={<Link href="/admin/users" />} size="sm" variant="ghost">
+                Engineers
+              </Button>
+            </div>
+          ) : null}
+        </nav>
         <div className="flex items-center gap-3">
           <div className="hidden text-right text-sm sm:block">
             <p className="font-medium">{name}</p>

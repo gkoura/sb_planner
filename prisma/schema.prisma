@@ -14,6 +14,11 @@ enum PlanningStatus {
   PUBLISHED
 }
 
+enum AvailabilityMode {
+  AVAILABLE
+  UNAVAILABLE
+}
+
 model User {
   id                    String           @id
   name                  String
@@ -27,6 +32,7 @@ model User {
   accounts              Account[]
   planningMonthsCreated PlanningMonth[]  @relation("PlanningMonthCreator")
   planningMemberships   PlanningMember[]
+  scheduleRunsCreated   ScheduleRun[]    @relation("ScheduleRunCreator")
 
   @@map("user")
 }
@@ -80,32 +86,86 @@ model Verification {
 }
 
 model PlanningMonth {
-  id        String           @id @default(cuid())
-  year      Int
-  month     Int
-  status    PlanningStatus   @default(DRAFT)
-  createdBy String
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
-  creator   User             @relation("PlanningMonthCreator", fields: [createdBy], references: [id], onDelete: Restrict)
-  members   PlanningMember[]
+  id           String           @id @default(cuid())
+  year         Int
+  month        Int
+  status       PlanningStatus   @default(DRAFT)
+  createdBy    String
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  creator      User             @relation("PlanningMonthCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  members      PlanningMember[]
+  scheduleRuns ScheduleRun[]
 
   @@unique([year, month])
   @@index([status])
 }
 
 model PlanningMember {
-  id              String        @id @default(cuid())
-  planningMonthId String
-  userId          String
-  nameSnapshot    String
-  emailSnapshot   String
-  roleSnapshot    String
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  planningMonth   PlanningMonth @relation(fields: [planningMonthId], references: [id], onDelete: Cascade)
-  user            User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+  id                     String                  @id @default(cuid())
+  planningMonthId        String
+  userId                 String
+  nameSnapshot           String
+  emailSnapshot          String
+  roleSnapshot           String
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  planningMonth          PlanningMonth           @relation(fields: [planningMonthId], references: [id], onDelete: Cascade)
+  user                   User                    @relation(fields: [userId], references: [id], onDelete: Restrict)
+  availabilitySubmission AvailabilitySubmission?
+  scheduleAssignments    ScheduleAssignment[]
 
   @@unique([planningMonthId, userId])
   @@index([userId])
+}
+
+model AvailabilitySubmission {
+  id               String             @id @default(cuid())
+  planningMemberId String             @unique
+  mode             AvailabilityMode
+  submittedAt      DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  planningMember   PlanningMember     @relation(fields: [planningMemberId], references: [id], onDelete: Cascade)
+  dates            AvailabilityDate[]
+}
+
+model AvailabilityDate {
+  id           String                 @id @default(cuid())
+  submissionId String
+  date         String
+  submission   AvailabilitySubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@unique([submissionId, date])
+  @@index([date])
+}
+
+model ScheduleRun {
+  id               String               @id @default(cuid())
+  planningMonthId  String
+  version          Int
+  algorithmVersion String
+  fairnessScore    Int
+  inputSnapshot    String
+  createdBy        String
+  generatedAt      DateTime             @default(now())
+  planningMonth    PlanningMonth        @relation(fields: [planningMonthId], references: [id], onDelete: Cascade)
+  creator          User                 @relation("ScheduleRunCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  assignments      ScheduleAssignment[]
+
+  @@unique([planningMonthId, version])
+  @@index([generatedAt])
+}
+
+model ScheduleAssignment {
+  id               String         @id @default(cuid())
+  scheduleRunId    String
+  planningMemberId String
+  date             String
+  nameSnapshot     String
+  roleSnapshot     String
+  scheduleRun      ScheduleRun    @relation(fields: [scheduleRunId], references: [id], onDelete: Cascade)
+  planningMember   PlanningMember @relation(fields: [planningMemberId], references: [id], onDelete: Restrict)
+
+  @@unique([scheduleRunId, date])
+  @@index([planningMemberId])
 }

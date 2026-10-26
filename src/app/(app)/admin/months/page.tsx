@@ -1,7 +1,10 @@
 import { CalendarDays } from "lucide-react";
+import Link from "next/link";
 
+import { OpenCollectionForm } from "@/components/availability/open-collection-form";
 import { CreatePlanningMonthForm } from "@/components/planning-months/create-planning-month-form";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -28,6 +31,7 @@ export default async function PlanningMonthsPage() {
         members: {
           orderBy: { nameSnapshot: "asc" },
           select: {
+            availabilitySubmission: { select: { id: true } },
             emailSnapshot: true,
             id: true,
             nameSnapshot: true,
@@ -79,6 +83,27 @@ export default async function PlanningMonthsPage() {
                   </Badge>
                 </CardHeader>
                 <CardContent>
+                  <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b pb-4">
+                    <p className="text-sm text-muted-foreground">
+                      {planningMonth.members.filter((member) => member.availabilitySubmission).length}
+                      {" / "}
+                      {planningMonth.members.length} submitted
+                    </p>
+                    <div className="flex flex-wrap items-center gap-3">
+                      {planningMonth.status === "DRAFT" ? (
+                        <OpenCollectionForm planningMonthId={planningMonth.id} />
+                      ) : null}
+                      <Button
+                        render={<Link href={`/admin/months/${planningMonth.id}`} />}
+                        size="sm"
+                        variant="outline"
+                      >
+                        {planningMonth.status === "GENERATED" || planningMonth.status === "PUBLISHED"
+                          ? "Review schedule"
+                          : "Open month"}
+                      </Button>
+                    </div>
+                  </div>
                   <ul className="grid gap-2 sm:grid-cols-2">
                     {planningMonth.members.map((member) => (
                       <li className="min-w-0" key={member.id}>
