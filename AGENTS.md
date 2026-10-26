@@ -112,14 +112,28 @@ Published schedules are immutable. A correction creates a new run/version;
 the UI identifies which version is currently published. Availability is frozen
 when an admin begins generation unless the admin explicitly reopens collection.
 
+## UI/UX direction
+
+- Keep the app focused and calm: warm neutral page surfaces, deep teal primary
+  actions, Geist typography, clear status labels, and comfortable spacing.
+- Keep navigation and primary actions reachable on mobile. Use the existing
+  shadcn components and Tailwind tokens; do not add a UI dependency without a
+  concrete need.
+- Availability entry is a fixed, accessible month calendar with every day
+  defaulting to available. Each day toggles green/available ↔ red/unavailable;
+  the form persists the unavailable dates as date-only ISO values.
+- Schedule review uses a Monday-first monthly calendar. Each participant gets
+  a distinct pastel/ink color inspired by the Python export, with a name and
+  workload legend so color is never the only identifier. On narrow screens the
+  calendar uses initials and the legend keeps full names visible.
+
 ## v1 scope and user flow
 
 1. Admin creates a month, selects eligible engineers and may opt themselves
    into that month's rotation, then opens collection. Admin participation is
    optional and does not count toward the maximum of 10 engineer accounts.
-2. Engineers sign in, view the active month, select one availability mode, and
-   select dates on a calendar. They can save and revise until collection is
-   closed.
+2. Engineers sign in, view the active month, and toggle unavailable dates on a
+   calendar. They can save and revise until collection is closed.
 3. The admin sees submission progress (submitted / total) but not an implied
    schedule before generation.
 4. When all members submit, the admin generates a candidate schedule. The app
@@ -179,9 +193,31 @@ decision.
   fixtures and unit tests remain before M3 is complete.
 - [ ] **M4 — Publishing and history:** publish/version schedules, calendar and
   workload views, historical month navigation, and authorization tests.
+  **Progress (2026-10-26):** admins can publish a complete generated version;
+  each run records `publishedAt`, and publication atomically marks the chosen
+  run as official and the month `PUBLISHED`. Authenticated team members can
+  browse the published schedule archive and open a color-coded monthly view.
+  The local SQLite migration is applied. Authorization tests and end-to-end
+  browser review remain outstanding.
 - [ ] **M5 — Deploy and operate:** configure production database and secrets,
   migrate safely, deploy, create backups/export procedure, and test the
   production login → submit → generate → publish journey.
+
+**UI/UX progress (2026-10-26):** added a role-aware home dashboard, responsive
+navigation, a calmer color system, a fixed-month availability calendar, and a
+color-coded schedule calendar with workload legend. TypeScript and ESLint pass;
+visual browser review remains pending.
+
+**Availability calendar update (2026-10-26):** every day now starts green and
+available; tapping toggles that date red/unavailable and tapping again restores
+green/available. The UI always submits the unavailable-date set, which matches
+the scheduler's existing normalization and converts older available-date
+submissions into the equivalent unavailable set when editing. Counts and a
+"Mark all days available" control make the state easy to review. Calendar day
+states use dark green with white text for available and dark red with white text
+for unavailable in both light and dark themes. Selected state is exposed on the
+day button itself as `data-selected`, matching DayPicker's modifier state so
+the per-state colors apply reliably.
 
 Do one milestone at a time. Before starting the next, update this plan with
 what was built, tests run, deviations, and any new decision.
@@ -217,6 +253,13 @@ what was built, tests run, deviations, and any new decision.
 | 2026-10-26 | Store availability as one replaceable submission per planning member, with a mode and full ISO calendar-date strings. | Accepted. The selected dates mean either the complete available-date set or the unavailable-date set, matching the Python script's normalization rule while keeping date-only values timezone safe. |
 | 2026-10-26 | Generate schedules in the Next.js app with a deterministic TypeScript constraint search that preserves the Python rules. | Accepted. At most 11 participants including an optional admin and 31 dates fit a bounded in-process search; an external Python service adds deployment and operational cost. Stop after 250,000 states with a clear failure instead of saving a non-optimal or invalid candidate. |
 | 2026-10-26 | Only generate from `READY`; save each candidate as a versioned run with an input snapshot and freeze availability at generation. | Accepted. This ensures the saved assignments can be audited against the exact submissions used, and publishing remains a separate admin decision in M4. |
+| 2026-10-26 | Use the existing DayPicker component for availability selection and a color-coded month grid for schedule review. | Accepted. The availability picker provides familiar keyboard-accessible date selection; the read-only schedule grid supports at-a-glance scanning and follows the Python calendar palette, with a text legend for accessibility. |
+| 2026-10-26 | Availability calendar days default to available and toggle green/red when clicked. | Accepted. Persist the compact unavailable-date set using the existing `UNAVAILABLE` submission mode; translate prior `AVAILABLE`-mode submissions to the same day-by-day state when loading them for editing. |
+| 2026-10-26 | Start availability and schedule calendars on Monday. | Accepted. This matches the team's weekday-first reading preference; schedule grid offsets and weekday labels follow the same ordering. |
+| 2026-10-26 | Use dark green for available calendar days and dark red for unavailable days. | Accepted. Both states use white text and remain high-contrast in light and dark themes. |
+| 2026-10-26 | Drive availability day colors from the calendar button's selected modifier. | Accepted. React Day Picker v10 exposes the selected state on the day cell, not `aria-pressed` on the button; the custom day button now mirrors that modifier as `data-selected`. |
+| 2026-10-26 | Mark the official schedule version with `ScheduleRun.publishedAt`; show published months to all signed-in team members. | Accepted. Publication is one transaction that selects the official run and marks the month `PUBLISHED`; the immutable generation snapshot remains available for history. |
+| 2026-10-26 | Use warm neutral surfaces, deep teal actions, and compact role-aware navigation. | Accepted. It gives the small operations tool a distinct visual identity while keeping screens calm, readable, and responsive without additional dependencies. |
 
 ## Open decisions (do not guess)
 

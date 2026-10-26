@@ -3,6 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { GenerateScheduleForm } from "@/components/schedules/generate-schedule-form";
+import { PublishScheduleForm } from "@/components/schedules/publish-schedule-form";
+import { ScheduleCalendar } from "@/components/schedules/schedule-calendar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -62,13 +64,6 @@ export default async function PlanningMonthPage({
     (member) => member.availabilitySubmission,
   ).length;
   const scheduleRun = month.scheduleRuns[0];
-  const assignmentsByMember = new Map<string, number>();
-  for (const assignment of scheduleRun?.assignments ?? []) {
-    assignmentsByMember.set(
-      assignment.planningMemberId,
-      (assignmentsByMember.get(assignment.planningMemberId) ?? 0) + 1,
-    );
-  }
 
   return (
     <div className="grid gap-8">
@@ -101,55 +96,34 @@ export default async function PlanningMonthPage({
         <>
           <Card>
             <CardHeader>
-              <CardTitle>Candidate schedule</CardTitle>
+              <CardTitle>{scheduleRun.publishedAt ? "Published schedule" : "Candidate schedule"}</CardTitle>
               <CardDescription>
                 Version {scheduleRun.version} · generated {formatDate(scheduleRun.generatedAt.toISOString().slice(0, 10))}
-                {" · "}fairness score {scheduleRun.fairnessScore} (lower is more balanced)
+                {" · "}fairness score {scheduleRun.fairnessScore} · lower is more balanced
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
-                  <thead>
-                    <tr className="border-b text-muted-foreground">
-                      <th className="py-2 pr-4 font-medium">Date</th>
-                      <th className="py-2 font-medium">Assigned engineer</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {scheduleRun.assignments.map((assignment) => (
-                      <tr className="border-b last:border-0" key={assignment.id}>
-                        <td className="py-2 pr-4">{formatDate(assignment.date)}</td>
-                        <td className="py-2">
-                          {assignment.nameSnapshot}
-                          {assignment.roleSnapshot === "ADMIN" ? (
-                            <span className="ml-2 text-xs text-muted-foreground">admin</span>
-                          ) : null}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              {scheduleRun.publishedAt ? (
+                <p className="mb-4 text-sm font-medium text-emerald-700 dark:text-emerald-400">
+                  Published {formatDate(scheduleRun.publishedAt.toISOString().slice(0, 10))} · this is the official schedule.
+                </p>
+              ) : month.status === "GENERATED" ? (
+                <div className="mb-5 rounded-xl border bg-muted/30 p-4">
+                  <p className="mb-3 text-sm text-muted-foreground">
+                    Review the assignments and workload above, then publish this candidate for the team.
+                  </p>
+                  <PublishScheduleForm scheduleRunId={scheduleRun.id} />
+                </div>
+              ) : null}
+              <ScheduleCalendar
+                assignments={scheduleRun.assignments}
+                members={month.members}
+                month={month.month}
+                year={month.year}
+              />
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Workload balance</CardTitle>
-              <CardDescription>Assigned days compared with each participant’s submitted availability.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ul className="grid gap-3 sm:grid-cols-2">
-                {month.members.map((member) => (
-                  <li className="flex items-center justify-between gap-4 rounded-lg border p-3" key={member.id}>
-                    <span className="truncate text-sm font-medium">{member.nameSnapshot}</span>
-                    <Badge variant="outline">{assignmentsByMember.get(member.id) ?? 0} days</Badge>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
         </>
       ) : (
         <Card>

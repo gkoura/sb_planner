@@ -54,16 +54,6 @@ export default async function AvailabilityPage() {
         <section aria-label="Open planning months" className="grid gap-5">
           {memberships.map((membership) => {
             const planningMonth = membership.planningMonth;
-            const daysInMonth = new Date(Date.UTC(planningMonth.year, planningMonth.month, 0)).getUTCDate();
-            const days = Array.from({ length: daysInMonth }, (_, index) => {
-              const date = `${planningMonth.year}-${String(planningMonth.month).padStart(2, "0")}-${String(index + 1).padStart(2, "0")}`;
-              const label = new Intl.DateTimeFormat("en", {
-                weekday: "short",
-                day: "numeric",
-                timeZone: "UTC",
-              }).format(new Date(`${date}T00:00:00.000Z`));
-              return { date, label };
-            });
             const submission = membership.availabilitySubmission;
 
             return (
@@ -84,10 +74,11 @@ export default async function AvailabilityPage() {
                 <CardContent>
                   <AvailabilityForm
                     checkedDates={submission?.dates.map(({ date }) => date) ?? []}
-                    days={days}
                     key={`${planningMonth.id}:${submission?.updatedAt.toISOString() ?? "new"}`}
-                    mode={submission?.mode ?? "AVAILABLE"}
+                    mode={submission?.mode ?? "UNAVAILABLE"}
                     planningMonthId={planningMonth.id}
+                    month={planningMonth.month}
+                    year={planningMonth.year}
                   />
                 </CardContent>
               </Card>

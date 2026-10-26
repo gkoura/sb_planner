@@ -14,6 +14,59 @@ export type GenerateScheduleState = {
   success?: string;
 };
 
+export type PublishScheduleState = {
+  error?: string;
+  success?: string;
+};
+
+export async function publishScheduleRun(
+  _previousState: PublishScheduleState,
+  formData: FormData,
+): Promise<PublishScheduleState> {
+  await requireAdmin();
+  const scheduleRunId = formData.get("scheduleRunId");
+  if (typeof scheduleRunId !== "string" || scheduleRunId.length === 0) {
+    return { error: "Choose a valid candidate schedule." };
+  }
+
+  const result = await prisma.$transaction(async (transaction) => {
+    const run = await transaction.scheduleRun.findUnique({
+      where: { id: scheduleRunId },
+      include: { planningMonth: true, _count: { select: { assignments: true } } },
+    });
+
+    if (!run) return { error: "Candidate schedule not found." };
+    if (!["GENERATED", "PUBLISHED"].includes(run.planningMonth.status)) {
+      return { error: "Only a generated candidate can be published." };
+    }
+    const expectedDays = new Date(run.planningMonth.year, run.planningMonth.month, 0).getDate();
+    if (run._count.assignments !== expectedDays) {
+      return { error: "This candidate does not contain an assignment for every day." };
+    }
+
+    await transaction.scheduleRun.updateMany({
+      where: { planningMonthId: run.planningMonthId },
+      data: { publishedAt: null },
+    });
+    await transaction.scheduleRun.update({
+      where: { id: run.id },
+      data: { publishedAt: new Date() },
+    });
+    await transaction.planningMonth.update({
+      where: { id: run.planningMonthId },
+      data: { status: "PUBLISHED" },
+    });
+
+    return { planningMonthId: run.planningMonthId };
+  });
+
+  if ("error" in result) return { error: result.error };
+  revalidatePath("/admin/months");
+  revalidatePath(`/admin/months/${result.planningMonthId}`);
+  revalidatePath("/");
+  return { success: "Schedule published. The team can now use it as the official plan." };
+}
+
 export async function createScheduleRun(
   _previousState: GenerateScheduleState,
   formData: FormData,

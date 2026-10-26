@@ -12,9 +12,9 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-muted/25">
+    <div className="min-h-screen bg-background">
       <AppHeader name={session.user.name} role={session.user.role} />
-      <main className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6">
+      <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
         {children}
       </main>
     </div>
