@@ -2,10 +2,7 @@
 
 import { useActionState } from "react";
 
-import {
-  createEngineer,
-  type CreateEngineerState,
-} from "@/app/actions/users";
+import { createEngineer, type CreateEngineerState } from "@/app/actions/users";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -41,7 +38,10 @@ export function CreateEngineerForm() {
         />
       </div>
       <div className="grid gap-2">
-        <Label htmlFor="engineer-phone">Phone number <span className="font-normal text-muted-foreground">(optional)</span></Label>
+        <Label htmlFor="engineer-phone">
+          Phone number{" "}
+          <span className="font-normal text-muted-foreground">(optional)</span>
+        </Label>
         <Input
           autoComplete="tel"
           id="engineer-phone"
@@ -51,7 +51,8 @@ export function CreateEngineerForm() {
           type="tel"
         />
         <p className="text-sm text-muted-foreground">
-          Use the international format with country code. The team can see it on standby schedules.
+          Use the international format with country code. The team can see it on
+          standby schedules.
         </p>
       </div>
       <div className="grid gap-2">

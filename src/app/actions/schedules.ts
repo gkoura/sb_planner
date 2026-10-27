@@ -49,13 +49,17 @@ export async function restoreScheduleRun(
   if (typeof sourceRunId !== "string" || !sourceRunId) {
     return { error: "Choose a schedule version to restore." };
   }
-  if (!reason) return { error: "Add a reason for restoring this schedule version." };
-  if (reason.length > 500) return { error: "Change reasons must be 500 characters or fewer." };
+  if (!reason)
+    return { error: "Add a reason for restoring this schedule version." };
+  if (reason.length > 500)
+    return { error: "Change reasons must be 500 characters or fewer." };
 
   const result = await prisma.$transaction(async (transaction) => {
     const source = await transaction.scheduleRun.findUnique({
       where: { id: sourceRunId },
-      include: { assignments: { orderBy: { date: "asc" }, include: { shadows: true } } },
+      include: {
+        assignments: { orderBy: { date: "asc" }, include: { shadows: true } },
+      },
     });
     if (!source) return { error: "Schedule version not found." };
 
@@ -63,74 +67,148 @@ export async function restoreScheduleRun(
       where: { id: source.planningMonthId },
       select: { id: true, month: true, status: true, year: true },
     });
-    if (!month || (month.status !== "GENERATED" && month.status !== "PUBLISHED")) {
-      return { error: "Only a generated or published schedule can be restored." };
+    if (
+      !month ||
+      (month.status !== "GENERATED" && month.status !== "PUBLISHED")
+    ) {
+      return {
+        error: "Only a generated or published schedule can be restored.",
+      };
     }
 
     const current = await transaction.scheduleRun.findFirst({
       where: { planningMonthId: month.id },
       orderBy: { version: "desc" },
-      include: { assignments: { orderBy: { date: "asc" }, include: { shadows: true } } },
+      include: {
+        assignments: { orderBy: { date: "asc" }, include: { shadows: true } },
+      },
     });
     if (!current) return { error: "There is no current schedule version." };
-    if (current.id === source.id) return { error: "This version is already current." };
+    if (current.id === source.id)
+      return { error: "This version is already current." };
 
     const latest = await transaction.scheduleRun.aggregate({
       where: { planningMonthId: month.id },
       _max: { version: true },
     });
     if (current.version !== latest._max.version) {
-      return { error: "The schedule has changed. Refresh the page and try again." };
+      return {
+        error: "The schedule has changed. Refresh the page and try again.",
+      };
     }
 
     const snapshot = parseScheduleInputSnapshot(current.inputSnapshot);
-    if (!snapshot || snapshot.year !== month.year || snapshot.month !== month.month) {
-      return { error: "The original availability snapshot is invalid, so this version cannot be restored." };
+    if (
+      !snapshot ||
+      snapshot.year !== month.year ||
+      snapshot.month !== month.month
+    ) {
+      return {
+        error:
+          "The original availability snapshot is invalid, so this version cannot be restored.",
+      };
     }
-    const assignments = source.assignments.map(({ date, planningMemberId }) => ({ date, planningMemberId }));
-    const validation = validateScheduleEdit(month.year, month.month, snapshot.members, assignments);
-    if (!validation.ok) return { error: validation.errors.slice(0, 3).join(" ") };
+    const assignments = source.assignments.map(
+      ({ date, planningMemberId }) => ({ date, planningMemberId }),
+    );
+    const validation = validateScheduleEdit(
+      month.year,
+      month.month,
+      snapshot.members,
+      assignments,
+    );
+    if (!validation.ok)
+      return { error: validation.errors.slice(0, 3).join(" ") };
 
     const currentByDate = new Map(
-      current.assignments.map((assignment) => [assignment.date, assignment.planningMemberId]),
+      current.assignments.map((assignment) => [
+        assignment.date,
+        assignment.planningMemberId,
+      ]),
     );
-    const sourceByDate = new Map(assignments.map((assignment) => [assignment.date, assignment.planningMemberId]));
-    const shadowSignature = (shadows: { kind: string; shadowMemberId: string }[]) =>
-      shadows.map((shadow) => `${shadow.kind}:${shadow.shadowMemberId}`).sort().join("|");
-    const sourceShadowsByDate = new Map(source.assignments.map((assignment) => [
-      assignment.date,
-      shadowSignature(assignment.shadows),
-    ]));
-    const currentShadowsByDate = new Map(current.assignments.map((assignment) => [
-      assignment.date,
-      shadowSignature(assignment.shadows),
-    ]));
-    if (assignments.every((assignment) => currentByDate.get(assignment.date) === assignment.planningMemberId)) {
+    const sourceByDate = new Map(
+      assignments.map((assignment) => [
+        assignment.date,
+        assignment.planningMemberId,
+      ]),
+    );
+    const shadowSignature = (
+      shadows: { kind: string; shadowMemberId: string }[],
+    ) =>
+      shadows
+        .map((shadow) => `${shadow.kind}:${shadow.shadowMemberId}`)
+        .sort()
+        .join("|");
+    const sourceShadowsByDate = new Map(
+      source.assignments.map((assignment) => [
+        assignment.date,
+        shadowSignature(assignment.shadows),
+      ]),
+    );
+    const currentShadowsByDate = new Map(
+      current.assignments.map((assignment) => [
+        assignment.date,
+        shadowSignature(assignment.shadows),
+      ]),
+    );
+    if (
+      assignments.every(
+        (assignment) =>
+          currentByDate.get(assignment.date) === assignment.planningMemberId,
+      )
+    ) {
       return { error: "This version already matches the current schedule." };
     }
 
     const isPublished = month.status === "PUBLISHED";
     const operationalDate = getOperationalDate();
-    if (isPublished && !allowPastChanges && assignments.some((assignment) =>
-      assignment.date < operationalDate &&
-      currentByDate.get(assignment.date) !== sourceByDate.get(assignment.date),
-    )) {
-      return { error: "Restoring this version changes past dates. Enable past-date corrections to continue." };
+    if (
+      isPublished &&
+      !allowPastChanges &&
+      assignments.some(
+        (assignment) =>
+          assignment.date < operationalDate &&
+          currentByDate.get(assignment.date) !==
+            sourceByDate.get(assignment.date),
+      )
+    ) {
+      return {
+        error:
+          "Restoring this version changes past dates. Enable past-date corrections to continue.",
+      };
     }
-    if (isPublished && !allowPastChanges && assignments.some((assignment) =>
-      assignment.date < operationalDate &&
-      currentShadowsByDate.get(assignment.date) !== sourceShadowsByDate.get(assignment.date),
-    )) {
-      return { error: "Restoring this version changes past shadow pairings. Enable past-date corrections to continue." };
+    if (
+      isPublished &&
+      !allowPastChanges &&
+      assignments.some(
+        (assignment) =>
+          assignment.date < operationalDate &&
+          currentShadowsByDate.get(assignment.date) !==
+            sourceShadowsByDate.get(assignment.date),
+      )
+    ) {
+      return {
+        error:
+          "Restoring this version changes past shadow pairings. Enable past-date corrections to continue.",
+      };
     }
 
     const planningMembers = await transaction.planningMember.findMany({
       where: { planningMonthId: month.id },
       select: { id: true, nameSnapshot: true, roleSnapshot: true },
     });
-    const memberById = new Map(planningMembers.map((member) => [member.id, member]));
-    if (assignments.some((assignment) => !memberById.has(assignment.planningMemberId))) {
-      return { error: "A participant from this version is no longer in the planning month." };
+    const memberById = new Map(
+      planningMembers.map((member) => [member.id, member]),
+    );
+    if (
+      assignments.some(
+        (assignment) => !memberById.has(assignment.planningMemberId),
+      )
+    ) {
+      return {
+        error:
+          "A participant from this version is no longer in the planning month.",
+      };
     }
 
     const version = (latest._max.version ?? 0) + 1;
@@ -144,7 +222,9 @@ export async function restoreScheduleRun(
         planningMonthId: month.id,
         publishedAt: isPublished ? new Date() : null,
         revisionReason: reason,
-        validationWarnings: validation.warnings.length ? JSON.stringify(validation.warnings) : null,
+        validationWarnings: validation.warnings.length
+          ? JSON.stringify(validation.warnings)
+          : null,
         version,
         assignments: {
           create: assignments.map((assignment) => {
@@ -156,7 +236,10 @@ export async function restoreScheduleRun(
               roleSnapshot: member.roleSnapshot,
               shadows: {
                 create: source.assignments
-                  .find((sourceAssignment) => sourceAssignment.date === assignment.date)!
+                  .find(
+                    (sourceAssignment) =>
+                      sourceAssignment.date === assignment.date,
+                  )!
                   .shadows.map((shadow) => ({
                     kind: shadow.kind,
                     nameSnapshot: shadow.nameSnapshot,
@@ -206,20 +289,21 @@ export async function saveScheduleEdit(
     const parsed: unknown = JSON.parse(assignmentsValue);
     if (
       !Array.isArray(parsed) ||
-      parsed.some((assignment) =>
-        !assignment ||
-        typeof assignment.date !== "string" ||
-        typeof assignment.planningMemberId !== "string",
+      parsed.some(
+        (assignment) =>
+          !assignment ||
+          typeof assignment.date !== "string" ||
+          typeof assignment.planningMemberId !== "string",
       )
-    ) return { error: "The edited assignments are invalid." };
+    )
+      return { error: "The edited assignments are invalid." };
     assignments = parsed;
   } catch {
     return { error: "The edited assignments are invalid." };
   }
 
-  const revisionReason = typeof revisionReasonValue === "string"
-    ? revisionReasonValue.trim()
-    : "";
+  const revisionReason =
+    typeof revisionReasonValue === "string" ? revisionReasonValue.trim() : "";
   if (revisionReason.length > 500) {
     return { error: "Change reasons must be 500 characters or fewer." };
   }
@@ -238,11 +322,20 @@ export async function saveScheduleEdit(
     if (isPublished && !run.publishedAt) {
       return { error: "Only a previously published version can be edited." };
     }
-    if (run.planningMonth.status !== "PUBLISHED" && run.planningMonth.status !== "GENERATED") {
-      return { error: "Only a generated candidate or published schedule can be edited." };
+    if (
+      run.planningMonth.status !== "PUBLISHED" &&
+      run.planningMonth.status !== "GENERATED"
+    ) {
+      return {
+        error:
+          "Only a generated candidate or published schedule can be edited.",
+      };
     }
     if (!isPublished && run.publishedAt) {
-      return { error: "This candidate is no longer current. Refresh the page and try again." };
+      return {
+        error:
+          "This candidate is no longer current. Refresh the page and try again.",
+      };
     }
 
     const latest = await transaction.scheduleRun.aggregate({
@@ -250,16 +343,28 @@ export async function saveScheduleEdit(
       _max: { version: true },
     });
     if (run.version !== latest._max.version) {
-      return { error: "This schedule version is no longer current. Refresh the page and try again." };
+      return {
+        error:
+          "This schedule version is no longer current. Refresh the page and try again.",
+      };
     }
 
     if (isPublished && !revisionReason) {
-      return { error: "Add a short reason for publishing this schedule change." };
+      return {
+        error: "Add a short reason for publishing this schedule change.",
+      };
     }
 
     const snapshot = parseScheduleInputSnapshot(run.inputSnapshot);
-    if (!snapshot || snapshot.year !== run.planningMonth.year || snapshot.month !== run.planningMonth.month) {
-      return { error: "The original availability snapshot is invalid, so this schedule cannot be edited." };
+    if (
+      !snapshot ||
+      snapshot.year !== run.planningMonth.year ||
+      snapshot.month !== run.planningMonth.month
+    ) {
+      return {
+        error:
+          "The original availability snapshot is invalid, so this schedule cannot be edited.",
+      };
     }
 
     const validation = validateScheduleEdit(
@@ -272,31 +377,57 @@ export async function saveScheduleEdit(
       return { error: validation.errors.slice(0, 3).join(" ") };
     }
     if (validation.warnings.length > 0 && !revisionReason) {
-      return { error: "Add a short reason to approve these schedule exceptions." };
+      return {
+        error: "Add a short reason to approve these schedule exceptions.",
+      };
     }
 
     const oldAssignments = new Map(
-      run.assignments.map((assignment) => [assignment.date, assignment.planningMemberId]),
+      run.assignments.map((assignment) => [
+        assignment.date,
+        assignment.planningMemberId,
+      ]),
     );
-    if (assignments.every((assignment) => oldAssignments.get(assignment.date) === assignment.planningMemberId)) {
+    if (
+      assignments.every(
+        (assignment) =>
+          oldAssignments.get(assignment.date) === assignment.planningMemberId,
+      )
+    ) {
       return { error: "Make at least one assignment change before saving." };
     }
 
     const operationalDate = getOperationalDate();
-    if (isPublished && !allowPastChanges && assignments.some((assignment) =>
-      assignment.date < operationalDate &&
-      oldAssignments.get(assignment.date) !== assignment.planningMemberId,
-    )) {
-      return { error: "Past published dates are locked. Enable past-date corrections and provide a reason to change them." };
+    if (
+      isPublished &&
+      !allowPastChanges &&
+      assignments.some(
+        (assignment) =>
+          assignment.date < operationalDate &&
+          oldAssignments.get(assignment.date) !== assignment.planningMemberId,
+      )
+    ) {
+      return {
+        error:
+          "Past published dates are locked. Enable past-date corrections and provide a reason to change them.",
+      };
     }
 
     const planningMembers = await transaction.planningMember.findMany({
       where: { planningMonthId: run.planningMonthId },
       select: { id: true, nameSnapshot: true, roleSnapshot: true },
     });
-    const memberById = new Map(planningMembers.map((member) => [member.id, member]));
-    if (assignments.some((assignment) => !memberById.has(assignment.planningMemberId))) {
-      return { error: "A selected participant is no longer in this planning month." };
+    const memberById = new Map(
+      planningMembers.map((member) => [member.id, member]),
+    );
+    if (
+      assignments.some(
+        (assignment) => !memberById.has(assignment.planningMemberId),
+      )
+    ) {
+      return {
+        error: "A selected participant is no longer in this planning month.",
+      };
     }
 
     const shadowPlan = generateShadowsForAssignments(
@@ -306,27 +437,50 @@ export async function saveScheduleEdit(
       assignments,
     );
     if (!shadowPlan.ok) {
-      return { error: `Could not place the required shadows: ${shadowPlan.message}` };
+      return {
+        error: `Could not place the required shadows: ${shadowPlan.message}`,
+      };
     }
     if (isPublished && !allowPastChanges) {
-      const shadowSignature = (shadows: { kind: string; shadowMemberId: string }[]) =>
-        shadows.map((shadow) => `${shadow.kind}:${shadow.shadowMemberId}`).sort().join("|");
-      const oldShadowsByDate = new Map(run.assignments.map((assignment) => [
-        assignment.date,
-        shadowSignature(assignment.shadows),
-      ]));
+      const shadowSignature = (
+        shadows: { kind: string; shadowMemberId: string }[],
+      ) =>
+        shadows
+          .map((shadow) => `${shadow.kind}:${shadow.shadowMemberId}`)
+          .sort()
+          .join("|");
+      const oldShadowsByDate = new Map(
+        run.assignments.map((assignment) => [
+          assignment.date,
+          shadowSignature(assignment.shadows),
+        ]),
+      );
       const newShadowsByDate = new Map<string, string>();
       for (const shadow of shadowPlan.shadows) {
         newShadowsByDate.set(
           shadow.date,
-          [...(newShadowsByDate.get(shadow.date) ? [newShadowsByDate.get(shadow.date)!] : []), `${shadow.kind}:${shadow.shadowMemberId}`].sort().join("|"),
+          [
+            ...(newShadowsByDate.get(shadow.date)
+              ? [newShadowsByDate.get(shadow.date)!]
+              : []),
+            `${shadow.kind}:${shadow.shadowMemberId}`,
+          ]
+            .sort()
+            .join("|"),
         );
       }
-      if (assignments.some((assignment) =>
-        assignment.date < operationalDate &&
-        oldShadowsByDate.get(assignment.date) !== newShadowsByDate.get(assignment.date),
-      )) {
-        return { error: "This edit changes past shadow pairings. Enable past-date corrections to continue." };
+      if (
+        assignments.some(
+          (assignment) =>
+            assignment.date < operationalDate &&
+            oldShadowsByDate.get(assignment.date) !==
+              newShadowsByDate.get(assignment.date),
+        )
+      ) {
+        return {
+          error:
+            "This edit changes past shadow pairings. Enable past-date corrections to continue.",
+        };
       }
     }
 
@@ -342,9 +496,10 @@ export async function saveScheduleEdit(
         planningMonthId: run.planningMonthId,
         publishedAt,
         revisionReason: revisionReason || null,
-        validationWarnings: validation.warnings.length > 0
-          ? JSON.stringify(validation.warnings)
-          : null,
+        validationWarnings:
+          validation.warnings.length > 0
+            ? JSON.stringify(validation.warnings)
+            : null,
         version: latestVersion,
         assignments: {
           create: assignments.map((assignment) => {
@@ -404,7 +559,10 @@ export async function publishScheduleRun(
   const result = await prisma.$transaction(async (transaction) => {
     const run = await transaction.scheduleRun.findUnique({
       where: { id: scheduleRunId },
-      include: { planningMonth: true, _count: { select: { assignments: true } } },
+      include: {
+        planningMonth: true,
+        _count: { select: { assignments: true } },
+      },
     });
 
     if (!run) return { error: "Candidate schedule not found." };
@@ -421,9 +579,15 @@ export async function publishScheduleRun(
     if (run.version !== latestVersion._max.version) {
       return { error: "Only the latest schedule version can be published." };
     }
-    const expectedDays = new Date(run.planningMonth.year, run.planningMonth.month, 0).getDate();
+    const expectedDays = new Date(
+      run.planningMonth.year,
+      run.planningMonth.month,
+      0,
+    ).getDate();
     if (run._count.assignments !== expectedDays) {
-      return { error: "This candidate does not contain an assignment for every day." };
+      return {
+        error: "This candidate does not contain an assignment for every day.",
+      };
     }
 
     await transaction.scheduleRun.update({
@@ -444,7 +608,10 @@ export async function publishScheduleRun(
   revalidatePath("/schedules");
   revalidatePath(`/schedules/${result.planningMonthId}`);
   revalidatePath("/");
-  return { success: "Schedule published. The team can now use it as the official plan." };
+  return {
+    success:
+      "Schedule published. The team can now use it as the official plan.",
+  };
 }
 
 export async function createScheduleRun(
@@ -475,10 +642,17 @@ export async function createScheduleRun(
 
     if (!month) return { error: "Planning month not found." };
     if (month.status !== "READY") {
-      return { error: "Every participant must submit availability before generation." };
+      return {
+        error: "Every participant must submit availability before generation.",
+      };
     }
-    if (month.members.length === 0 || month.members.some((member) => !member.availabilitySubmission)) {
-      return { error: "Every participant must submit availability before generation." };
+    if (
+      month.members.length === 0 ||
+      month.members.some((member) => !member.availabilitySubmission)
+    ) {
+      return {
+        error: "Every participant must submit availability before generation.",
+      };
     }
 
     const members = month.members.map((member) => ({
@@ -498,7 +672,9 @@ export async function createScheduleRun(
       _max: { version: true },
     });
     const version = (latestRun._max.version ?? 0) + 1;
-    const memberById = new Map(month.members.map((member) => [member.id, member]));
+    const memberById = new Map(
+      month.members.map((member) => [member.id, member]),
+    );
 
     const scheduleRun = await transaction.scheduleRun.create({
       data: {
@@ -522,7 +698,10 @@ export async function createScheduleRun(
         assignments: {
           create: generated.assignments.map((assignment) => {
             const member = memberById.get(assignment.memberId);
-            if (!member) throw new Error("A generated assignment has an unknown participant.");
+            if (!member)
+              throw new Error(
+                "A generated assignment has an unknown participant.",
+              );
 
             return {
               date: assignment.date,
@@ -534,7 +713,10 @@ export async function createScheduleRun(
                   .filter((shadow) => shadow.date === assignment.date)
                   .map((shadow) => {
                     const shadowMember = memberById.get(shadow.shadowMemberId);
-                    if (!shadowMember) throw new Error("A generated shadow has an unknown participant.");
+                    if (!shadowMember)
+                      throw new Error(
+                        "A generated shadow has an unknown participant.",
+                      );
                     return {
                       kind: shadow.kind,
                       nameSnapshot: shadow.name,

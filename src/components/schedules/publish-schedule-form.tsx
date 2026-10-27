@@ -10,7 +10,11 @@ import { Button } from "@/components/ui/button";
 
 const initialState: PublishScheduleState = {};
 
-export function PublishScheduleForm({ scheduleRunId }: { scheduleRunId: string }) {
+export function PublishScheduleForm({
+  scheduleRunId,
+}: {
+  scheduleRunId: string;
+}) {
   const [state, formAction, isPending] = useActionState(
     publishScheduleRun,
     initialState,
@@ -23,8 +27,19 @@ export function PublishScheduleForm({ scheduleRunId }: { scheduleRunId: string }
         {isPending ? "Publishing…" : "Publish schedule"}
       </Button>
       <div aria-atomic="true" aria-live="polite">
-        {state.error ? <p className="text-sm text-destructive" role="alert">{state.error}</p> : null}
-        {state.success ? <p className="text-sm text-emerald-700 dark:text-emerald-400" role="status">{state.success}</p> : null}
+        {state.error ? (
+          <p className="text-sm text-destructive" role="alert">
+            {state.error}
+          </p>
+        ) : null}
+        {state.success ? (
+          <p
+            className="text-sm text-emerald-700 dark:text-emerald-400"
+            role="status"
+          >
+            {state.success}
+          </p>
+        ) : null}
       </div>
     </form>
   );

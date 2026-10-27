@@ -16,7 +16,11 @@ export async function saveAccountProfile(
   formData: FormData,
 ): Promise<AccountProfileState> {
   const session = await getCurrentSession();
-  if (!session) return { status: "error", message: "Please sign in again to update your account." };
+  if (!session)
+    return {
+      status: "error",
+      message: "Please sign in again to update your account.",
+    };
 
   const name = String(formData.get("name") ?? "").trim();
   const { phoneNumber, valid: validPhone } = parseOptionalPhoneNumber(
@@ -24,10 +28,17 @@ export async function saveAccountProfile(
   );
 
   if (name.length < 2 || name.length > 80) {
-    return { status: "error", message: "Your name must be between 2 and 80 characters." };
+    return {
+      status: "error",
+      message: "Your name must be between 2 and 80 characters.",
+    };
   }
   if (!validPhone) {
-    return { status: "error", message: "Enter an international number, including the country code (for example, +306912345678)." };
+    return {
+      status: "error",
+      message:
+        "Enter an international number, including the country code (for example, +306912345678).",
+    };
   }
 
   await prisma.user.update({

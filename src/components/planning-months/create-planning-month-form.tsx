@@ -52,7 +52,10 @@ export function CreatePlanningMonthForm({
         <legend className="mb-1 text-sm font-medium">Participants</legend>
         {engineers.length > 0 ? (
           engineers.map((engineer) => (
-            <label className="flex cursor-pointer items-start gap-3" key={engineer.id}>
+            <label
+              className="flex cursor-pointer items-start gap-3"
+              key={engineer.id}
+            >
               <input
                 className="mt-1 size-4 accent-primary"
                 name="memberIds"

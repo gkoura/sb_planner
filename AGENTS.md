@@ -52,17 +52,17 @@ whether historical schedules keep the old semantics in the decision log.
 
 ## Confirmed architecture decisions
 
-| Area | Decision | Reason |
-| --- | --- | --- |
-| Application | Next.js App Router + TypeScript, with server-side mutations and rendering where possible | One lightweight deployable application; minimal client JavaScript. |
-| Data | Prisma ORM with SQLite semantics | Required practice goal and more than sufficient for at most 10 users and monthly history. |
-| Hosted database | Use a hosted libSQL/SQLite-compatible provider (initial candidate: Turso) in production; use a local SQLite file in development | A local SQLite file is not durable on typical serverless deployments. Prisma supports SQLite/libSQL driver adapters. Validate the chosen provider’s then-current free-tier limits before launch. |
-| Authentication | Better Auth + Prisma adapter, email/password only at first | Fits the requested practice goal without OAuth configuration or paid services. Account creation will be invite/admin controlled. |
-| Auth UI | Better Auth UI components through its shadcn registry, with shadcn/ui as the general component foundation | Keeps ownership of copied UI code and avoids building routine auth screens. Pin and verify compatible versions during implementation. |
-| Authorization | One application-level `ADMIN` role and `ENGINEER` role; multiple accounts may be admins | Better Auth authenticates; our app authorizes. Admin status grants team and schedule management, independent of someone's real-world team title. Keep one team only; do not add organizations or multi-tenancy. |
-| Schedule algorithm | Implement a small, pure TypeScript scheduling module inside this app | The problem is bounded (<= 10 engineers × <= 31 days), runs on demand, and needs no network or separate runtime. A pure module is easy to test and deploy. |
-| No Python service | Do not create an external Python/OR-Tools service for v1 | It adds a second deployment, authentication boundary, observability surface, and non-zero hosting risk without a benefit at this scale. Reconsider only if future rules make the in-app solver demonstrably inadequate. |
-| Deployment | Deploy the Next.js app to a free hosting tier compatible with the selected database and Better Auth; keep secrets in host environment variables | The exact host is intentionally deferred until dependencies and provider free tiers are checked at deployment time. |
+| Area               | Decision                                                                                                                                        | Reason                                                                                                                                                                                                                  |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Application        | Next.js App Router + TypeScript, with server-side mutations and rendering where possible                                                        | One lightweight deployable application; minimal client JavaScript.                                                                                                                                                      |
+| Data               | Prisma ORM with PostgreSQL semantics                                                                                                           | Neon PostgreSQL will serve both local development and production. The app is small, but a durable managed database works cleanly with serverless hosting and Better Auth.                                                |
+| Hosted database    | Neon Free PostgreSQL for development and production; Netlify Free for hosting                                                                  | The development branch is isolated from production. PostgreSQL data starts fresh at launch; no SQLite data is imported. Keep the database in Ohio to match the app's default function region.                          |
+| Authentication     | Better Auth + Prisma adapter, email/password only at first                                                                                      | Fits the requested practice goal without OAuth configuration or paid services. Account creation will be invite/admin controlled.                                                                                        |
+| Auth UI            | Better Auth UI components through its shadcn registry, with shadcn/ui as the general component foundation                                       | Keeps ownership of copied UI code and avoids building routine auth screens. Pin and verify compatible versions during implementation.                                                                                   |
+| Authorization      | One application-level `ADMIN` role and `ENGINEER` role; multiple accounts may be admins                                                         | Better Auth authenticates; our app authorizes. Admin status grants team and schedule management, independent of someone's real-world team title. Keep one team only; do not add organizations or multi-tenancy.         |
+| Schedule algorithm | Implement a small, pure TypeScript scheduling module inside this app                                                                            | The problem is bounded (<= 10 engineers × <= 31 days), runs on demand, and needs no network or separate runtime. A pure module is easy to test and deploy.                                                              |
+| No Python service  | Do not create an external Python/OR-Tools service for v1                                                                                        | It adds a second deployment, authentication boundary, observability surface, and non-zero hosting risk without a benefit at this scale. Reconsider only if future rules make the in-app solver demonstrably inadequate. |
+| Deployment         | Deploy the Next.js app to a free hosting tier compatible with the selected database and Better Auth; keep secrets in host environment variables | The exact host is intentionally deferred until dependencies and provider free tiers are checked at deployment time.                                                                                                     |
 
 ### Algorithm approach
 
@@ -195,107 +195,134 @@ decision.
 ## Delivery milestones
 
 - [ ] **M0 — Foundation:** inspect the current Next.js version guidance;
-  initialize shadcn/ui; add Prisma, Better Auth, Better Auth UI, the local
-  database, migrations, environment validation, and a seed path for the first
-  admin. **Progress (2026-10-25):** shadcn/ui and Better Auth UI are installed;
-  Prisma 7.10.1, Better Auth, a local SQLite database, its initial migration,
-  the server/client auth configuration, and the first-admin seed path are in
-  place. The seed script now imports its dotenv dependency explicitly.
-  **Verified 2026-10-25:** script syntax and ESLint pass; invoking the seed with
-  empty credentials loads `.env.local` and stops at the expected validation
-  before database access. Environment validation remains; confirm production
-  provider and its current free-tier terms before adding credentials.
+      initialize shadcn/ui; add Prisma, Better Auth, Better Auth UI, the local
+      database, migrations, environment validation, and a seed path for the first
+      admin. **Progress (2026-10-25):** shadcn/ui and Better Auth UI are installed;
+      Prisma 7.10.1, Better Auth, a local SQLite database, its initial migration,
+      the server/client auth configuration, and the first-admin seed path are in
+      place. The seed script now imports its dotenv dependency explicitly.
+      **Verified 2026-10-25:** script syntax and ESLint pass; invoking the seed with
+      empty credentials loads `.env.local` and stops at the expected validation
+      before database access. Environment validation remains; confirm production
+      provider and its current free-tier terms before adding credentials.
 - [x] **M1 — Identity and access:** email/password sign-in/sign-out, protected
-  app routes, `ADMIN`/`ENGINEER` authorization, an administrator-only engineer
-  account form, admin-managed role changes for existing accounts, and an
-  idempotent first-admin seed command are implemented.
-  Public self-registration remains disabled. **Verified 2026-10-25:** static
-  type checking and local migration checks pass; the first-admin flow still
-  needs browser verification after credentials are seeded. **Role management
-  added 2026-10-26:** admins can promote engineers or revoke another admin's
-  status; an admin cannot change their own role or remove the last admin.
+      app routes, `ADMIN`/`ENGINEER` authorization, an administrator-only engineer
+      account form, admin-managed role changes for existing accounts, and an
+      idempotent first-admin seed command are implemented.
+      Public self-registration remains disabled. **Verified 2026-10-25:** static
+      type checking and local migration checks pass; the first-admin flow still
+      needs browser verification after credentials are seeded. **Role management
+      added 2026-10-26:** admins can promote engineers or revoke another admin's
+      status; an admin cannot change their own role or remove the last admin.
 - [x] **M2 — Month and availability:** implement admin month/member setup and
-  engineer availability submission with server-side validation and timezone-free
-  ISO calendar dates. **Progress (2026-10-26):** admin month creation and
-  participant snapshots are implemented; the admin can opt into a month.
-  Months are unique per year/month and start as drafts. Prisma Client
-  regeneration is automated with `postinstall` so schema updates do not leave
-  model delegates missing. Admins can open collection for a draft month.
-  Participants submit either selected available dates or selected unavailable
-  dates using ISO date strings; each participant has one replaceable submission.
-  A month becomes `READY` when all participants have submitted and returns to
-  `COLLECTING` if a submission is later removed by future admin tooling.
-  Participants may revise while status is `COLLECTING` or `READY`; schedule
-  generation will freeze changes. **Applied 2026-10-26:** the availability
-  migration was applied to the local SQLite database and Prisma Client was
-  regenerated. Static TypeScript checking passes. Manual sign-in and submission
-  flow still needs browser verification.
+      engineer availability submission with server-side validation and timezone-free
+      ISO calendar dates. **Progress (2026-10-26):** admin month creation and
+      participant snapshots are implemented; the admin can opt into a month.
+      Months are unique per year/month and start as drafts. Prisma Client
+      regeneration is automated with `postinstall` so schema updates do not leave
+      model delegates missing. Admins can open collection for a draft month.
+      Participants submit either selected available dates or selected unavailable
+      dates using ISO date strings; each participant has one replaceable submission.
+      A month becomes `READY` when all participants have submitted and returns to
+      `COLLECTING` if a submission is later removed by future admin tooling.
+      Participants may revise while status is `COLLECTING` or `READY`; schedule
+      generation will freeze changes. **Applied 2026-10-26:** the availability
+      migration was applied to the local SQLite database and Prisma Client was
+      regenerated. Static TypeScript checking passes. Manual sign-in and submission
+      flow still needs browser verification.
 - [x] **M3 — Scheduler:** add the pure TypeScript solver, fixtures and unit
-  tests for every source rule, candidate generation, constraint diagnostics,
-  and admin review. **Progress (2026-10-26):** implemented deterministic
-  TypeScript candidate generation, READY-only admin generation, immutable
-  versioned run/input snapshots, and an assignment/workload review page. The
-  solver follows the Python hard constraints and fairness objective, returns
-  structured infeasibility/search-limit errors, and caps search at 250,000
-  states. Schedule run and assignment migrations are applied locally and the
-  Prisma Client is regenerated. **Completed (2026-10-26):** added Node built-in
-  tests backed by fixtures for available/unavailable normalization, leap-year
-  February, five-day mandatory availability, conflicting mandatory days,
-  uncovered days, 31-day fairness optimum, deterministic ordering, consecutive
-  day rules, and invalid input handling. All eight tests pass without adding a
-  test dependency.
+      tests for every source rule, candidate generation, constraint diagnostics,
+      and admin review. **Progress (2026-10-26):** implemented deterministic
+      TypeScript candidate generation, READY-only admin generation, immutable
+      versioned run/input snapshots, and an assignment/workload review page. The
+      solver follows the Python hard constraints and fairness objective, returns
+      structured infeasibility/search-limit errors, and caps search at 250,000
+      states. Schedule run and assignment migrations are applied locally and the
+      Prisma Client is regenerated. **Completed (2026-10-26):** added Node built-in
+      tests backed by fixtures for available/unavailable normalization, leap-year
+      February, five-day mandatory availability, conflicting mandatory days,
+      uncovered days, 31-day fairness optimum, deterministic ordering, consecutive
+      day rules, and invalid input handling. All eight tests pass without adding a
+      test dependency.
 - [ ] **M3 extension — Shadow participation:** add per-month normal, trainee,
-  and mentored settings; a shadow-aware scheduler; schedule display and exports;
-  and version-safe admin editing/restoration. **Progress (2026-10-26):** added
-  `ParticipationMode`, trainee shadow counts, and `ScheduleShadow`; applied the
-  SQLite migration locally and regenerated Prisma Client. Admins can configure
-  modes before generation. Generation keeps primary fairness separate, spreads
-  trainee days, rotates mentors, and enforces availability, one shadow pair per
-  date, and no consecutive work days. Calendars, personal month reports, and
-  exports show shadow duties. Admin edits regenerate pairings, and historical
-  restores retain saved pairings. TypeScript, ESLint, `git diff --check`, and
-  drawio XML validation pass. Scheduler-specific tests and browser review remain
-  pending.
+      and mentored settings; a shadow-aware scheduler; schedule display and exports;
+      and version-safe admin editing/restoration. **Progress (2026-10-26):** added
+      `ParticipationMode`, trainee shadow counts, and `ScheduleShadow`; applied the
+      SQLite migration locally and regenerated Prisma Client. Admins can configure
+      modes before generation. Generation keeps primary fairness separate, spreads
+      trainee days, rotates mentors, and enforces availability, one shadow pair per
+      date, and no consecutive work days. Calendars, personal month reports, and
+      exports show shadow duties. Admin edits regenerate pairings, and historical
+      restores retain saved pairings. TypeScript, ESLint, `git diff --check`, and
+      drawio XML validation pass. Scheduler-specific tests and browser review remain
+      pending.
 - [ ] **M4 — Publishing and history:** publish/version schedules, calendar and
-  workload views, historical month navigation, and authorization tests.
-  **Progress (2026-10-26):** admins can publish a complete generated version;
-  each run records `publishedAt`, and publication atomically marks the chosen
-  run as official and the month `PUBLISHED`. Authenticated team members can
-  browse the published schedule archive and open a color-coded monthly view.
-  Admins can revise a generated candidate or publish an edit as a new linked
-  version. Reassignment and two-day swaps preserve hard constraints and refresh
-  fairness/workload; published past dates require an explicit correction
-  override and reason. `basedOnRunId` and `revisionReason` retain edit lineage,
-  and prior `publishedAt` timestamps remain intact. The SQLite migration is
-  applied and Prisma Client regenerated. TypeScript, ESLint, and diff checks
-  pass; editor tests and browser review remain outstanding. Authorization tests
-  also remain outstanding. The reassignment Select maps stable participant IDs
-  to their snapshot names for the visible label. The save control explains when
-  it is disabled because there is no staged change, a conflict, or a missing
-  published-change reason. Manual hard-rule violations now display as warnings;
-  any exception requires a reason, and the warning/reason are stored on the
-  revision and shown to admins and on the published schedule.
-  Version history supports read-only previews and restoration as a new version;
-  restore operations require a reason and honor published past-date safeguards.
-  Published schedules can be copied as Markdown or downloaded as a color-coded
-  PNG calendar or CSV assignment list; these exports are generated client-side
-  without adding a package.
-  Shadow names and duty types are included in the calendar and exports; the
-  legend counts both primary and shadow duties.
+      workload views, historical month navigation, and authorization tests.
+      **Progress (2026-10-26):** admins can publish a complete generated version;
+      each run records `publishedAt`, and publication atomically marks the chosen
+      run as official and the month `PUBLISHED`. Authenticated team members can
+      browse the published schedule archive and open a color-coded monthly view.
+      Admins can revise a generated candidate or publish an edit as a new linked
+      version. Reassignment and two-day swaps preserve hard constraints and refresh
+      fairness/workload; published past dates require an explicit correction
+      override and reason. `basedOnRunId` and `revisionReason` retain edit lineage,
+      and prior `publishedAt` timestamps remain intact. The SQLite migration is
+      applied and Prisma Client regenerated. TypeScript, ESLint, and diff checks
+      pass; editor tests and browser review remain outstanding. Authorization tests
+      also remain outstanding. The reassignment Select maps stable participant IDs
+      to their snapshot names for the visible label. The save control explains when
+      it is disabled because there is no staged change, a conflict, or a missing
+      published-change reason. Manual hard-rule violations now display as warnings;
+      any exception requires a reason, and the warning/reason are stored on the
+      revision and shown to admins and on the published schedule.
+      Version history supports read-only previews and restoration as a new version;
+      restore operations require a reason and honor published past-date safeguards.
+      Published schedules can be copied as Markdown or downloaded as a color-coded
+      PNG calendar or CSV assignment list; these exports are generated client-side
+      without adding a package.
+      Shadow names and duty types are included in the calendar and exports; the
+      legend counts both primary and shadow duties.
 - [ ] **M5 — Deploy and operate:** configure production database and secrets,
-  migrate safely, deploy, create backups/export procedure, and test the
-  production login → submit → generate → publish journey.
+      migrate safely, deploy, create backups/export procedure, and test the
+      production login → submit → generate → publish journey. **Planning update
+      (2026-10-27):** Netlify Free and Neon Free are the deployment targets.
+      Production will start with an empty PostgreSQL database; local schedule data
+      will not be copied. Use Neon AWS US East (Ohio) (`aws-us-east-2`) to match
+      Netlify Free's default function region. The first admin will be created with
+      a one-time, server-side seed command after production migrations are applied.
+      **Progress (2026-10-27):** Neon development branch created; PostgreSQL
+      adapter packages installed. Prisma now uses PostgreSQL through `@prisma/adapter-pg`,
+      Better Auth is configured for PostgreSQL, and the admin seed script uses
+      the same adapter. A fresh PostgreSQL baseline is maintained in
+      `prisma/migrations-postgresql`; the original SQLite migrations and local
+      database remain available as development history but are no longer active.
+      Prisma CLI prefers `DIRECT_URL` for migrations and falls back to
+      `DATABASE_URL`; the app uses `DATABASE_URL` at runtime. Apply and verify the
+      baseline on the Neon development branch before preparing the production
+      environment. **Applied (2026-10-27):** the PostgreSQL baseline was applied
+      to the configured Neon development branch with `prisma migrate deploy`; a
+      second deploy confirmed there are no pending migrations. Prisma schema
+      validation, client generation, TypeScript checking, and `git diff --check`
+      pass. Production branch setup and Netlify environment configuration remain.
+      **Development admin seeded (2026-10-27):** the configured initial admin
+      account was created in the Neon development database with the idempotent
+      `scripts/seed-admin.mjs` command. Production needs its own one-time seed
+      after production migrations are applied.
+      **Build readiness (2026-10-27):** the user reports `pnpm run build`
+      succeeds locally with the PostgreSQL configuration. Next: push the
+      database-switch branch to GitHub, connect Netlify, and configure
+      production-only environment variables before applying production schema.
 - [x] **M6 — Account settings:** signed-in members can edit their display name
-  and optional phone number, admins can set the optional number when creating
-  an engineer, and members can change their password using Better Auth.
-  **Completed (2026-10-26):** phone values are normalized and validated in
-  international E.164 form; email remains read-only because no email
-  verification flow is configured. Phone numbers are shown only to
-  authenticated team members as a callable number on today's standby card and
-  in the published/admin schedule participant legend and schedule exports.
-  Password changes require the current password and revoke other sessions. The
-  SQLite migration was applied and Prisma Client regenerated; TypeScript and
-  ESLint pass. Browser review remains pending.
+      and optional phone number, admins can set the optional number when creating
+      an engineer, and members can change their password using Better Auth.
+      **Completed (2026-10-26):** phone values are normalized and validated in
+      international E.164 form; email remains read-only because no email
+      verification flow is configured. Phone numbers are shown only to
+      authenticated team members as a callable number on today's standby card and
+      in the published/admin schedule participant legend and schedule exports.
+      Password changes require the current password and revoke other sessions. The
+      SQLite migration was applied and Prisma Client regenerated; TypeScript and
+      ESLint pass. Browser review remains pending.
 
 **UI/UX progress (2026-10-26):** added a role-aware home dashboard, responsive
 navigation, a calmer color system, a fixed-month availability calendar, and a
@@ -377,6 +404,10 @@ in-app browser bridge is not trusted and the requested skill is not present in
 the available skill directories. The prior production build was blocked by
 inability to fetch Geist fonts from Google Fonts.
 
+**pnpm agent skill linking (2026-10-27):** pnpm 12's approved package skills
+are linked into `.agents/skills`, configured through `skills.dirs` in
+`pnpm-workspace.yaml`. The directory ignores generated `pnpm-*` links.
+
 Do one milestone at a time. Before starting the next, update this plan with
 what was built, tests run, deviations, and any new decision.
 
@@ -410,43 +441,46 @@ this environment.
 
 ## Decision log
 
-| Date | Decision | Status / rationale |
-| --- | --- | --- |
-| 2026-10-25 | Keep scheduling inside the Next.js application as a pure TypeScript module. | Accepted. The bounded problem does not justify an external Python service. |
-| 2026-10-25 | Use Prisma and SQLite semantics; choose hosted libSQL for production and local SQLite for development. | Accepted. A deployed serverless filesystem is not durable. Provider and exact adapter remain a deployment-time confirmation. |
-| 2026-10-25 | Start with Better Auth email/password, admin-controlled accounts, Better Auth UI, and shadcn/ui. | Accepted. Smallest useful secure workflow; email delivery and OAuth are deferred. |
-| 2026-10-25 | Treat the existing Python rules as v1 scheduling requirements. | Accepted. Any semantic adjustment requires a new decision entry and tests. |
-| 2026-10-25 | Use Better Auth’s standard Prisma tables with a `User.role` string defaulting to `ENGINEER`; sign-up is disabled. | Accepted. The first admin and future engineers will be provisioned by an admin in M1. |
-| 2026-10-25 | Bootstrap the first administrator through an idempotent local seed command, then create engineer credentials from an admin-only server action. | Accepted. It avoids public registration and does not require email delivery in v1. |
-| 2026-10-26 | An administrator may opt into a month as a scheduler participant. | Accepted. Planning membership is independent of the account's `ADMIN` role and does not consume one of the 10 engineer slots. |
-| 2026-10-26 | Permit one planning month per calendar month and create it as `DRAFT`. | Accepted. This prevents duplicate monthly plans; the later availability step will define when collection opens. |
-| 2026-10-26 | Admins explicitly open collection; all participants must submit before a month reaches `READY`. | Accepted. The status gives the admin a clear readiness signal for generation. Submissions remain editable through `READY` until generation begins; generation will only accept fully submitted months. |
-| 2026-10-26 | Store availability as one replaceable submission per planning member, with a mode and full ISO calendar-date strings. | Accepted. The selected dates mean either the complete available-date set or the unavailable-date set, matching the Python script's normalization rule while keeping date-only values timezone safe. |
-| 2026-10-26 | Generate schedules in the Next.js app with a deterministic TypeScript constraint search that preserves the Python rules. | Accepted. At most 11 participants including an optional admin and 31 dates fit a bounded in-process search; an external Python service adds deployment and operational cost. Stop after 250,000 states with a clear failure instead of saving a non-optimal or invalid candidate. |
-| 2026-10-26 | Only generate from `READY`; save each candidate as a versioned run with an input snapshot and freeze availability at generation. | Accepted. This ensures the saved assignments can be audited against the exact submissions used, and publishing remains a separate admin decision in M4. |
-| 2026-10-26 | Use the existing DayPicker component for availability selection and a color-coded month grid for schedule review. | Accepted. The availability picker provides familiar keyboard-accessible date selection; the read-only schedule grid supports at-a-glance scanning and follows the Python calendar palette, with a text legend for accessibility. |
-| 2026-10-26 | Availability calendar days default to available and toggle green/red when clicked. | Accepted. Persist the compact unavailable-date set using the existing `UNAVAILABLE` submission mode; translate prior `AVAILABLE`-mode submissions to the same day-by-day state when loading them for editing. |
-| 2026-10-26 | Start availability and schedule calendars on Monday. | Accepted. This matches the team's weekday-first reading preference; schedule grid offsets and weekday labels follow the same ordering. |
-| 2026-10-26 | Use dark green for available calendar days and dark red for unavailable days. | Accepted. Both states use white text and remain high-contrast in light and dark themes. |
-| 2026-10-26 | Drive availability day colors from the calendar button's selected modifier. | Accepted. React Day Picker v10 exposes the selected state on the day cell, not `aria-pressed` on the button; the custom day button now mirrors that modifier as `data-selected`. |
-| 2026-10-26 | Use `next-themes` with shadcn light/dark tokens, system default, and a persistent manual toggle. | Accepted. Use the existing dependency; expose the toggle on authenticated app pages and sign-in, and prevent initial hydration mismatch on the root element. |
-| 2026-10-26 | Edit assignments through a targeted day editor and an explicit two-day swap; persist every edit as a versioned revision. | Accepted. Preserve generated and published history, enforce availability/no-consecutive/mandatory rules, recalculate fairness, and allow published past-date corrections only with an explicit override and required reason. |
-| 2026-10-26 | Allow manual schedule exceptions with visible validation warnings and a required reason. | Accepted. The solver continues to enforce its rules for generated schedules; admin-edited assignments may override availability, consecutive-day, or mandatory-availability warnings. Save the warnings and reason with the new immutable revision for audit. |
-| 2026-10-26 | Preview historical versions and restore them as a new version. | Accepted. Keep prior versions immutable; restoring creates a new linked candidate or published version, requires a reason, and applies the past-date correction safeguard. |
-| 2026-10-26 | Mark the official schedule version with `ScheduleRun.publishedAt`; show published months to all signed-in team members. | Accepted. Publication is one transaction that selects the official run and marks the month `PUBLISHED`; the immutable generation snapshot remains available for history. |
-| 2026-10-26 | Keep each run's `publishedAt` as its first publication timestamp; latest timestamp identifies the current official version. | Accepted. This preserves the fact and time that older revisions were official while still making one version current. |
-| 2026-10-26 | Use warm neutral surfaces, deep teal actions, and compact role-aware navigation. | Accepted. It gives the small operations tool a distinct visual identity while keeping screens calm, readable, and responsive without additional dependencies. |
-| 2026-10-26 | Allow admins to delete only draft months with no schedule run history. | Accepted. Confirmation protects against accidental removal; submitted availability and published schedule history remain preserved. |
-| 2026-10-26 | Offer Markdown copy, PNG calendar, and CSV exports for published schedules. | Accepted. Generate the exports client-side from the published run and existing participant palette, avoiding an additional dependency or server workload. |
-| 2026-10-26 | Position the app as a team hub, with today's published standby assignment prominent on the signed-in home page for every role. | Accepted and implemented. The current on-call person is a high-priority team-wide status; the date follows Europe/Athens and links to the official schedule. |
-| 2026-10-26 | Show the complete current month's published standby calendar on the signed-in home page. | Accepted and implemented. Reuse the existing color-coded Monday-first calendar and workload legend, with a link to the official schedule and an unpublished empty state. |
-| 2026-10-26 | Replace the homepage's full month calendar with a user-specific report of that member's shifts; highlight their next upcoming day and keep the whole schedule behind a button. | Accepted; supersedes the previous homepage full-calendar decision after usability review. This lets each person find their own dates immediately without scanning the team calendar. |
-| 2026-10-26 | Show the homepage availability action only while a participant still owes a submission. | Accepted and implemented. Once all open months have a submission, remove the redundant call to action; availability remains reachable for optional revisions. |
-| 2026-10-26 | Configure participation per engineer per month as normal, trainee (shadow-only, admin-configured count), or mentored (primary shifts with a second mentor). | Accepted. All other non-trainee participants form the default mentor pool. Both trainee and mentor must be available; shadows count as work for the hard no-consecutive-days rule. Balance primary assignments separately, then distribute mentor duties fairly; avoid repeating a trainee's mentor where possible. Each date may contain at most one shadow pair. Store shadows separately from one-primary-per-day assignments and snapshot settings per run; historical runs retain their old semantics. |
-| 2026-10-26 | Add account settings for display name, optional phone, and password; keep email read-only until verification is available. | Accepted. Store phone on Better Auth's User row in normalized E.164 format; it is unverified and visible only to authenticated team members on today's standby card and schedule participant legends. Existing planning history keeps name snapshots; future planning months use the updated account name. Password changes use Better Auth's current-password check and revoke other sessions. |
-| 2026-10-26 | Allow admins to provide an optional engineer phone number at account creation. | Accepted. Use the same normalized international format and server validation as member profile edits, storing the value in `User.phoneNumber`; a member can add or correct it later from account settings. |
-| 2026-10-26 | Include current phone contacts in all three schedule export formats. | Accepted, extending the existing Markdown, PNG, and CSV export decision. Include primary and shadow/mentor phone numbers when available; omit an absent number. Do not export email addresses or other account fields. |
-| 2026-10-26 | Allow multiple admins in this single-team app; admin access is an app permission, not the team-lead title. | Accepted. An admin can promote engineers and revoke another admin's access. Prevent self-demotion and removal of the last remaining admin; appoint a replacement admin before a planned departure. This lets a trusted scheduler manage plans without needing to be the real-world team lead. Sudden loss of every admin remains deferred. |
+| Date       | Decision                                                                                                                                                                       | Status / rationale                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-10-25 | Keep scheduling inside the Next.js application as a pure TypeScript module.                                                                                                    | Accepted. The bounded problem does not justify an external Python service.                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| 2026-10-25 | Use Prisma and SQLite semantics; choose hosted libSQL for production and local SQLite for development.                                                                         | Superseded 2026-10-27 by the Neon PostgreSQL decision. This describes the initial implementation; its SQLite schema, local database, and migration history remain archived for reference, but are not the active app database.                                                                                                                                                                                                                                                                                    |
+| 2026-10-25 | Start with Better Auth email/password, admin-controlled accounts, Better Auth UI, and shadcn/ui.                                                                               | Accepted. Smallest useful secure workflow; email delivery and OAuth are deferred.                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| 2026-10-25 | Treat the existing Python rules as v1 scheduling requirements.                                                                                                                 | Accepted. Any semantic adjustment requires a new decision entry and tests.                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| 2026-10-25 | Use Better Auth’s standard Prisma tables with a `User.role` string defaulting to `ENGINEER`; sign-up is disabled.                                                              | Accepted. The first admin and future engineers will be provisioned by an admin in M1.                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| 2026-10-25 | Bootstrap the first administrator through an idempotent local seed command, then create engineer credentials from an admin-only server action.                                 | Accepted. It avoids public registration and does not require email delivery in v1.                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| 2026-10-26 | An administrator may opt into a month as a scheduler participant.                                                                                                              | Accepted. Planning membership is independent of the account's `ADMIN` role and does not consume one of the 10 engineer slots.                                                                                                                                                                                                                                                                                                                                                                               |
+| 2026-10-26 | Permit one planning month per calendar month and create it as `DRAFT`.                                                                                                         | Accepted. This prevents duplicate monthly plans; the later availability step will define when collection opens.                                                                                                                                                                                                                                                                                                                                                                                             |
+| 2026-10-26 | Admins explicitly open collection; all participants must submit before a month reaches `READY`.                                                                                | Accepted. The status gives the admin a clear readiness signal for generation. Submissions remain editable through `READY` until generation begins; generation will only accept fully submitted months.                                                                                                                                                                                                                                                                                                      |
+| 2026-10-26 | Store availability as one replaceable submission per planning member, with a mode and full ISO calendar-date strings.                                                          | Accepted. The selected dates mean either the complete available-date set or the unavailable-date set, matching the Python script's normalization rule while keeping date-only values timezone safe.                                                                                                                                                                                                                                                                                                         |
+| 2026-10-26 | Generate schedules in the Next.js app with a deterministic TypeScript constraint search that preserves the Python rules.                                                       | Accepted. At most 11 participants including an optional admin and 31 dates fit a bounded in-process search; an external Python service adds deployment and operational cost. Stop after 250,000 states with a clear failure instead of saving a non-optimal or invalid candidate.                                                                                                                                                                                                                           |
+| 2026-10-26 | Only generate from `READY`; save each candidate as a versioned run with an input snapshot and freeze availability at generation.                                               | Accepted. This ensures the saved assignments can be audited against the exact submissions used, and publishing remains a separate admin decision in M4.                                                                                                                                                                                                                                                                                                                                                     |
+| 2026-10-26 | Use the existing DayPicker component for availability selection and a color-coded month grid for schedule review.                                                              | Accepted. The availability picker provides familiar keyboard-accessible date selection; the read-only schedule grid supports at-a-glance scanning and follows the Python calendar palette, with a text legend for accessibility.                                                                                                                                                                                                                                                                            |
+| 2026-10-26 | Availability calendar days default to available and toggle green/red when clicked.                                                                                             | Accepted. Persist the compact unavailable-date set using the existing `UNAVAILABLE` submission mode; translate prior `AVAILABLE`-mode submissions to the same day-by-day state when loading them for editing.                                                                                                                                                                                                                                                                                               |
+| 2026-10-26 | Start availability and schedule calendars on Monday.                                                                                                                           | Accepted. This matches the team's weekday-first reading preference; schedule grid offsets and weekday labels follow the same ordering.                                                                                                                                                                                                                                                                                                                                                                      |
+| 2026-10-26 | Use dark green for available calendar days and dark red for unavailable days.                                                                                                  | Accepted. Both states use white text and remain high-contrast in light and dark themes.                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| 2026-10-26 | Drive availability day colors from the calendar button's selected modifier.                                                                                                    | Accepted. React Day Picker v10 exposes the selected state on the day cell, not `aria-pressed` on the button; the custom day button now mirrors that modifier as `data-selected`.                                                                                                                                                                                                                                                                                                                            |
+| 2026-10-26 | Use `next-themes` with shadcn light/dark tokens, system default, and a persistent manual toggle.                                                                               | Accepted. Use the existing dependency; expose the toggle on authenticated app pages and sign-in, and prevent initial hydration mismatch on the root element.                                                                                                                                                                                                                                                                                                                                                |
+| 2026-10-26 | Edit assignments through a targeted day editor and an explicit two-day swap; persist every edit as a versioned revision.                                                       | Accepted. Preserve generated and published history, enforce availability/no-consecutive/mandatory rules, recalculate fairness, and allow published past-date corrections only with an explicit override and required reason.                                                                                                                                                                                                                                                                                |
+| 2026-10-26 | Allow manual schedule exceptions with visible validation warnings and a required reason.                                                                                       | Accepted. The solver continues to enforce its rules for generated schedules; admin-edited assignments may override availability, consecutive-day, or mandatory-availability warnings. Save the warnings and reason with the new immutable revision for audit.                                                                                                                                                                                                                                               |
+| 2026-10-26 | Preview historical versions and restore them as a new version.                                                                                                                 | Accepted. Keep prior versions immutable; restoring creates a new linked candidate or published version, requires a reason, and applies the past-date correction safeguard.                                                                                                                                                                                                                                                                                                                                  |
+| 2026-10-26 | Mark the official schedule version with `ScheduleRun.publishedAt`; show published months to all signed-in team members.                                                        | Accepted. Publication is one transaction that selects the official run and marks the month `PUBLISHED`; the immutable generation snapshot remains available for history.                                                                                                                                                                                                                                                                                                                                    |
+| 2026-10-26 | Keep each run's `publishedAt` as its first publication timestamp; latest timestamp identifies the current official version.                                                    | Accepted. This preserves the fact and time that older revisions were official while still making one version current.                                                                                                                                                                                                                                                                                                                                                                                       |
+| 2026-10-26 | Use warm neutral surfaces, deep teal actions, and compact role-aware navigation.                                                                                               | Accepted. It gives the small operations tool a distinct visual identity while keeping screens calm, readable, and responsive without additional dependencies.                                                                                                                                                                                                                                                                                                                                               |
+| 2026-10-26 | Allow admins to delete only draft months with no schedule run history.                                                                                                         | Accepted. Confirmation protects against accidental removal; submitted availability and published schedule history remain preserved.                                                                                                                                                                                                                                                                                                                                                                         |
+| 2026-10-26 | Offer Markdown copy, PNG calendar, and CSV exports for published schedules.                                                                                                    | Accepted. Generate the exports client-side from the published run and existing participant palette, avoiding an additional dependency or server workload.                                                                                                                                                                                                                                                                                                                                                   |
+| 2026-10-26 | Position the app as a team hub, with today's published standby assignment prominent on the signed-in home page for every role.                                                 | Accepted and implemented. The current on-call person is a high-priority team-wide status; the date follows Europe/Athens and links to the official schedule.                                                                                                                                                                                                                                                                                                                                                |
+| 2026-10-26 | Show the complete current month's published standby calendar on the signed-in home page.                                                                                       | Accepted and implemented. Reuse the existing color-coded Monday-first calendar and workload legend, with a link to the official schedule and an unpublished empty state.                                                                                                                                                                                                                                                                                                                                    |
+| 2026-10-26 | Replace the homepage's full month calendar with a user-specific report of that member's shifts; highlight their next upcoming day and keep the whole schedule behind a button. | Accepted; supersedes the previous homepage full-calendar decision after usability review. This lets each person find their own dates immediately without scanning the team calendar.                                                                                                                                                                                                                                                                                                                        |
+| 2026-10-26 | Show the homepage availability action only while a participant still owes a submission.                                                                                        | Accepted and implemented. Once all open months have a submission, remove the redundant call to action; availability remains reachable for optional revisions.                                                                                                                                                                                                                                                                                                                                               |
+| 2026-10-26 | Configure participation per engineer per month as normal, trainee (shadow-only, admin-configured count), or mentored (primary shifts with a second mentor).                    | Accepted. All other non-trainee participants form the default mentor pool. Both trainee and mentor must be available; shadows count as work for the hard no-consecutive-days rule. Balance primary assignments separately, then distribute mentor duties fairly; avoid repeating a trainee's mentor where possible. Each date may contain at most one shadow pair. Store shadows separately from one-primary-per-day assignments and snapshot settings per run; historical runs retain their old semantics. |
+| 2026-10-26 | Add account settings for display name, optional phone, and password; keep email read-only until verification is available.                                                     | Accepted. Store phone on Better Auth's User row in normalized E.164 format; it is unverified and visible only to authenticated team members on today's standby card and schedule participant legends. Existing planning history keeps name snapshots; future planning months use the updated account name. Password changes use Better Auth's current-password check and revoke other sessions.                                                                                                             |
+| 2026-10-26 | Allow admins to provide an optional engineer phone number at account creation.                                                                                                 | Accepted. Use the same normalized international format and server validation as member profile edits, storing the value in `User.phoneNumber`; a member can add or correct it later from account settings.                                                                                                                                                                                                                                                                                                  |
+| 2026-10-26 | Include current phone contacts in all three schedule export formats.                                                                                                           | Accepted, extending the existing Markdown, PNG, and CSV export decision. Include primary and shadow/mentor phone numbers when available; omit an absent number. Do not export email addresses or other account fields.                                                                                                                                                                                                                                                                                      |
+| 2026-10-26 | Allow multiple admins in this single-team app; admin access is an app permission, not the team-lead title.                                                                     | Accepted. An admin can promote engineers and revoke another admin's access. Prevent self-demotion and removal of the last remaining admin; appoint a replacement admin before a planned departure. This lets a trusted scheduler manage plans without needing to be the real-world team lead. Sudden loss of every admin remains deferred.                                                                                                                                                                  |
+| 2026-10-26 | Try Netlify Free for hosting; deploy with a fresh production database and do not copy local schedule data.                                                                     | Accepted. Production starts empty; no current data import is needed.                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| 2026-10-27 | Use Neon Free PostgreSQL with Netlify Free for the initial deployment.                                                                                                         | Accepted. Select AWS US East (Ohio), `aws-us-east-2`, to match Netlify Free's default function region and avoid cross-region database calls. Apply a fresh PostgreSQL migration baseline, then create the first admin with a one-time seed command.                                                                                                                                                                                                                                                         |
+| 2026-10-27 | Move the active Prisma provider from SQLite to PostgreSQL, using separate migration histories.                                                                                  | Accepted and implemented on `db_migrate`. Neon development and production use separate branches/URLs. The SQLite database and its migrations are retained but inactive; production receives no imported data. Prisma CLI uses `DIRECT_URL` when configured, while the application and seed script use pooled `DATABASE_URL`.                                                                                                                                                                            |
 
 ## Open decisions (do not guess)
 
@@ -459,8 +493,9 @@ this environment.
    from previous months? Current source behaviour treats every date equally and
    each month independently.
 4. Should v1 include CSV/Excel or image export, or only the in-app calendar?
-5. Which production host/database accounts are acceptable after current
-   free-tier availability, data location, and backup requirements are checked?
+5. **Resolved:** initial deployment uses Netlify Free + Neon Free PostgreSQL;
+   production starts empty. Apply a new PostgreSQL migration baseline, with no
+   import from the local SQLite database.
 6. How should the team recover access if every admin becomes inaccessible?
    Intentionally deferred until later; the current safeguard is to keep at least
    one admin and support multiple admins.

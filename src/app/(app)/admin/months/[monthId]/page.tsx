@@ -1,6 +1,7 @@
 import { ArrowLeft, CalendarDays } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 
 import { GenerateScheduleForm } from "@/components/schedules/generate-schedule-form";
 import { ParticipationSettingsForm } from "@/components/planning-months/participation-settings-form";
@@ -42,16 +43,40 @@ function formatDate(value: string) {
   }).format(new Date(`${value}T00:00:00.000Z`));
 }
 
-export default async function PlanningMonthPage({
-  params,
-  searchParams,
-}: {
+type PlanningMonthPageProps = {
   params: Promise<{ monthId: string }>;
   searchParams: Promise<{ version?: string | string[] }>;
-}) {
+};
+
+export default function PlanningMonthPage(props: PlanningMonthPageProps) {
+  return (
+    <Suspense fallback={<PlanningMonthFallback />}>
+      <PlanningMonthContent {...props} />
+    </Suspense>
+  );
+}
+
+function PlanningMonthFallback() {
+  return (
+    <div
+      className="grid gap-6"
+      role="status"
+      aria-label="Loading planning month"
+    >
+      <div className="h-24 animate-pulse rounded-2xl bg-muted" />
+      <div className="h-96 animate-pulse rounded-2xl bg-muted" />
+    </div>
+  );
+}
+
+async function PlanningMonthContent({
+  params,
+  searchParams,
+}: PlanningMonthPageProps) {
   await requireAdmin();
   const [{ monthId }, query] = await Promise.all([params, searchParams]);
-  const requestedVersionId = typeof query.version === "string" ? query.version : undefined;
+  const requestedVersionId =
+    typeof query.version === "string" ? query.version : undefined;
   const month = await prisma.planningMonth.findUnique({
     where: { id: monthId },
     include: {
@@ -67,7 +92,16 @@ export default async function PlanningMonthPage({
         include: {
           assignments: {
             orderBy: { date: "asc" },
-            include: { shadows: { select: { id: true, shadowMemberId: true, kind: true, nameSnapshot: true } } },
+            include: {
+              shadows: {
+                select: {
+                  id: true,
+                  shadowMemberId: true,
+                  kind: true,
+                  nameSnapshot: true,
+                },
+              },
+            },
           },
         },
       },
@@ -91,19 +125,29 @@ export default async function PlanningMonthPage({
   const scheduleSnapshot = scheduleRun
     ? parseScheduleInputSnapshot(scheduleRun.inputSnapshot)
     : null;
-  const editorMembers = scheduleSnapshot?.members.flatMap((snapshotMember) => {
-    const member = month.members.find((candidate) => candidate.id === snapshotMember.id);
-    return member ? [{ ...snapshotMember, roleSnapshot: member.roleSnapshot }] : [];
-  }) ?? [];
-  const canEditParticipation = ["DRAFT", "COLLECTING", "READY"].includes(month.status) && month.scheduleRuns.length === 0;
-  const maxShadowDays = Math.ceil(new Date(Date.UTC(month.year, month.month, 0)).getUTCDate() / 2);
+  const editorMembers =
+    scheduleSnapshot?.members.flatMap((snapshotMember) => {
+      const member = month.members.find(
+        (candidate) => candidate.id === snapshotMember.id,
+      );
+      return member
+        ? [{ ...snapshotMember, roleSnapshot: member.roleSnapshot }]
+        : [];
+    }) ?? [];
+  const canEditParticipation =
+    ["DRAFT", "COLLECTING", "READY"].includes(month.status) &&
+    month.scheduleRuns.length === 0;
+  const maxShadowDays = Math.ceil(
+    new Date(Date.UTC(month.year, month.month, 0)).getUTCDate() / 2,
+  );
 
   return (
     <div className="grid gap-8">
       <section className="grid gap-3">
         <Button
           className="w-fit px-0"
-          nativeButton={false} render={<Link href="/admin/months" />}
+          nativeButton={false}
+          render={<Link href="/admin/months" />}
           size="sm"
           variant="ghost"
         >
@@ -121,7 +165,8 @@ export default async function PlanningMonthPage({
           <Badge variant="secondary">{month.status.toLowerCase()}</Badge>
         </div>
         <p className="text-muted-foreground">
-          {submittedCount} of {month.members.length} participants submitted availability.
+          {submittedCount} of {month.members.length} participants submitted
+          availability.
         </p>
       </section>
 
@@ -151,30 +196,43 @@ export default async function PlanningMonthPage({
                     : "Candidate schedule"}
               </CardTitle>
               <CardDescription>
-                Version {scheduleRun.version} · generated {formatDate(scheduleRun.generatedAt.toISOString().slice(0, 10))}
-                {" · "}primary fairness score {scheduleRun.fairnessScore} · lower is more balanced
+                Version {scheduleRun.version} · generated{" "}
+                {formatDate(scheduleRun.generatedAt.toISOString().slice(0, 10))}
+                {" · "}primary fairness score {scheduleRun.fairnessScore} ·
+                lower is more balanced
               </CardDescription>
             </CardHeader>
             <CardContent>
               {isPreview ? (
                 <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-muted/30 p-4">
                   <p className="text-sm text-muted-foreground">
-                    Historical version preview. This is not the current schedule.
+                    Historical version preview. This is not the current
+                    schedule.
                   </p>
                   {currentScheduleRun ? (
-                    <Button nativeButton={false} render={<Link href={`/admin/months/${month.id}`} />} size="sm" variant="outline">
+                    <Button
+                      nativeButton={false}
+                      render={<Link href={`/admin/months/${month.id}`} />}
+                      size="sm"
+                      variant="outline"
+                    >
                       Back to current version
                     </Button>
                   ) : null}
                 </div>
               ) : scheduleRun.publishedAt ? (
                 <p className="mb-4 text-sm font-medium text-emerald-700 dark:text-emerald-400">
-                  Published {formatDate(scheduleRun.publishedAt.toISOString().slice(0, 10))} · this is the official schedule.
+                  Published{" "}
+                  {formatDate(
+                    scheduleRun.publishedAt.toISOString().slice(0, 10),
+                  )}{" "}
+                  · this is the official schedule.
                 </p>
               ) : month.status === "GENERATED" ? (
                 <div className="mb-5 rounded-xl border bg-muted/30 p-4">
                   <p className="mb-3 text-sm text-muted-foreground">
-                    Review the primary assignments, shadow pairings, and workload above, then publish this candidate for the team.
+                    Review the primary assignments, shadow pairings, and
+                    workload above, then publish this candidate for the team.
                   </p>
                   <PublishScheduleForm scheduleRunId={scheduleRun.id} />
                 </div>
@@ -183,10 +241,16 @@ export default async function PlanningMonthPage({
                 <>
                   {scheduleRun.revisionReason || previewWarnings.length ? (
                     <div className="mb-5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
-                      {scheduleRun.revisionReason ? <p className="text-sm text-muted-foreground">{scheduleRun.revisionReason}</p> : null}
+                      {scheduleRun.revisionReason ? (
+                        <p className="text-sm text-muted-foreground">
+                          {scheduleRun.revisionReason}
+                        </p>
+                      ) : null}
                       {previewWarnings.length ? (
                         <ul className="grid gap-1 text-sm text-amber-700 dark:text-amber-300">
-                          {previewWarnings.map((warning) => <li key={warning}>{warning}</li>)}
+                          {previewWarnings.map((warning) => (
+                            <li key={warning}>{warning}</li>
+                          ))}
                         </ul>
                       ) : null}
                     </div>
@@ -216,7 +280,8 @@ export default async function PlanningMonthPage({
                 />
               ) : (
                 <p className="text-sm text-destructive">
-                  This schedule is missing its original availability snapshot and cannot be edited.
+                  This schedule is missing its original availability snapshot
+                  and cannot be edited.
                 </p>
               )}
               {isPreview && currentScheduleRun ? (
@@ -235,30 +300,65 @@ export default async function PlanningMonthPage({
             <Card>
               <CardHeader>
                 <CardTitle>Version history</CardTitle>
-                <CardDescription>Every saved edit preserves the previous schedule.</CardDescription>
+                <CardDescription>
+                  Every saved edit preserves the previous schedule.
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <ol className="grid gap-3">
                   {month.scheduleRuns.map((run) => {
-                    const warnings = parseScheduleWarnings(run.validationWarnings);
+                    const warnings = parseScheduleWarnings(
+                      run.validationWarnings,
+                    );
                     return (
                       <li className="rounded-lg border p-3" key={run.id}>
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-sm font-semibold">Version {run.version}</span>
-                        {run.id === currentScheduleRun?.id ? <Badge variant="secondary">current</Badge> : null}
-                          {run.publishedAt ? <Badge variant="outline">published</Badge> : null}
-                          {warnings.length ? <Badge variant="outline">{warnings.length} exception{warnings.length === 1 ? "" : "s"}</Badge> : null}
-                          <span className="text-xs text-muted-foreground">{formatDate(run.generatedAt.toISOString().slice(0, 10))}</span>
-                        {run.id !== currentScheduleRun?.id ? (
-                          <Button className="ml-auto" nativeButton={false} render={<Link href={`/admin/months/${month.id}?version=${run.id}`} />} size="sm" variant="outline">
-                            Preview
-                          </Button>
-                        ) : null}
+                          <span className="text-sm font-semibold">
+                            Version {run.version}
+                          </span>
+                          {run.id === currentScheduleRun?.id ? (
+                            <Badge variant="secondary">current</Badge>
+                          ) : null}
+                          {run.publishedAt ? (
+                            <Badge variant="outline">published</Badge>
+                          ) : null}
+                          {warnings.length ? (
+                            <Badge variant="outline">
+                              {warnings.length} exception
+                              {warnings.length === 1 ? "" : "s"}
+                            </Badge>
+                          ) : null}
+                          <span className="text-xs text-muted-foreground">
+                            {formatDate(
+                              run.generatedAt.toISOString().slice(0, 10),
+                            )}
+                          </span>
+                          {run.id !== currentScheduleRun?.id ? (
+                            <Button
+                              className="ml-auto"
+                              nativeButton={false}
+                              render={
+                                <Link
+                                  href={`/admin/months/${month.id}?version=${run.id}`}
+                                />
+                              }
+                              size="sm"
+                              variant="outline"
+                            >
+                              Preview
+                            </Button>
+                          ) : null}
                         </div>
-                        {run.revisionReason ? <p className="mt-2 text-sm text-muted-foreground">{run.revisionReason}</p> : null}
+                        {run.revisionReason ? (
+                          <p className="mt-2 text-sm text-muted-foreground">
+                            {run.revisionReason}
+                          </p>
+                        ) : null}
                         {warnings.length ? (
                           <ul className="mt-2 grid gap-1 text-sm text-amber-700 dark:text-amber-300">
-                            {warnings.map((warning) => <li key={warning}>{warning}</li>)}
+                            {warnings.map((warning) => (
+                              <li key={warning}>{warning}</li>
+                            ))}
                           </ul>
                         ) : null}
                       </li>
@@ -268,12 +368,15 @@ export default async function PlanningMonthPage({
               </CardContent>
             </Card>
           ) : null}
-
         </>
       ) : (
         <Card>
           <CardHeader>
-            <CardTitle>{month.status === "READY" ? "Ready to generate" : "Schedule not ready"}</CardTitle>
+            <CardTitle>
+              {month.status === "READY"
+                ? "Ready to generate"
+                : "Schedule not ready"}
+            </CardTitle>
             <CardDescription>
               {month.status === "READY"
                 ? "Everyone has submitted. Generate a candidate to review primary assignments, shadow pairings, and workload."

@@ -2,8 +2,18 @@
   "year": 2024,
   "month": 3,
   "members": [
-    { "id": "alice", "name": "Alice", "mode": "AVAILABLE", "dates": ["2024-03-05"] },
-    { "id": "bob", "name": "Bob", "mode": "AVAILABLE", "dates": ["2024-03-05"] },
+    {
+      "id": "alice",
+      "name": "Alice",
+      "mode": "AVAILABLE",
+      "dates": ["2024-03-05"]
+    },
+    {
+      "id": "bob",
+      "name": "Bob",
+      "mode": "AVAILABLE",
+      "dates": ["2024-03-05"]
+    },
     { "id": "cara", "name": "Cara", "mode": "UNAVAILABLE", "dates": [] }
   ],
   "expectedMessage": "Mandatory assignments conflict on 2024-03-05."
