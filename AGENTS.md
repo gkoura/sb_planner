@@ -308,6 +308,10 @@ decision.
       account was created in the Neon development database with the idempotent
       `scripts/seed-admin.mjs` command. Production needs its own one-time seed
       after production migrations are applied.
+      **Build readiness (2026-10-27):** the user reports `pnpm run build`
+      succeeds locally with the PostgreSQL configuration. Next: push the
+      database-switch branch to GitHub, connect Netlify, and configure
+      production-only environment variables before applying production schema.
 - [x] **M6 — Account settings:** signed-in members can edit their display name
       and optional phone number, admins can set the optional number when creating
       an engineer, and members can change their password using Better Auth.
