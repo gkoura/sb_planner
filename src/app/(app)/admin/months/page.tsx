@@ -87,6 +87,11 @@ async function PlanningMonthsContent() {
   const [months, engineers] = await Promise.all([
     prisma.planningMonth.findMany({
       include: {
+        scheduleRuns: {
+          orderBy: { version: "desc" },
+          take: 1,
+          select: { algorithmVersion: true },
+        },
         members: {
           orderBy: { nameSnapshot: "asc" },
           select: {
@@ -124,7 +129,11 @@ async function PlanningMonthsContent() {
     <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
       <section aria-label="Existing planning months" className="grid gap-4">
         {months.length > 0 ? (
-          months.map((planningMonth) => (
+          months.map((planningMonth) => {
+            const imported =
+              planningMonth.scheduleRuns[0]?.algorithmVersion ===
+              "csv-import-v1";
+            return (
             <Card key={planningMonth.id}>
               <CardHeader className="flex-row items-start justify-between gap-4 space-y-0">
                 <div className="grid gap-1">
@@ -146,13 +155,9 @@ async function PlanningMonthsContent() {
               <CardContent>
                 <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b pb-4">
                   <p className="text-sm text-muted-foreground">
-                    {
-                      planningMonth.members.filter(
-                        (member) => member.availabilitySubmission,
-                      ).length
-                    }
-                    {" / "}
-                    {planningMonth.members.length} submitted
+                    {imported
+                      ? "Schedule imported · availability not collected"
+                      : `${planningMonth.members.filter((member) => member.availabilitySubmission).length} / ${planningMonth.members.length} submitted`}
                   </p>
 
                   <div className="flex flex-wrap items-center gap-3">
@@ -226,7 +231,9 @@ async function PlanningMonthsContent() {
                         >
                           {member.availabilitySubmission
                             ? "Submitted"
-                            : "Not submitted"}
+                            : imported
+                              ? "Not collected"
+                              : "Not submitted"}
                         </Badge>
                       </div>
                     </li>
@@ -234,7 +241,8 @@ async function PlanningMonthsContent() {
                 </ul>
               </CardContent>
             </Card>
-          ))
+            );
+          })
         ) : (
           <Card>
             <CardContent className="py-8 text-sm text-muted-foreground">

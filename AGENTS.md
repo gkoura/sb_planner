@@ -440,6 +440,34 @@ The default follows the operating system and user overrides persist locally.
 the Next.js `src/app/icon.svg` convention, with the app's deep teal and white
 colors. Remove the starter `favicon.ico` so it cannot compete with the SVG icon.
 
+**Theme toggle affordance (2026-10-28):** keep the pointer cursor on the dark
+mode icon button so it visibly communicates that it can be clicked.
+
+**Imported-month submission labels (2026-10-28):** for months whose latest
+schedule run is a CSV import, show that availability was not collected instead
+of a misleading zero submission count. Keep ordinary submission counts and
+progress indicators for algorithm-generated months.
+
+**CSV template download affordance (2026-10-28):** show a pointer cursor on the
+month-specific template download button to make its click action apparent.
+
+**CSV file chooser affordance (2026-10-28):** style the native accessible file
+input as an outline button with an upload icon, matching the template action;
+the full button surface opens the picker, the selected filename replaces the
+prompt, and keyboard focus is visible. Clear the native input value after
+selection so the same file can be chosen again.
+
+**Engineer creation form (2026-10-28):** split optional phone entry into a
+country calling-code selector (default Greece, +30) and national-number field;
+submit their normalized combination through the existing E.164 validation.
+Allow admins to reveal or hide the temporary password with an accessible
+control.
+
+**Account phone editor (2026-10-28):** reuse the same country-code and local
+number control in account settings, prefilled by splitting the saved E.164
+number. Preserve an existing number unchanged if its calling code is not in the
+selector list until the member chooses a replacement.
+
 **Schedule editing plan (2026-10-26):** admins edit a generated candidate before
 publishing or save a new published revision afterward. The editor supports
 single-day reassignment and explicit two-day swaps; it never cascades changes

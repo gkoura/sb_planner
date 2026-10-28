@@ -119,6 +119,8 @@ async function PlanningMonthContent({
     : undefined;
   const isPreview = !!previewRun && previewRun.id !== currentScheduleRun?.id;
   const scheduleRun = isPreview ? previewRun : currentScheduleRun;
+  const isImportedSchedule =
+    scheduleRun?.algorithmVersion === "csv-import-v1";
   const previewWarnings = scheduleRun
     ? parseScheduleWarnings(scheduleRun.validationWarnings)
     : [];
@@ -174,8 +176,9 @@ async function PlanningMonthContent({
           </Button>
         </div>
         <p className="text-muted-foreground">
-          {submittedCount} of {month.members.length} participants submitted
-          availability.
+          {isImportedSchedule
+            ? "Schedule imported · availability was not collected."
+            : `${submittedCount} of ${month.members.length} participants submitted availability.`}
         </p>
       </section>
 

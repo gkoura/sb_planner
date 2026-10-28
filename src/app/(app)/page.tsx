@@ -199,7 +199,7 @@ function PersonalMonthReport({
               : "Your shifts will appear here after this month’s schedule is published."}
           </CardDescription>
         </div>
-        {schedule ? (
+        {/* {schedule ? (
           <Button
             nativeButton={false}
             render={<Link href={`/schedules/${schedule.id}`} />}
@@ -207,7 +207,7 @@ function PersonalMonthReport({
           >
             Full schedule <ArrowRight aria-hidden="true" />
           </Button>
-        ) : null}
+        ) : null} */}
       </CardHeader>
       {schedule ? (
         <CardContent className="grid gap-5">
@@ -380,6 +380,11 @@ async function HomeContent() {
         orderBy: [{ year: "desc" }, { month: "desc" }],
         take: 3,
         include: {
+          scheduleRuns: {
+            orderBy: { version: "desc" },
+            take: 1,
+            select: { algorithmVersion: true },
+          },
           members: {
             select: { availabilitySubmission: { select: { id: true } } },
           },
@@ -499,6 +504,8 @@ async function HomeContent() {
           {months.length > 0 ? (
             <div className="grid gap-3">
               {months.map((month) => {
+                const imported =
+                  month.scheduleRuns[0]?.algorithmVersion === "csv-import-v1";
                 const submitted = month.members.filter(
                   (member) => member.availabilitySubmission,
                 ).length;
@@ -525,22 +532,25 @@ async function HomeContent() {
                               {formatMonth(month.year, month.month)}
                             </p>
                             <p className="mt-0.5 text-sm text-muted-foreground">
-                              {submitted} of {month.members.length} availability
-                              submissions
+                              {imported
+                                ? "Schedule imported · availability not collected"
+                                : `${submitted} of ${month.members.length} availability submissions`}
                             </p>
                           </div>
                         </div>
                         <div className="flex items-center gap-3">
-                          <div
-                            aria-label={`${progress}% submitted`}
-                            className="hidden h-1.5 w-24 overflow-hidden rounded-full bg-muted sm:block"
-                            role="img"
-                          >
+                          {!imported ? (
                             <div
-                              className="h-full rounded-full bg-primary"
-                              style={{ width: `${progress}%` }}
-                            />
-                          </div>
+                              aria-label={`${progress}% submitted`}
+                              className="hidden h-1.5 w-24 overflow-hidden rounded-full bg-muted sm:block"
+                              role="img"
+                            >
+                              <div
+                                className="h-full rounded-full bg-primary"
+                                style={{ width: `${progress}%` }}
+                              />
+                            </div>
+                          ) : null}
                           <Badge variant="secondary">
                             {month.status.toLowerCase()}
                           </Badge>
@@ -601,12 +611,6 @@ async function HomeContent() {
 
   return (
     <div className="grid gap-8">
-      <TodayStandbyCard assignment={onCallToday} today={today} />
-      <PersonalMonthReport
-        schedule={homepageSchedule}
-        today={today}
-        userId={session.user.id}
-      />
       <section className="relative isolate overflow-hidden rounded-3xl bg-primary px-6 py-8 text-primary-foreground shadow-sm sm:px-9 sm:py-10">
         <div
           aria-hidden="true"
@@ -635,6 +639,13 @@ async function HomeContent() {
           </Button>
         ) : null}
       </section>
+      <TodayStandbyCard assignment={onCallToday} today={today} />
+      <PersonalMonthReport
+        schedule={homepageSchedule}
+        today={today}
+        userId={session.user.id}
+      />
+      
 
       <section className="grid gap-4">
         <div>

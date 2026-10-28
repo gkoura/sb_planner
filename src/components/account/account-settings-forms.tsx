@@ -10,6 +10,7 @@ import {
 import { authClient } from "@/lib/auth-client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { PhoneNumberField } from "@/components/users/phone-number-field";
 import {
   Card,
   CardContent,
@@ -97,22 +98,10 @@ export function ProfileSettingsForm({
               Email changes need a verification flow and aren’t available yet.
             </p>
           </div>
-          <div className="grid gap-2">
-            <Label htmlFor="account-phone">Phone number</Label>
-            <Input
-              autoComplete="tel"
-              defaultValue={phoneNumber ?? ""}
-              id="account-phone"
-              inputMode="tel"
-              name="phoneNumber"
-              placeholder="+306912345678"
-              type="tel"
-            />
-            <p className="text-xs text-muted-foreground">
-              Use the international format with country code. Your team can see
-              this number on standby schedules.
-            </p>
-          </div>
+          <PhoneNumberField
+            defaultValue={phoneNumber}
+            idPrefix="account-phone"
+          />
           <FormNotice state={state} />
           <div>
             <Button disabled={pending} type="submit">
