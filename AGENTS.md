@@ -417,6 +417,12 @@ import previews receive the same server-derived date. **Verified 2026-10-28:**
 TypeScript, focused ESLint, scheduler tests, `git diff --check`, and
 `next build --webpack` pass; browser review remains pending.
 
+**Repository documentation (2026-10-28):** replaced the starter README with a
+plain-language project overview, roles, scheduling rules, CSV-import lifecycle,
+local PostgreSQL setup, first-admin bootstrap, commands, layout, and deployment
+notes. It deliberately uses placeholder environment values and does not expose
+local credentials.
+
 **Account settings (2026-10-26):** `/account` allows a member to update their
 display name and optional phone number; admins can also set the optional phone
 number when creating an engineer. Email remains read-only until a verification

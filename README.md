@@ -1,36 +1,155 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SB Planner
 
-## Getting Started
+SB Planner is a small, private team hub for planning a monthly standby (on-call)
+rotation. It is built for one engineering team of up to 10 engineers—not as a
+multi-tenant SaaS product.
 
-First, run the development server:
+Team members sign in to see who is on standby today, submit their availability,
+and review published schedules. Administrators create planning months, choose
+participants, generate or import schedules, review them, and publish an
+immutable version for the team.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## What it does
+
+- Shows the published on-call person for today in the `Europe/Athens` operational timezone.
+- Lets participants submit and revise monthly availability until collection closes.
+- Generates a deterministic, balanced monthly schedule from availability.
+- Prevents unavailable, uncovered, or consecutive primary standby assignments.
+- Supports trainee shadowing and mentored primary participation.
+- Lets administrators review, edit, publish, restore, and export versioned schedules.
+- Supports validated CSV schedule imports for past, current, and future months.
+- Keeps historical schedule versions and their assignment snapshots available for audit.
+
+## Roles
+
+| Role     | Capabilities                                                                                                                                                       |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Engineer | View published schedules, submit availability for months they join, and view their own assigned days.                                                              |
+| Admin    | All engineer capabilities when participating in a month, plus user management, planning-month setup, schedule generation/import, review, editing, and publication. |
+
+There is no public self-registration. An administrator creates engineer
+accounts, and the initial administrator is created with the seed command.
+
+## Schedule rules
+
+Each schedule covers exactly one calendar month and assigns one primary person
+per day. The scheduler normalizes either available-date or unavailable-date
+submissions and applies these hard rules:
+
+- Every date must have an eligible primary participant.
+- A participant cannot have primary standby on consecutive calendar days.
+- A participant available on five or fewer dates is assigned on every one of
+  those dates.
+- Primary workload is balanced as evenly as the constraints allow.
+- Shadow and mentoring duties also require availability and cannot create
+  consecutive work days.
+
+Administrators can make deliberate manual exceptions during an edit, but the
+application records the warning and required reason on the resulting immutable
+version.
+
+## CSV schedule imports
+
+Admins can import a complete month using a downloaded template with these
+columns:
+
+```text
+date,primary_email,shadow_email,shadow_kind
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Dates use `YYYY-MM-DD`; shadows are optional and use `TRAINING` or `MENTORING`.
+Roster emails must match the planning-month snapshot. The import is validated
+before preview and again before saving. Saving stores an immutable schedule
+version and its assignments—not the original uploaded CSV file. A first import
+creates a candidate to publish; importing into an already published month
+creates and publishes a new version while retaining the old version in history.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Technology
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- Next.js App Router and TypeScript
+- PostgreSQL with Prisma and the Prisma PostgreSQL adapter
+- Better Auth with email/password authentication
+- Tailwind CSS, shadcn/ui, and Lucide icons
 
-## Learn More
+## Run locally
 
-To learn more about Next.js, take a look at the following resources:
+### Prerequisites
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- Node.js 22 or newer
+- pnpm 12
+- A PostgreSQL database (the project is configured for Neon PostgreSQL)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Install and configure
 
-## Deploy on Vercel
+```bash
+pnpm install
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Create `.env.local` with your own values. Do not commit this file or any
+credentials.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```dotenv
+DATABASE_URL="postgresql://..."
+# Optional but recommended for Prisma migrations when your provider has a direct URL.
+DIRECT_URL="postgresql://..."
+BETTER_AUTH_SECRET="a-long-random-secret"
+BETTER_AUTH_URL="http://localhost:3000"
+
+INITIAL_ADMIN_NAME="First Admin"
+INITIAL_ADMIN_EMAIL="admin@example.com"
+INITIAL_ADMIN_PASSWORD="choose-a-strong-password"
+```
+
+Apply the PostgreSQL migrations, seed the first administrator, then start the
+development server:
+
+```bash
+pnpm exec prisma migrate deploy
+pnpm seed:admin
+pnpm dev
+```
+
+Open [http://localhost:3000](http://localhost:3000), then sign in with the
+seeded administrator account. The seed command is idempotent: if the email
+already exists, it promotes that account to `ADMIN` without changing its
+password.
+
+## Useful commands
+
+```bash
+pnpm dev                              # Start the development server
+pnpm exec prisma migrate deploy        # Apply PostgreSQL migrations
+pnpm seed:admin                       # Create or promote the initial administrator
+pnpm test:scheduler                   # Run scheduling-rule tests
+pnpm lint                             # Run ESLint
+pnpm format:check                     # Check formatting
+pnpm build                            # Create a production build
+```
+
+If a default build environment has Turbopack worker-port limitations, use the
+webpack build explicitly:
+
+```bash
+pnpm exec next build --webpack
+```
+
+## Project layout
+
+```text
+src/app/                 Routes, server actions, and App Router layouts
+src/components/          UI components and feature-specific forms
+src/lib/                 Authentication, Prisma, scheduling, import, and date logic
+prisma/                  Prisma schema and PostgreSQL migrations
+tests/                   Scheduler fixtures and rule tests
+scripts/                 Operational scripts, including first-admin seeding
+```
+
+## Deployment notes
+
+The intended hosted setup is Neon PostgreSQL with a hosting provider that can
+run the Next.js application. Configure production environment variables in the
+hosting provider, apply migrations to the production database, and run the
+first-admin seed command against that database once. Production starts with an
+empty database; local schedule data is not copied automatically.
+
+Before a production schema migration, create a database backup or export.
