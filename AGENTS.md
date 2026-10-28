@@ -436,6 +436,10 @@ values. `next-themes` applies the `.dark` class from the saved user choice or
 system preference; a shared toggle appears in the app header and sign-in page.
 The default follows the operating system and user overrides persist locally.
 
+**App icon (2026-10-28):** use Lucide's `CalendarDays` mark as the favicon via
+the Next.js `src/app/icon.svg` convention, with the app's deep teal and white
+colors. Remove the starter `favicon.ico` so it cannot compete with the SVG icon.
+
 **Schedule editing plan (2026-10-26):** admins edit a generated candidate before
 publishing or save a new published revision afterward. The editor supports
 single-day reassignment and explicit two-day swaps; it never cascades changes
