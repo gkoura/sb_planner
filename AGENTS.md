@@ -405,6 +405,18 @@ Verified 2026-10-28: TypeScript, focused homepage lint, scheduler tests,
 currently blocked by four pre-existing React Compiler hook warnings in Better
 Auth UI components outside this refactor; browser verification remains pending.
 
+**Schedule calendar date hierarchy (2026-10-28):** the shared read-only
+schedule calendar accepts the Europe/Athens operational date. In the active
+calendar month, today is identified by a teal ring, a visible `Today` label,
+and `aria-current="date"`; completed days are visually softened without
+obscuring their assignment details. Historical and future months retain their
+full schedule colors so an archive is not needlessly dimmed. The admin editor
+uses the same today marker while keeping its existing published-past-date lock
+and correction safeguard. Published schedules, historical previews, and CSV
+import previews receive the same server-derived date. **Verified 2026-10-28:**
+TypeScript, focused ESLint, scheduler tests, `git diff --check`, and
+`next build --webpack` pass; browser review remains pending.
+
 **Account settings (2026-10-26):** `/account` allows a member to update their
 display name and optional phone number; admins can also set the optional phone
 number when creating an engineer. Email remains read-only until a verification

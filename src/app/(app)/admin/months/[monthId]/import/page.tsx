@@ -15,12 +15,15 @@ import {
 } from "@/components/ui/card";
 import { requireAdmin } from "@/lib/auth-guard";
 import { prisma } from "@/lib/prisma";
+import { getOperationalDate } from "@/lib/schedule-edits";
 
 type ImportPageProps = { params: Promise<{ monthId: string }> };
 
 export default function ImportSchedulePage(props: ImportPageProps) {
   return (
-    <Suspense fallback={<div className="h-96 animate-pulse rounded-2xl bg-muted" />}>
+    <Suspense
+      fallback={<div className="h-96 animate-pulse rounded-2xl bg-muted" />}
+    >
       <ImportScheduleContent {...props} />
     </Suspense>
   );
@@ -41,7 +44,11 @@ async function ImportScheduleContent({ params }: ImportPageProps) {
           roleSnapshot: true,
         },
       },
-      scheduleRuns: { select: { id: true }, take: 1, orderBy: { version: "desc" } },
+      scheduleRuns: {
+        select: { id: true },
+        take: 1,
+        orderBy: { version: "desc" },
+      },
     },
   });
   if (!month) notFound();
@@ -70,7 +77,9 @@ async function ImportScheduleContent({ params }: ImportPageProps) {
           <span className="text-sm font-medium">Schedule import</span>
           <Badge variant="secondary">{month.status.toLowerCase()}</Badge>
         </div>
-        <h1 className="text-3xl font-semibold tracking-tight">Import a schedule</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">
+          Import a schedule
+        </h1>
         <p className="max-w-2xl text-muted-foreground">
           Upload a CSV for {monthLabel}. Review the calendar and any schedule
           exceptions before saving. Past, current, and future planning months
@@ -90,14 +99,23 @@ async function ImportScheduleContent({ params }: ImportPageProps) {
           {month.members.length ? (
             <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {month.members.map((member) => (
-                <li className="min-w-0 rounded-lg border px-3 py-2" key={member.id}>
-                  <p className="truncate text-sm font-medium">{member.nameSnapshot}</p>
-                  <p className="truncate text-xs text-muted-foreground">{member.emailSnapshot}</p>
+                <li
+                  className="min-w-0 rounded-lg border px-3 py-2"
+                  key={member.id}
+                >
+                  <p className="truncate text-sm font-medium">
+                    {member.nameSnapshot}
+                  </p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {member.emailSnapshot}
+                  </p>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="text-sm text-destructive">Add participants to this month before importing a schedule.</p>
+            <p className="text-sm text-destructive">
+              Add participants to this month before importing a schedule.
+            </p>
           )}
         </CardContent>
       </Card>
@@ -108,6 +126,7 @@ async function ImportScheduleContent({ params }: ImportPageProps) {
         month={month.month}
         monthLabel={monthLabel}
         planningMonthId={month.id}
+        today={getOperationalDate()}
         year={month.year}
       />
     </div>

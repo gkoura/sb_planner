@@ -386,6 +386,7 @@ export function ScheduleEditor({
                           />
                         );
                       const assignment = assignmentsByDate.get(cell.date);
+                      const isToday = cell.date === today;
                       const color = assignment
                         ? colorsByMemberId.get(assignment.planningMemberId)
                         : undefined;
@@ -405,9 +406,10 @@ export function ScheduleEditor({
                       return (
                         <td className="align-top p-0" key={cell.date}>
                           <button
-                            aria-label={`${formatDate(cell.date)}: ${assignment?.nameSnapshot ?? "unassigned"}${isLocked ? ", past date locked" : ", click to edit"}`}
+                            aria-current={isToday ? "date" : undefined}
+                            aria-label={`${isToday ? "Today, " : ""}${formatDate(cell.date)}: ${assignment?.nameSnapshot ?? "unassigned"}${isLocked ? ", past date locked" : ", click to edit"}`}
                             aria-pressed={isSelected}
-                            className={`flex min-h-12 w-full flex-col justify-between rounded-lg border p-1.5 text-left transition-[box-shadow,transform] hover:-translate-y-0.5 hover:shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-65 sm:min-h-20 sm:p-2.5 ${isSelected ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : ""}`}
+                            className={`relative flex min-h-12 w-full flex-col justify-between rounded-lg border p-1.5 text-left transition-[box-shadow,transform] hover:-translate-y-0.5 hover:shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-65 sm:min-h-20 sm:p-2.5 ${isSelected || isToday ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : ""}`}
                             disabled={isLocked || isPending}
                             onClick={() => selectDay(cell.date)}
                             style={
@@ -418,18 +420,25 @@ export function ScheduleEditor({
                                   }
                                 : undefined
                             }
-                            title={`${formatDate(cell.date)} · ${assignment?.nameSnapshot ?? "Unassigned"}${isLocked ? " · past date locked" : " · click to edit"}`}
+                            title={`${formatDate(cell.date)} · ${assignment?.nameSnapshot ?? "Unassigned"}${isToday ? " · Today" : ""}${isLocked ? " · past date locked" : " · click to edit"}`}
                             type="button"
                           >
-                            <span
-                              className="text-[0.65rem] font-semibold sm:text-xs"
-                              style={{
-                                color:
-                                  color?.foreground ??
-                                  "var(--muted-foreground)",
-                              }}
-                            >
-                              {cell.day}
+                            <span className="flex items-start justify-between gap-1">
+                              <span
+                                className="text-[0.65rem] font-semibold sm:text-xs"
+                                style={{
+                                  color:
+                                    color?.foreground ??
+                                    "var(--muted-foreground)",
+                                }}
+                              >
+                                {cell.day}
+                              </span>
+                              {isToday ? (
+                                <span className="rounded bg-primary px-1 py-0.5 text-[0.5rem] font-bold uppercase tracking-wide text-primary-foreground sm:text-[0.55rem]">
+                                  Today
+                                </span>
+                              ) : null}
                             </span>
                             {assignment ? (
                               <>

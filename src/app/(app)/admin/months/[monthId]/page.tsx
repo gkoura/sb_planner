@@ -119,8 +119,7 @@ async function PlanningMonthContent({
     : undefined;
   const isPreview = !!previewRun && previewRun.id !== currentScheduleRun?.id;
   const scheduleRun = isPreview ? previewRun : currentScheduleRun;
-  const isImportedSchedule =
-    scheduleRun?.algorithmVersion === "csv-import-v1";
+  const isImportedSchedule = scheduleRun?.algorithmVersion === "csv-import-v1";
   const previewWarnings = scheduleRun
     ? parseScheduleWarnings(scheduleRun.validationWarnings)
     : [];
@@ -209,7 +208,9 @@ async function PlanningMonthContent({
               </CardTitle>
               <CardDescription>
                 Version {scheduleRun.version}
-                {scheduleRun.algorithmVersion === "csv-import-v1" ? " · imported from CSV" : " · generated"}{" "}
+                {scheduleRun.algorithmVersion === "csv-import-v1"
+                  ? " · imported from CSV"
+                  : " · generated"}{" "}
                 {formatDate(scheduleRun.generatedAt.toISOString().slice(0, 10))}
                 {" · "}primary fairness score {scheduleRun.fairnessScore} ·
                 lower is more balanced
@@ -277,6 +278,7 @@ async function PlanningMonthContent({
                       phoneNumber: member.user.phoneNumber,
                     }))}
                     month={month.month}
+                    today={getOperationalDate()}
                     year={month.year}
                   />
                 </>

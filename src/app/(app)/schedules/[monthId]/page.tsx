@@ -15,7 +15,10 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { getCurrentSession } from "@/lib/auth-guard";
-import { parseScheduleWarnings } from "@/lib/schedule-edits";
+import {
+  getOperationalDate,
+  parseScheduleWarnings,
+} from "@/lib/schedule-edits";
 import { prisma } from "@/lib/prisma";
 
 type PublishedSchedulePageProps = {
@@ -105,10 +108,7 @@ async function PublishedScheduleContent({
             not: null,
           },
         },
-        orderBy: [
-          { publishedAt: "desc" },
-          { version: "desc" },
-        ],
+        orderBy: [{ publishedAt: "desc" }, { version: "desc" }],
         take: 1,
         include: {
           assignments: {
@@ -138,9 +138,7 @@ async function PublishedScheduleContent({
 
   const run = month.scheduleRuns[0];
 
-  const warnings = parseScheduleWarnings(
-    run.validationWarnings
-  );
+  const warnings = parseScheduleWarnings(run.validationWarnings);
 
   return (
     <div className="grid gap-8">
@@ -157,13 +155,8 @@ async function PublishedScheduleContent({
         </Button>
 
         <div className="flex items-center gap-2 text-muted-foreground">
-          <CalendarDays
-            aria-hidden="true"
-            className="size-5"
-          />
-          <span className="text-sm font-medium">
-            Official standby plan
-          </span>
+          <CalendarDays aria-hidden="true" className="size-5" />
+          <span className="text-sm font-medium">Official standby plan</span>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
@@ -171,18 +164,14 @@ async function PublishedScheduleContent({
             {formatMonth(month.year, month.month)}
           </h1>
 
-          <Badge variant="secondary">
-            published
-          </Badge>
+          <Badge variant="secondary">published</Badge>
         </div>
       </section>
 
       <Card>
         <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-4">
           <div className="grid gap-1.5">
-            <CardTitle>
-              Standby schedule
-            </CardTitle>
+            <CardTitle>Standby schedule</CardTitle>
 
             <CardDescription>
               Official version {run.version} · fairness score{" "}
@@ -237,9 +226,7 @@ async function PublishedScheduleContent({
               {warnings.length ? (
                 <ul className="mt-2 grid gap-1 text-sm text-muted-foreground">
                   {warnings.map((warning) => (
-                    <li key={warning}>
-                      {warning}
-                    </li>
+                    <li key={warning}>{warning}</li>
                   ))}
                 </ul>
               ) : null}
@@ -255,6 +242,7 @@ async function PublishedScheduleContent({
               phoneNumber: member.user.phoneNumber,
             }))}
             month={month.month}
+            today={getOperationalDate()}
             year={month.year}
           />
         </CardContent>

@@ -45,13 +45,19 @@ export function ScheduleCalendar({
   month,
   members,
   assignments,
+  today,
 }: {
   year: number;
   month: number;
   members: ScheduleMember[];
   assignments: ScheduleAssignment[];
+  /** ISO date in the team's operational timezone. */
+  today?: string;
 }) {
   const weeks = buildMonthWeeks(year, month);
+  const isCurrentMonth = today?.startsWith(
+    `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}`,
+  );
   const colorsByMemberId = new Map(
     members.map((member, index) => [
       member.id,
@@ -112,6 +118,10 @@ export function ScheduleCalendar({
                       />
                     );
                   const assignment = assignmentsByDate.get(cell.date);
+                  const isToday = cell.date === today;
+                  const isPast = Boolean(
+                    today && isCurrentMonth && cell.date < today,
+                  );
                   const color = assignment
                     ? colorsByMemberId.get(assignment.planningMemberId)
                     : undefined;
@@ -127,14 +137,15 @@ export function ScheduleCalendar({
                     <td
                       aria-label={
                         assignment
-                          ? `${formatDate(cell.date)}: ${assignment.nameSnapshot}${assignment.roleSnapshot === "ADMIN" ? ", admin" : ""}${(assignment.shadows ?? []).map((shadow) => `; ${shadow.kind === "TRAINING" ? "shadowing" : "mentoring"} ${shadow.nameSnapshot}`).join("")}`
-                          : `${formatDate(cell.date)}: unassigned`
+                          ? `${isToday ? "Today, " : ""}${formatDate(cell.date)}: ${assignment.nameSnapshot}${assignment.roleSnapshot === "ADMIN" ? ", admin" : ""}${(assignment.shadows ?? []).map((shadow) => `; ${shadow.kind === "TRAINING" ? "shadowing" : "mentoring"} ${shadow.nameSnapshot}`).join("")}`
+                          : `${isToday ? "Today, " : ""}${formatDate(cell.date)}: unassigned`
                       }
+                      aria-current={isToday ? "date" : undefined}
                       className="align-top p-0"
                       key={cell.date}
                     >
                       <div
-                        className="flex min-h-14 flex-col justify-between gap-1 rounded-lg border p-1.5 sm:min-h-24 sm:p-2.5"
+                        className={`relative flex min-h-14 flex-col justify-between gap-1 rounded-lg border p-1.5 sm:min-h-24 sm:p-2.5 ${isPast ? "opacity-60 grayscale" : ""} ${isToday ? "z-10 ring-2 ring-primary ring-offset-2 ring-offset-background" : ""}`}
                         style={
                           color
                             ? {
@@ -143,16 +154,23 @@ export function ScheduleCalendar({
                               }
                             : undefined
                         }
-                        title={assignment?.nameSnapshot}
+                        title={`${assignment?.nameSnapshot ?? "Unassigned"}${isToday ? " · Today" : ""}`}
                       >
-                        <span
-                          className="text-[0.65rem] font-semibold sm:text-xs"
-                          style={{
-                            color:
-                              color?.foreground ?? "var(--muted-foreground)",
-                          }}
-                        >
-                          {cell.day}
+                        <span className="flex items-start justify-between gap-1">
+                          <span
+                            className="text-[0.65rem] font-semibold sm:text-xs"
+                            style={{
+                              color:
+                                color?.foreground ?? "var(--muted-foreground)",
+                            }}
+                          >
+                            {cell.day}
+                          </span>
+                          {isToday ? (
+                            <span className="rounded bg-primary px-1 py-0.5 text-[0.5rem] font-bold uppercase tracking-wide text-primary-foreground sm:text-[0.55rem]">
+                              Today
+                            </span>
+                          ) : null}
                         </span>
                         {assignment ? (
                           <>
