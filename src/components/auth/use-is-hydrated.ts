@@ -10,10 +10,10 @@ import { useSyncExternalStore } from "react";
  * @returns Whether the component has hydrated on the client.
  */
 export function useIsHydrated() {
-  const subscribe = () => () => {};
-  return useSyncExternalStore(
-    subscribe,
-    () => true,
-    () => false,
-  );
+    const subscribe = () => () => {};
+    return useSyncExternalStore(
+        subscribe,
+        () => true,
+        () => false,
+    );
 }

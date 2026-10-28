@@ -10,34 +10,34 @@ import { QueryClient } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
 
 export function Providers({ children }: { children: ReactNode }) {
-  const router = useRouter();
-  const [queryClient] = useState(() => new QueryClient());
+    const router = useRouter();
+    const [queryClient] = useState(() => new QueryClient());
 
-  return (
-    <ThemeProvider
-      attribute="class"
-      defaultTheme="system"
-      enableSystem
-      disableTransitionOnChange
-    >
-      <AuthProvider
-        authClient={authClient}
-        basePaths={{ auth: "" }}
-        emailAndPassword={{
-          enabled: true,
-          forgotPassword: false,
-          requireEmailVerification: false,
-        }}
-        Link={Link}
-        navigate={({ replace, to }) =>
-          replace ? router.replace(to) : router.push(to)
-        }
-        queryClient={queryClient}
-        redirectTo="/"
-      >
-        {children}
-        <Toaster />
-      </AuthProvider>
-    </ThemeProvider>
-  );
+    return (
+        <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+        >
+            <AuthProvider
+                authClient={authClient}
+                basePaths={{ auth: "" }}
+                emailAndPassword={{
+                    enabled: true,
+                    forgotPassword: false,
+                    requireEmailVerification: false,
+                }}
+                Link={Link}
+                navigate={({ replace, to }) =>
+                    replace ? router.replace(to) : router.push(to)
+                }
+                queryClient={queryClient}
+                redirectTo="/"
+            >
+                {children}
+                <Toaster />
+            </AuthProvider>
+        </ThemeProvider>
+    );
 }

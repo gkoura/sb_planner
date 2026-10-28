@@ -1,11 +1,11 @@
 {
-  "year": 2025,
-  "month": 5,
-  "members": [
-    { "id": "a", "name": "Ari", "mode": "UNAVAILABLE", "dates": [] },
-    { "id": "b", "name": "Bea", "mode": "UNAVAILABLE", "dates": [] },
-    { "id": "c", "name": "Cal", "mode": "UNAVAILABLE", "dates": [] }
-  ],
-  "expectedFairnessScore": 4,
-  "expectedWorkloads": [10, 10, 11]
+    "year": 2025,
+    "month": 5,
+    "members": [
+        { "id": "a", "name": "Ari", "mode": "UNAVAILABLE", "dates": [] },
+        { "id": "b", "name": "Bea", "mode": "UNAVAILABLE", "dates": [] },
+        { "id": "c", "name": "Cal", "mode": "UNAVAILABLE", "dates": [] }
+    ],
+    "expectedFairnessScore": 4,
+    "expectedWorkloads": [10, 10, 11]
 }

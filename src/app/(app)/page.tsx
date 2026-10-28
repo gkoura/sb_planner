@@ -11,66 +11,69 @@ import { getTodayInAthens } from "@/lib/home/dates";
 import { getHomeData } from "@/lib/home/queries";
 
 export default function Home() {
-  return (
-    <Suspense fallback={<HomeFallback />}>
-      <HomeContent />
-    </Suspense>
-  );
+    return (
+        <Suspense fallback={<HomeFallback />}>
+            <HomeContent />
+        </Suspense>
+    );
 }
 
 async function HomeContent() {
-  const session = await getCurrentSession();
-  if (!session) redirect("/sign-in");
+    const session = await getCurrentSession();
+    if (!session) redirect("/sign-in");
 
-  const today = getTodayInAthens();
-  const data = await getHomeData(
-    {
-      id: session.user.id,
-      name: session.user.name,
-      role: session.user.role === "ADMIN" ? "ADMIN" : "ENGINEER",
-    },
-    today,
-  );
-  const availabilityNeeded = data.availabilityMonths.some(
-    (month) => !month.submitted,
-  );
+    const today = getTodayInAthens();
+    const data = await getHomeData(
+        {
+            id: session.user.id,
+            name: session.user.name,
+            role: session.user.role === "ADMIN" ? "ADMIN" : "ENGINEER",
+        },
+        today,
+    );
+    const availabilityNeeded = data.availabilityMonths.some(
+        (month) => !month.submitted,
+    );
 
-  return (
-    <div className="grid gap-8">
-      <HomeHeader
-        availabilityNeeded={availabilityNeeded}
-        name={session.user.name}
-      />
-      <TodayStandbyCard assignment={data.todayAssignment} today={today} />
-      <PersonalMonthReport schedule={data.personalSchedule} today={today} />
-      <AvailabilityOverview months={data.availabilityMonths} />
-      {data.admin ? <AdminOverview data={data.admin} /> : null}
-    </div>
-  );
+    return (
+        <div className="grid gap-8">
+            <HomeHeader
+                availabilityNeeded={availabilityNeeded}
+                name={session.user.name}
+            />
+            <TodayStandbyCard assignment={data.todayAssignment} today={today} />
+            <PersonalMonthReport
+                schedule={data.personalSchedule}
+                today={today}
+            />
+            <AvailabilityOverview months={data.availabilityMonths} />
+            {data.admin ? <AdminOverview data={data.admin} /> : null}
+        </div>
+    );
 }
 
 function HomeFallback() {
-  return (
-    <div
-      aria-label="Loading planning overview"
-      className="grid gap-8"
-      role="status"
-    >
-      <section className="rounded-3xl bg-primary px-6 py-8 text-primary-foreground shadow-sm sm:px-9 sm:py-10">
-        <p className="text-sm font-medium text-primary-foreground/80">
-          SB Planner
-        </p>
-        <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
-          Your standby desk
-        </h1>
-        <p className="mt-3 max-w-xl text-sm leading-relaxed text-primary-foreground/80 sm:text-base">
-          Loading your planning overview…
-        </p>
-      </section>
-      <section aria-hidden="true" className="grid gap-4 sm:grid-cols-2">
-        <div className="h-24 animate-pulse rounded-2xl bg-muted" />
-        <div className="h-24 animate-pulse rounded-2xl bg-muted" />
-      </section>
-    </div>
-  );
+    return (
+        <div
+            aria-label="Loading planning overview"
+            className="grid gap-8"
+            role="status"
+        >
+            <section className="bg-primary text-primary-foreground rounded-3xl px-6 py-8 shadow-sm sm:px-9 sm:py-10">
+                <p className="text-primary-foreground/80 text-sm font-medium">
+                    SB Planner
+                </p>
+                <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
+                    Your standby desk
+                </h1>
+                <p className="text-primary-foreground/80 mt-3 max-w-xl text-sm leading-relaxed sm:text-base">
+                    Loading your planning overview…
+                </p>
+            </section>
+            <section aria-hidden="true" className="grid gap-4 sm:grid-cols-2">
+                <div className="bg-muted h-24 animate-pulse rounded-2xl" />
+                <div className="bg-muted h-24 animate-pulse rounded-2xl" />
+            </section>
+        </div>
+    );
 }

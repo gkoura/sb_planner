@@ -7,7 +7,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { cn } from "cn";
 
 export type AuthRedirectProps = {
-  className?: string;
+    className?: string;
 };
 
 /**
@@ -21,22 +21,22 @@ export type AuthRedirectProps = {
  * @returns The centered spinner shown while the session and redirect resolve
  */
 export function AuthRedirect({ className }: AuthRedirectProps) {
-  const { authClient, basePaths, viewPaths } = useAuth();
-  const { data: session, isPending } = useSession(authClient);
-  const hasRedirected = useRef(false);
+    const { authClient, basePaths, viewPaths } = useAuth();
+    const { data: session, isPending } = useSession(authClient);
+    const hasRedirected = useRef(false);
 
-  useEffect(() => {
-    if (isPending || hasRedirected.current) return;
-    hasRedirected.current = true;
+    useEffect(() => {
+        if (isPending || hasRedirected.current) return;
+        hasRedirected.current = true;
 
-    const action = getAuthRedirectAction(
-      new URL(window.location.href),
-      Boolean(session),
-      `${basePaths.auth}/${viewPaths.auth.signIn}`,
-    );
+        const action = getAuthRedirectAction(
+            new URL(window.location.href),
+            Boolean(session),
+            `${basePaths.auth}/${viewPaths.auth.signIn}`,
+        );
 
-    window.location.replace(action.to);
-  }, [basePaths.auth, isPending, session, viewPaths.auth.signIn]);
+        window.location.replace(action.to);
+    }, [basePaths.auth, isPending, session, viewPaths.auth.signIn]);
 
-  return <Spinner className={cn("mx-auto my-auto", className)} />;
+    return <Spinner className={cn("mx-auto my-auto", className)} />;
 }

@@ -1,28 +1,28 @@
 {
-  "year": 2024,
-  "month": 3,
-  "mandatoryMemberId": "alice",
-  "mandatoryDates": [
-    "2024-03-01",
-    "2024-03-03",
-    "2024-03-05",
-    "2024-03-07",
-    "2024-03-09"
-  ],
-  "members": [
-    {
-      "id": "alice",
-      "name": "Alice",
-      "mode": "AVAILABLE",
-      "dates": [
+    "year": 2024,
+    "month": 3,
+    "mandatoryMemberId": "alice",
+    "mandatoryDates": [
         "2024-03-01",
         "2024-03-03",
         "2024-03-05",
         "2024-03-07",
         "2024-03-09"
-      ]
-    },
-    { "id": "bob", "name": "Bob", "mode": "UNAVAILABLE", "dates": [] },
-    { "id": "cara", "name": "Cara", "mode": "UNAVAILABLE", "dates": [] }
-  ]
+    ],
+    "members": [
+        {
+            "id": "alice",
+            "name": "Alice",
+            "mode": "AVAILABLE",
+            "dates": [
+                "2024-03-01",
+                "2024-03-03",
+                "2024-03-05",
+                "2024-03-07",
+                "2024-03-09"
+            ]
+        },
+        { "id": "bob", "name": "Bob", "mode": "UNAVAILABLE", "dates": [] },
+        { "id": "cara", "name": "Cara", "mode": "UNAVAILABLE", "dates": [] }
+    ]
 }

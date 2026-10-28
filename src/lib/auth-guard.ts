@@ -5,19 +5,19 @@ import { cache } from "react";
 import { auth } from "@/lib/auth";
 
 export const getCurrentSession = cache(async () =>
-  auth.api.getSession({ headers: await headers() }),
+    auth.api.getSession({ headers: await headers() }),
 );
 
 export async function requireAdmin() {
-  const session = await getCurrentSession();
+    const session = await getCurrentSession();
 
-  if (!session) {
-    redirect("/sign-in");
-  }
+    if (!session) {
+        redirect("/sign-in");
+    }
 
-  if (session.user.role !== "ADMIN") {
-    redirect("/");
-  }
+    if (session.user.role !== "ADMIN") {
+        redirect("/");
+    }
 
-  return session;
+    return session;
 }
