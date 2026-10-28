@@ -16,6 +16,11 @@ export type DeletePlanningMonthState = {
     error?: string;
 };
 
+export type PlanningMonthRosterState = {
+    error?: string;
+    success?: string;
+};
+
 export type ParticipationSettingsState = {
     error?: string;
     success?: string;
@@ -263,7 +268,161 @@ export async function createPlanningMonth(
     return { success: "Planning month created as a draft." };
 }
 
-export async function deleteDraftPlanningMonth(
+export async function savePlanningMonthRoster(
+    _previousState: PlanningMonthRosterState,
+    formData: FormData,
+): Promise<PlanningMonthRosterState> {
+    const adminSession = await requireAdmin();
+    const planningMonthId = String(
+        formData.get("planningMonthId") ?? "",
+    ).trim();
+    const includeAdmin = formData.get("includeAdmin") === "true";
+    const rawMemberIds = formData.getAll("memberIds");
+
+    if (!planningMonthId) return { error: "Planning month is missing." };
+    if (rawMemberIds.some((id) => typeof id !== "string")) {
+        return { error: "The selected engineer list is invalid." };
+    }
+
+    const selectedIds = rawMemberIds as string[];
+    const uniqueSelectedIds = [...new Set(selectedIds)];
+    if (uniqueSelectedIds.length !== selectedIds.length) {
+        return { error: "An engineer was selected more than once." };
+    }
+    if (uniqueSelectedIds.length > MAX_ENGINEERS) {
+        return { error: "A plan can include at most 10 engineer accounts." };
+    }
+    if (!uniqueSelectedIds.length && !includeAdmin) {
+        return { error: "Select at least one participant for this month." };
+    }
+
+    try {
+        const result = await prisma.$transaction(async (transaction) => {
+            const month = await transaction.planningMonth.findUnique({
+                where: { id: planningMonthId },
+                include: {
+                    members: { select: { id: true, userId: true } },
+                    scheduleRuns: { select: { id: true }, take: 1 },
+                },
+            });
+            if (!month) throw new Error("Planning month not found.");
+            if (
+                !["DRAFT", "COLLECTING", "READY"].includes(month.status) ||
+                month.scheduleRuns.length
+            ) {
+                throw new Error(
+                    "Participants are locked after schedule generation.",
+                );
+            }
+
+            const [engineerCount, selectedEngineers] = await Promise.all([
+                transaction.user.count({ where: { role: "ENGINEER" } }),
+                uniqueSelectedIds.length
+                    ? transaction.user.findMany({
+                          where: {
+                              id: { in: uniqueSelectedIds },
+                              role: "ENGINEER",
+                          },
+                          select: {
+                              email: true,
+                              id: true,
+                              name: true,
+                              role: true,
+                          },
+                      })
+                    : Promise.resolve([]),
+            ]);
+            if (engineerCount > MAX_ENGINEERS) {
+                throw new Error("The team has more than 10 engineer accounts.");
+            }
+            if (selectedEngineers.length !== uniqueSelectedIds.length) {
+                throw new Error("Choose only existing engineer accounts.");
+            }
+
+            const desiredUserIds = new Set(uniqueSelectedIds);
+            if (includeAdmin) desiredUserIds.add(adminSession.user.id);
+            const currentUserIds = new Set(
+                month.members.map((member) => member.userId),
+            );
+            const removedMemberIds = month.members
+                .filter((member) => !desiredUserIds.has(member.userId))
+                .map((member) => member.id);
+            const addedEngineers = selectedEngineers.filter(
+                (engineer) => !currentUserIds.has(engineer.id),
+            );
+            const addAdmin =
+                includeAdmin && !currentUserIds.has(adminSession.user.id);
+
+            if (removedMemberIds.length) {
+                await transaction.planningMember.deleteMany({
+                    where: { id: { in: removedMemberIds } },
+                });
+            }
+            if (addedEngineers.length || addAdmin) {
+                await transaction.planningMember.createMany({
+                    data: [
+                        ...addedEngineers.map((engineer) => ({
+                            emailSnapshot: engineer.email,
+                            nameSnapshot: engineer.name,
+                            roleSnapshot: engineer.role,
+                            planningMonthId: month.id,
+                            userId: engineer.id,
+                        })),
+                        ...(addAdmin
+                            ? [
+                                  {
+                                      emailSnapshot: adminSession.user.email,
+                                      nameSnapshot: adminSession.user.name,
+                                      roleSnapshot: "ADMIN",
+                                      planningMonthId: month.id,
+                                      userId: adminSession.user.id,
+                                  },
+                              ]
+                            : []),
+                    ],
+                });
+            }
+
+            if (month.status === "DRAFT") {
+                return { reopened: false };
+            }
+
+            const submittedCount =
+                await transaction.availabilitySubmission.count({
+                    where: { planningMember: { planningMonthId: month.id } },
+                });
+            const nextStatus =
+                submittedCount === desiredUserIds.size ? "READY" : "COLLECTING";
+            await transaction.planningMonth.update({
+                where: { id: month.id },
+                data: { status: nextStatus },
+            });
+            return {
+                reopened:
+                    month.status === "READY" && nextStatus === "COLLECTING",
+            };
+        });
+
+        revalidatePath("/admin/months");
+        revalidatePath(`/admin/months/${planningMonthId}`);
+        revalidatePath("/availability");
+        revalidatePath("/");
+        return {
+            success: result.reopened
+                ? "Participants saved. Availability collection reopened for the new roster."
+                : "Participants saved.",
+        };
+    } catch (error) {
+        return {
+            error:
+                error instanceof Error
+                    ? error.message
+                    : "Unable to save participants.",
+        };
+    }
+}
+
+export async function deletePlanningMonth(
     _previousState: DeletePlanningMonthState,
     formData: FormData,
 ): Promise<DeletePlanningMonthState> {
@@ -291,11 +450,13 @@ export async function deleteDraftPlanningMonth(
             }
 
             if (
-                planningMonth.status !== "DRAFT" ||
+                !["DRAFT", "COLLECTING", "READY"].includes(
+                    planningMonth.status,
+                ) ||
                 planningMonth.scheduleRuns.length
             ) {
                 throw new Error(
-                    "Only draft months without schedule history can be deleted.",
+                    "Only months without schedule history can be deleted before generation.",
                 );
             }
 
@@ -313,6 +474,8 @@ export async function deleteDraftPlanningMonth(
     }
 
     revalidatePath("/admin/months");
+    revalidatePath(`/admin/months/${planningMonthId}`);
+    revalidatePath("/availability");
     revalidatePath("/");
     return {};
 }

@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import {
     submitAvailability,
+    submitAvailabilityForMember,
     type AvailabilityState,
 } from "@/app/actions/availability";
 import { Calendar } from "@/components/ui/calendar";
@@ -17,6 +18,8 @@ type AvailabilityFormProps = {
     hasSubmitted: boolean;
     mode: "AVAILABLE" | "UNAVAILABLE";
     planningMonthId: string;
+    planningMemberId?: string;
+    submitLabel?: string;
     month: number;
     year: number;
 };
@@ -49,11 +52,13 @@ export function AvailabilityForm({
     hasSubmitted,
     mode,
     planningMonthId,
+    planningMemberId,
+    submitLabel,
     month,
     year,
 }: AvailabilityFormProps) {
     const [state, formAction, isPending] = useActionState(
-        submitAvailability,
+        planningMemberId ? submitAvailabilityForMember : submitAvailability,
         initialState,
     );
     const monthDateValues = useMemo(
@@ -68,9 +73,9 @@ export function AvailabilityForm({
     );
     const selectedDateValues = selectedDates.map(toDateValue).sort();
     const availableCount = monthDateValues.length - selectedDateValues.length;
-    const actionLabel = hasSubmitted
-        ? "Modify availability"
-        : "Submit availability";
+    const actionLabel =
+        submitLabel ??
+        (hasSubmitted ? "Modify availability" : "Submit availability");
     const pendingLabel = hasSubmitted ? "Saving changes…" : "Submitting…";
 
     return (
@@ -80,6 +85,13 @@ export function AvailabilityForm({
                 type="hidden"
                 value={planningMonthId}
             />
+            {planningMemberId ? (
+                <input
+                    name="planningMemberId"
+                    type="hidden"
+                    value={planningMemberId}
+                />
+            ) : null}
             <input name="mode" type="hidden" value="UNAVAILABLE" />
             {selectedDateValues.map((date) => (
                 <input key={date} name="dates" type="hidden" value={date} />

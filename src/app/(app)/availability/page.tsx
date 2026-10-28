@@ -151,7 +151,9 @@ async function AvailabilityContent() {
 
                                     <CardDescription>
                                         {submission
-                                            ? "You have submitted. You can revise your dates."
+                                            ? submission.source === "ADMIN"
+                                                ? "An admin entered these dates for you. You can revise them."
+                                                : "You have submitted. You can revise your dates."
                                             : "Submit before the admin generates the schedule."}
                                     </CardDescription>
                                 </div>
@@ -173,12 +175,14 @@ async function AvailabilityContent() {
                                     />
                                     <div className="grid gap-1">
                                         <p className="text-sm font-semibold">
-                                            Availability submitted
+                                            {submission.source === "ADMIN"
+                                                ? "Availability entered by an admin"
+                                                : "Availability submitted"}
                                         </p>
                                         <p className="text-muted-foreground text-sm">
-                                            Your dates are saved. Update the
-                                            calendar below and choose “Modify
-                                            availability” to save changes.
+                                            {submission.source === "ADMIN"
+                                                ? "These dates are saved on your behalf. Update the calendar below to take ownership of the submission."
+                                                : "Your dates are saved. Update the calendar below and choose “Modify availability” to save changes."}
                                         </p>
                                     </div>
                                 </div>

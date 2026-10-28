@@ -105,7 +105,9 @@ on all mutable data.
   as a planning member for an individual month when they choose to participate;
   app role and planning participation are separate concepts.
 - `AvailabilitySubmission`: one current submission per planning member;
-  `mode` (`AVAILABLE` or `UNAVAILABLE`), `submittedAt`, `updatedAt`.
+  `mode` (`AVAILABLE` or `UNAVAILABLE`), `source` (`SELF` or `ADMIN`),
+  `updatedByUserId`, `submittedAt`, `updatedAt`. The source and actor identify
+  whether the member or an administrator last supplied the dates.
 - `AvailabilityDate`: one row per selected date, unique per submission/date.
   Store full ISO dates, not day numbers, to prevent month ambiguity.
 - `ScheduleRun`: immutable generation record with input/version metadata,
@@ -422,6 +424,29 @@ plain-language project overview, roles, scheduling rules, CSV-import lifecycle,
 local PostgreSQL setup, first-admin bootstrap, commands, layout, and deployment
 notes. It deliberately uses placeholder environment values and does not expose
 local credentials.
+
+**Pre-generation roster correction (2026-10-28):** admins can now add or
+remove the planning-month roster and delete a month while it is `DRAFT`,
+`COLLECTING`, or `READY`, provided no schedule run exists. Roster updates retain
+existing member snapshots, create snapshots for newly added engineers or the
+participating admin, and cascade-delete only removed members’ availability.
+Collection status is recalculated atomically: an added member without a
+submission reopens a ready month; a complete remaining roster returns it to
+ready. Generated and published months remain immutable. **Verified
+2026-10-28:** TypeScript, focused ESLint, scheduler tests, `git diff --check`,
+and `next build --webpack` pass; browser review remains pending.
+
+**Admin-assisted availability (2026-10-28):** admins can open a dedicated
+per-participant calendar from an open month and enter, revise, or clear that
+participant’s availability through the same date validation and status
+recalculation used for self-service submissions. The PostgreSQL migration
+`20261028000000_admin_availability` adds `AvailabilitySource` and
+`updatedByUserId`; the participant and admin UIs clearly identify the latest
+entry as self- or admin-entered. All mutation paths remain locked after a
+schedule run exists. **Applied and verified 2026-10-28:** migration deployed
+to the Neon development database; a second deploy reports no pending
+migrations. TypeScript, focused ESLint, scheduler tests, `git diff --check`,
+and `next build --webpack` pass; browser review remains pending.
 
 **Account settings (2026-10-26):** `/account` allows a member to update their
 display name and optional phone number; admins can also set the optional phone

@@ -4,7 +4,7 @@ import Link from "next/link";
 
 import { OpenCollectionForm } from "@/components/availability/open-collection-form";
 import { CreatePlanningMonthForm } from "@/components/planning-months/create-planning-month-form";
-import { DeleteDraftMonthForm } from "@/components/planning-months/delete-draft-month-form";
+import { DeletePlanningMonthForm } from "@/components/planning-months/delete-draft-month-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -45,9 +45,9 @@ export default function PlanningMonthsPage() {
                 </p>
 
                 <p className="text-muted-foreground text-sm">
-                    Only draft months without schedule history can be deleted;
-                    submitted availability and published schedules remain in
-                    history.
+                    You can update participants or delete a month until schedule
+                    generation begins. Generated and published schedule history
+                    remains locked.
                 </p>
             </section>
 
@@ -180,17 +180,24 @@ async function PlanningMonthsContent() {
                                                             planningMonth.id
                                                         }
                                                     />
-
-                                                    <DeleteDraftMonthForm
-                                                        monthName={formatMonth(
-                                                            planningMonth.year,
-                                                            planningMonth.month,
-                                                        )}
-                                                        planningMonthId={
-                                                            planningMonth.id
-                                                        }
-                                                    />
                                                 </>
+                                            ) : null}
+                                            {[
+                                                "DRAFT",
+                                                "COLLECTING",
+                                                "READY",
+                                            ].includes(planningMonth.status) &&
+                                            planningMonth.scheduleRuns
+                                                .length === 0 ? (
+                                                <DeletePlanningMonthForm
+                                                    monthName={formatMonth(
+                                                        planningMonth.year,
+                                                        planningMonth.month,
+                                                    )}
+                                                    planningMonthId={
+                                                        planningMonth.id
+                                                    }
+                                                />
                                             ) : null}
 
                                             <Button

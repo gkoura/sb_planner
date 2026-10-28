@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
 import { GenerateScheduleForm } from "@/components/schedules/generate-schedule-form";
+import { PlanningMonthRosterForm } from "@/components/planning-months/planning-month-roster-form";
 import { ParticipationSettingsForm } from "@/components/planning-months/participation-settings-form";
 import { PublishScheduleForm } from "@/components/schedules/publish-schedule-form";
 import { RestoreScheduleForm } from "@/components/schedules/restore-schedule-form";
@@ -73,40 +74,47 @@ async function PlanningMonthContent({
     params,
     searchParams,
 }: PlanningMonthPageProps) {
-    await requireAdmin();
+    const admin = await requireAdmin();
     const [{ monthId }, query] = await Promise.all([params, searchParams]);
     const requestedVersionId =
         typeof query.version === "string" ? query.version : undefined;
-    const month = await prisma.planningMonth.findUnique({
-        where: { id: monthId },
-        include: {
-            members: {
-                orderBy: { nameSnapshot: "asc" },
-                include: {
-                    availabilitySubmission: { select: { id: true } },
-                    user: { select: { phoneNumber: true } },
+    const [month, engineers] = await Promise.all([
+        prisma.planningMonth.findUnique({
+            where: { id: monthId },
+            include: {
+                members: {
+                    orderBy: { nameSnapshot: "asc" },
+                    include: {
+                        availabilitySubmission: { select: { id: true } },
+                        user: { select: { phoneNumber: true } },
+                    },
                 },
-            },
-            scheduleRuns: {
-                orderBy: { version: "desc" },
-                include: {
-                    assignments: {
-                        orderBy: { date: "asc" },
-                        include: {
-                            shadows: {
-                                select: {
-                                    id: true,
-                                    shadowMemberId: true,
-                                    kind: true,
-                                    nameSnapshot: true,
+                scheduleRuns: {
+                    orderBy: { version: "desc" },
+                    include: {
+                        assignments: {
+                            orderBy: { date: "asc" },
+                            include: {
+                                shadows: {
+                                    select: {
+                                        id: true,
+                                        shadowMemberId: true,
+                                        kind: true,
+                                        nameSnapshot: true,
+                                    },
                                 },
                             },
                         },
                     },
                 },
             },
-        },
-    });
+        }),
+        prisma.user.findMany({
+            where: { role: "ENGINEER" },
+            orderBy: { name: "asc" },
+            select: { email: true, id: true, name: true },
+        }),
+    ]);
 
     if (!month) notFound();
 
@@ -185,6 +193,68 @@ async function PlanningMonthContent({
                         : `${submittedCount} of ${month.members.length} participants submitted availability.`}
                 </p>
             </section>
+
+            {canEditParticipation ? (
+                <PlanningMonthRosterForm
+                    adminName={admin.user.name}
+                    engineers={engineers}
+                    includeAdmin={month.members.some(
+                        (member) => member.userId === admin.user.id,
+                    )}
+                    planningMonthId={month.id}
+                    selectedEngineerIds={month.members
+                        .filter((member) => member.roleSnapshot === "ENGINEER")
+                        .map((member) => member.userId)}
+                />
+            ) : null}
+
+            {canEditParticipation ? (
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Availability support</CardTitle>
+                        <CardDescription>
+                            Enter availability for a participant who cannot
+                            access the app. Admin-entered submissions are
+                            labeled for clarity.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <ul className="grid gap-3 sm:grid-cols-2">
+                            {month.members.map((member) => (
+                                <li
+                                    className="flex items-center justify-between gap-3 rounded-xl border p-3"
+                                    key={member.id}
+                                >
+                                    <div className="min-w-0">
+                                        <p className="truncate text-sm font-semibold">
+                                            {member.nameSnapshot}
+                                        </p>
+                                        <p className="text-muted-foreground text-xs">
+                                            {member.availabilitySubmission
+                                                ? "Availability submitted"
+                                                : "Availability needed"}
+                                        </p>
+                                    </div>
+                                    <Button
+                                        nativeButton={false}
+                                        render={
+                                            <Link
+                                                href={`/admin/months/${month.id}/availability/${member.id}`}
+                                            />
+                                        }
+                                        size="sm"
+                                        variant="outline"
+                                    >
+                                        {member.availabilitySubmission
+                                            ? "Update"
+                                            : "Enter dates"}
+                                    </Button>
+                                </li>
+                            ))}
+                        </ul>
+                    </CardContent>
+                </Card>
+            ) : null}
 
             {canEditParticipation ? (
                 <ParticipationSettingsForm

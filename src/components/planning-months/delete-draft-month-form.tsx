@@ -3,14 +3,14 @@
 import { useActionState } from "react";
 
 import {
-    deleteDraftPlanningMonth,
+    deletePlanningMonth,
     type DeletePlanningMonthState,
 } from "@/app/actions/planning-months";
 import { Button } from "@/components/ui/button";
 
 const initialState: DeletePlanningMonthState = {};
 
-export function DeleteDraftMonthForm({
+export function DeletePlanningMonthForm({
     planningMonthId,
     monthName,
 }: {
@@ -18,7 +18,7 @@ export function DeleteDraftMonthForm({
     monthName: string;
 }) {
     const [state, formAction, isPending] = useActionState(
-        deleteDraftPlanningMonth,
+        deletePlanningMonth,
         initialState,
     );
 
@@ -29,7 +29,7 @@ export function DeleteDraftMonthForm({
             onSubmit={(event) => {
                 if (
                     !window.confirm(
-                        `Delete the ${monthName} draft? This cannot be undone.`,
+                        `Delete ${monthName} and all collected availability? This cannot be undone.`,
                     )
                 ) {
                     event.preventDefault();
@@ -47,7 +47,7 @@ export function DeleteDraftMonthForm({
                 type="submit"
                 variant="destructive"
             >
-                {isPending ? "Deleting…" : "Delete draft"}
+                {isPending ? "Deleting…" : "Delete month"}
             </Button>
             {state.error ? (
                 <p className="text-destructive text-right text-xs" role="alert">
