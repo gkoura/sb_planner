@@ -1,3 +1,4 @@
+import { daysInCalendarMonth } from "@/lib/calendar-date";
 import {
     getAvailableDates,
     validateScheduleEdit,
@@ -49,10 +50,6 @@ const REQUIRED_HEADERS = [
     "shadow_email",
     "shadow_kind",
 ];
-
-function daysInMonth(year: number, month: number) {
-    return new Date(Date.UTC(year, month, 0)).getUTCDate();
-}
 
 function dateForDay(year: number, month: number, day: number) {
     return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
@@ -141,7 +138,7 @@ export function validateScheduleCsvImport(
         };
     }
 
-    const days = daysInMonth(year, month);
+    const days = daysInCalendarMonth(year, month);
     const allDates = Array.from({ length: days }, (_, index) =>
         dateForDay(year, month, index + 1),
     );

@@ -12,6 +12,11 @@ import { Calendar } from "@/components/ui/calendar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useMemo } from "react";
+import {
+    calendarDateValue,
+    daysInCalendarMonth,
+    localCalendarDate,
+} from "@/lib/calendar-date";
 
 type AvailabilityFormProps = {
     checkedDates: string[];
@@ -25,10 +30,14 @@ type AvailabilityFormProps = {
 };
 
 const initialState: AvailabilityState = {};
+const calendarDateLib = {
+    newDate: (year: number, monthIndex: number, day: number) =>
+        localCalendarDate(year, monthIndex + 1, day),
+};
 
 function toLocalDate(value: string) {
     const [year, month, day] = value.split("-").map(Number);
-    return new Date(year, month - 1, day);
+    return localCalendarDate(year, month, day);
 }
 
 function toDateValue(value: Date) {
@@ -39,11 +48,9 @@ function toDateValue(value: Date) {
 }
 
 function getMonthDateValues(year: number, month: number) {
-    const dayCount = new Date(year, month, 0).getDate();
-    return Array.from(
-        { length: dayCount },
-        (_, index) =>
-            `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(index + 1).padStart(2, "0")}`,
+    const dayCount = daysInCalendarMonth(year, month);
+    return Array.from({ length: dayCount }, (_, index) =>
+        calendarDateValue(year, month, index + 1),
     );
 }
 
@@ -124,11 +131,12 @@ export function AvailabilityForm({
                     </div>
                 </div>
                 <Calendar
-                    aria-label={`Select ${new Intl.DateTimeFormat("en", { month: "long", year: "numeric" }).format(new Date(year, month - 1, 1))} availability`}
+                    aria-label={`Select ${new Intl.DateTimeFormat("en", { month: "long", year: "numeric" }).format(localCalendarDate(year, month, 1))} availability`}
                     className="bg-background mx-auto w-full max-w-2xl rounded-xl border p-2 [--cell-size:--spacing(9)] sm:p-4 sm:[--cell-size:--spacing(12)]"
                     disableNavigation
+                    dateLib={calendarDateLib}
                     mode="multiple"
-                    month={new Date(year, month - 1, 1)}
+                    month={localCalendarDate(year, month, 1)}
                     onSelect={(dates) => setSelectedDates(dates ?? [])}
                     classNames={{
                         day_button:

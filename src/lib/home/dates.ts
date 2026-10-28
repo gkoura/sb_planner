@@ -1,9 +1,10 @@
+import { utcCalendarDate } from "@/lib/calendar-date";
 export function formatMonth(year: number, month: number) {
     return new Intl.DateTimeFormat("en", {
         month: "long",
         timeZone: "UTC",
         year: "numeric",
-    }).format(new Date(Date.UTC(year, month - 1, 1)));
+    }).format(utcCalendarDate(year, month, 1));
 }
 
 export function getTodayInAthens() {

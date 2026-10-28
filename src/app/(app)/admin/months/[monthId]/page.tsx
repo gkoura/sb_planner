@@ -1,3 +1,4 @@
+import { utcCalendarDate, daysInCalendarMonth } from "@/lib/calendar-date";
 import { ArrowLeft, CalendarDays } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -32,7 +33,7 @@ function formatMonth(year: number, month: number) {
         month: "long",
         timeZone: "UTC",
         year: "numeric",
-    }).format(new Date(Date.UTC(year, month - 1, 1)));
+    }).format(utcCalendarDate(year, month, 1));
 }
 
 function formatDate(value: string) {
@@ -148,7 +149,7 @@ async function PlanningMonthContent({
         ["DRAFT", "COLLECTING", "READY"].includes(month.status) &&
         month.scheduleRuns.length === 0;
     const maxShadowDays = Math.ceil(
-        new Date(Date.UTC(month.year, month.month, 0)).getUTCDate() / 2,
+        daysInCalendarMonth(month.year, month.month) / 2,
     );
 
     return (

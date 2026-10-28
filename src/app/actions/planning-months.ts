@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { requireAdmin } from "@/lib/auth-guard";
 import { prisma } from "@/lib/prisma";
+import { daysInCalendarMonth } from "@/lib/calendar-date";
 import {
     isMonthTransactionConflict,
     lockPlanningMonth,
@@ -70,9 +71,7 @@ export async function saveParticipationSettings(
                 );
             }
 
-            const daysInMonth = new Date(
-                Date.UTC(month.year, month.month, 0),
-            ).getUTCDate();
+            const daysInMonth = daysInCalendarMonth(month.year, month.month);
             const maxShadowDays = Math.ceil(daysInMonth / 2);
             const settings = month.members.map((member) => {
                 const rawMode = formData.get(`mode:${member.id}`);

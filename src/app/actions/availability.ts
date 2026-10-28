@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { getCurrentSession, requireAdmin } from "@/lib/auth-guard";
 import { prisma } from "@/lib/prisma";
+import { daysInCalendarMonth } from "@/lib/calendar-date";
 import {
     lockPlanningMonth,
     runMonthTransaction,
@@ -82,11 +83,9 @@ async function saveAvailability({
             };
         }
 
-        const daysInMonth = new Date(
-            Date.UTC(month.year, month.month, 0),
-        ).getUTCDate();
+        const daysInMonth = daysInCalendarMonth(month.year, month.month);
         const datePattern = new RegExp(
-            `^${month.year}-${String(month.month).padStart(2, "0")}-(\\d{2})$`,
+            `^${String(month.year).padStart(4, "0")}-${String(month.month).padStart(2, "0")}-(\\d{2})$`,
         );
         if (
             input.dates.some((date) => {

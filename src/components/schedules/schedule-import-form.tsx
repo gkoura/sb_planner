@@ -24,6 +24,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { makeScheduleImportTemplate } from "@/lib/schedule-import-template";
 
 type ImportMember = {
     id: string;
@@ -31,21 +32,6 @@ type ImportMember = {
     emailSnapshot: string;
     roleSnapshot: string;
 };
-
-function makeTemplate(year: number, month: number) {
-    const dayCount = new Date(Date.UTC(year, month, 0)).getUTCDate();
-    const rows = ["date,primary_email,shadow_email,shadow_kind"];
-    for (let day = 1; day <= dayCount; day += 1) {
-        const date =
-            String(year) +
-            "-" +
-            String(month).padStart(2, "0") +
-            "-" +
-            String(day).padStart(2, "0");
-        rows.push(date + ",,,");
-    }
-    return rows.join("\r\n");
-}
 
 export function ScheduleImportForm({
     hasExistingSchedule,
@@ -75,7 +61,7 @@ export function ScheduleImportForm({
     const [isSaving, startSave] = useTransition();
 
     function downloadTemplate() {
-        const content = makeTemplate(year, month);
+        const content = makeScheduleImportTemplate(year, month);
         const url = URL.createObjectURL(
             new Blob([content], { type: "text/csv;charset=utf-8" }),
         );

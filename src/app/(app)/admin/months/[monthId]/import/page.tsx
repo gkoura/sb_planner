@@ -1,3 +1,4 @@
+import { utcCalendarDate } from "@/lib/calendar-date";
 import { ArrowLeft, FileUp } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -59,7 +60,7 @@ async function ImportScheduleContent({ params }: ImportPageProps) {
         month: "long",
         year: "numeric",
         timeZone: "UTC",
-    }).format(new Date(Date.UTC(month.year, month.month - 1, 1)));
+    }).format(utcCalendarDate(month.year, month.month, 1));
 
     return (
         <div className="mx-auto grid w-full max-w-5xl gap-6">

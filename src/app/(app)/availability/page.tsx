@@ -1,3 +1,4 @@
+import { utcCalendarDate } from "@/lib/calendar-date";
 import { Suspense } from "react";
 import { CalendarDays, CircleCheck } from "lucide-react";
 
@@ -18,7 +19,7 @@ function formatMonth(year: number, month: number) {
         month: "long",
         timeZone: "UTC",
         year: "numeric",
-    }).format(new Date(Date.UTC(year, month - 1, 1)));
+    }).format(utcCalendarDate(year, month, 1));
 }
 
 export default function AvailabilityPage() {

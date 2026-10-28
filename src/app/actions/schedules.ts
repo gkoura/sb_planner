@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { requireAdmin } from "@/lib/auth-guard";
+import { daysInCalendarMonth } from "@/lib/calendar-date";
 import {
     generateShadowsForAssignments,
     generateSchedule,
@@ -622,11 +623,10 @@ export async function publishScheduleRun(
                 error: "Only the latest schedule version can be published.",
             };
         }
-        const expectedDays = new Date(
+        const expectedDays = daysInCalendarMonth(
             run.planningMonth.year,
             run.planningMonth.month,
-            0,
-        ).getDate();
+        );
         if (run._count.assignments !== expectedDays) {
             return {
                 error: "This candidate does not contain an assignment for every day.",
