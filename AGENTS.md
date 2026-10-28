@@ -236,6 +236,8 @@ state becomes invalid if the month status or current run changes.
 
 **Audit testing and lint progress (2026-10-29):** corrected four auth UI React hook/compiler lint errors, preserving hydration-safe browser reads. Added `pnpm test` and focused import, edit, snapshot, authorization, and self-service ownership tests; the authorization tests mock framework and database boundaries. All 22 tests, full ESLint, TypeScript, production build, and diff checks pass. Browser review of the auth views, actual restoration and concurrent database integration tests, and a sign-in-to-publish journey remain pending; CODE-001 remains in progress.
 
+**Schedule restore correction (2026-10-29):** restoration now preserves the selected version’s input snapshot, algorithm version, assignment snapshots, and saved shadows. It recognizes shadow-only and input/provenance-only changes and continues to require an override for published past assignment or shadow changes. Six action tests use mocked transaction boundaries; all 28 tests, TypeScript, full ESLint, production build, and diff checks pass. PostgreSQL concurrency and broader shadow validation remain separate audit findings.
+
 ## Delivery milestones
 
 - [ ] **M0 — Foundation:** inspect the current Next.js version guidance;

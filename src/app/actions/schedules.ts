@@ -103,7 +103,7 @@ export async function restoreScheduleRun(
             };
         }
 
-        const snapshot = parseScheduleInputSnapshot(current.inputSnapshot);
+        const snapshot = parseScheduleInputSnapshot(source.inputSnapshot);
         if (
             !snapshot ||
             snapshot.year !== month.year ||
@@ -157,10 +157,14 @@ export async function restoreScheduleRun(
             ]),
         );
         if (
+            source.inputSnapshot === current.inputSnapshot &&
+            source.algorithmVersion === current.algorithmVersion &&
             assignments.every(
                 (assignment) =>
                     currentByDate.get(assignment.date) ===
-                    assignment.planningMemberId,
+                        assignment.planningMemberId &&
+                    currentShadowsByDate.get(assignment.date) ===
+                        sourceShadowsByDate.get(assignment.date),
             )
         ) {
             return {
@@ -219,11 +223,11 @@ export async function restoreScheduleRun(
         const version = (latest._max.version ?? 0) + 1;
         const revision = await transaction.scheduleRun.create({
             data: {
-                algorithmVersion: current.algorithmVersion,
+                algorithmVersion: source.algorithmVersion,
                 basedOnRunId: current.id,
                 createdBy: admin.user.id,
                 fairnessScore: validation.fairnessScore,
-                inputSnapshot: current.inputSnapshot,
+                inputSnapshot: source.inputSnapshot,
                 planningMonthId: month.id,
                 publishedAt: isPublished ? new Date() : null,
                 revisionReason: reason,
@@ -232,31 +236,20 @@ export async function restoreScheduleRun(
                     : null,
                 version,
                 assignments: {
-                    create: assignments.map((assignment) => {
-                        const member = memberById.get(
-                            assignment.planningMemberId,
-                        )!;
-                        return {
-                            date: assignment.date,
-                            nameSnapshot: member.nameSnapshot,
-                            planningMemberId: member.id,
-                            roleSnapshot: member.roleSnapshot,
-                            shadows: {
-                                create: source.assignments
-                                    .find(
-                                        (sourceAssignment) =>
-                                            sourceAssignment.date ===
-                                            assignment.date,
-                                    )!
-                                    .shadows.map((shadow) => ({
-                                        kind: shadow.kind,
-                                        nameSnapshot: shadow.nameSnapshot,
-                                        roleSnapshot: shadow.roleSnapshot,
-                                        shadowMemberId: shadow.shadowMemberId,
-                                    })),
-                            },
-                        };
-                    }),
+                    create: source.assignments.map((assignment) => ({
+                        date: assignment.date,
+                        nameSnapshot: assignment.nameSnapshot,
+                        planningMemberId: assignment.planningMemberId,
+                        roleSnapshot: assignment.roleSnapshot,
+                        shadows: {
+                            create: assignment.shadows.map((shadow) => ({
+                                kind: shadow.kind,
+                                nameSnapshot: shadow.nameSnapshot,
+                                roleSnapshot: shadow.roleSnapshot,
+                                shadowMemberId: shadow.shadowMemberId,
+                            })),
+                        },
+                    })),
                 },
             },
         });
