@@ -11,7 +11,7 @@ import {
     runLockedMonthTransaction,
 } from "@/lib/planning-month-lock";
 
-const MAX_ENGINEERS = 10;
+const MAX_MONTH_ENGINEERS = 10;
 
 export type CreatePlanningMonthState = {
     error?: string;
@@ -188,7 +188,7 @@ export async function createPlanningMonth(
         return { error: "An engineer was selected more than once." };
     }
 
-    if (selectedIds.length > MAX_ENGINEERS) {
+    if (selectedIds.length > MAX_MONTH_ENGINEERS) {
         return { error: "A plan can include at most 10 engineer accounts." };
     }
 
@@ -198,37 +198,31 @@ export async function createPlanningMonth(
 
     try {
         await prisma.$transaction(async (transaction) => {
-            const [existingMonth, engineerCount, selectedEngineers] =
-                await Promise.all([
-                    transaction.planningMonth.findUnique({
-                        where: { year_month: { year, month } },
-                        select: { id: true },
-                    }),
-                    transaction.user.count({ where: { role: "ENGINEER" } }),
-                    uniqueSelectedIds.length > 0
-                        ? transaction.user.findMany({
-                              where: {
-                                  id: { in: uniqueSelectedIds },
-                                  role: "ENGINEER",
-                              },
-                              select: {
-                                  email: true,
-                                  id: true,
-                                  name: true,
-                                  role: true,
-                              },
-                          })
-                        : Promise.resolve([]),
-                ]);
+            const [existingMonth, selectedEngineers] = await Promise.all([
+                transaction.planningMonth.findUnique({
+                    where: { year_month: { year, month } },
+                    select: { id: true },
+                }),
+                uniqueSelectedIds.length > 0
+                    ? transaction.user.findMany({
+                          where: {
+                              id: { in: uniqueSelectedIds },
+                              role: "ENGINEER",
+                          },
+                          select: {
+                              email: true,
+                              id: true,
+                              name: true,
+                              role: true,
+                          },
+                      })
+                    : Promise.resolve([]),
+            ]);
 
             if (existingMonth) {
                 throw new Error(
                     "A planning month already exists for that month.",
                 );
-            }
-
-            if (engineerCount > MAX_ENGINEERS) {
-                throw new Error("The team has more than 10 engineer accounts.");
             }
 
             if (selectedEngineers.length !== uniqueSelectedIds.length) {
@@ -295,7 +289,7 @@ export async function savePlanningMonthRoster(
     if (uniqueSelectedIds.length !== selectedIds.length) {
         return { error: "An engineer was selected more than once." };
     }
-    if (uniqueSelectedIds.length > MAX_ENGINEERS) {
+    if (uniqueSelectedIds.length > MAX_MONTH_ENGINEERS) {
         return { error: "A plan can include at most 10 engineer accounts." };
     }
     if (!uniqueSelectedIds.length && !includeAdmin) {
@@ -322,26 +316,15 @@ export async function savePlanningMonthRoster(
                 );
             }
 
-            const [engineerCount, selectedEngineers] = await Promise.all([
-                transaction.user.count({ where: { role: "ENGINEER" } }),
-                uniqueSelectedIds.length
-                    ? transaction.user.findMany({
-                          where: {
-                              id: { in: uniqueSelectedIds },
-                              role: "ENGINEER",
-                          },
-                          select: {
-                              email: true,
-                              id: true,
-                              name: true,
-                              role: true,
-                          },
-                      })
-                    : Promise.resolve([]),
-            ]);
-            if (engineerCount > MAX_ENGINEERS) {
-                throw new Error("The team has more than 10 engineer accounts.");
-            }
+            const selectedEngineers = uniqueSelectedIds.length
+                ? await transaction.user.findMany({
+                      where: {
+                          id: { in: uniqueSelectedIds },
+                          role: "ENGINEER",
+                      },
+                      select: { email: true, id: true, name: true, role: true },
+                  })
+                : [];
             if (selectedEngineers.length !== uniqueSelectedIds.length) {
                 throw new Error("Choose only existing engineer accounts.");
             }

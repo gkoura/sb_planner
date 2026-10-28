@@ -1,13 +1,14 @@
 # SB Planner
 
 SB Planner is a small, private team hub for planning a monthly standby (on-call)
-rotation. It is built for one engineering team of up to 10 engineers—not as a
+rotation. It is built for one engineering team—not as a
 multi-tenant SaaS product.
 
 Team members sign in to see who is on standby today, submit their availability,
 and review published schedules. Administrators create planning months, choose
 participants, generate or import schedules, review them, and publish an
-immutable version for the team.
+immutable version for the team. A monthly roster currently supports up to 10
+engineers plus an optional participating admin.
 
 ## What it does
 

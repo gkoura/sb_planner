@@ -17,8 +17,7 @@ change a recorded decision: add a dated superseding decision with the reason.
 
 ## Product goal
 
-SB Planner is a lightweight team hub for a small engineering team (maximum 10
-engineers), with monthly standby/on-call planning as its first core workflow.
+SB Planner is a lightweight team hub for a small engineering team, with monthly standby/on-call planning as its first core workflow.
 Team members sign in to see who is on standby today, access the team's
 published schedules, and take part in monthly planning. Each engineer submits
 the dates they are available or unavailable. Once everyone has submitted, an
@@ -60,7 +59,7 @@ whether historical schedules keep the old semantics in the decision log.
 | Authentication     | Better Auth + Prisma adapter, email/password only at first                                                                                      | Fits the requested practice goal without OAuth configuration or paid services. Account creation will be invite/admin controlled.                                                                                        |
 | Auth UI            | Better Auth UI components through its shadcn registry, with shadcn/ui as the general component foundation                                       | Keeps ownership of copied UI code and avoids building routine auth screens. Pin and verify compatible versions during implementation.                                                                                   |
 | Authorization      | One application-level `ADMIN` role and `ENGINEER` role; multiple accounts may be admins                                                         | Better Auth authenticates; our app authorizes. Admin status grants team and schedule management, independent of someone's real-world team title. Keep one team only; do not add organizations or multi-tenancy.         |
-| Schedule algorithm | Implement a small, pure TypeScript scheduling module inside this app                                                                            | The problem is bounded (<= 10 engineers × <= 31 days), runs on demand, and needs no network or separate runtime. A pure module is easy to test and deploy.                                                              |
+| Schedule algorithm | Implement a small, pure TypeScript scheduling module inside this app                                                                            | A monthly roster is currently bounded (<= 10 engineers plus an optional admin × <= 31 days), runs on demand, and needs no network or separate runtime. A pure module is easy to test and deploy.                                                              |
 | No Python service  | Do not create an external Python/OR-Tools service for v1                                                                                        | It adds a second deployment, authentication boundary, observability surface, and non-zero hosting risk without a benefit at this scale. Reconsider only if future rules make the in-app solver demonstrably inadequate. |
 | Deployment         | Deploy the Next.js app to a free hosting tier compatible with the selected database and Better Auth; keep secrets in host environment variables | The exact host is intentionally deferred until dependencies and provider free tiers are checked at deployment time.                                                                                                     |
 
@@ -179,7 +178,8 @@ saved pairings.
 
 1. Admin creates a month, selects eligible engineers and may opt themselves
    into that month's rotation, then opens collection. Admin participation is
-   optional and does not count toward the maximum of 10 engineer accounts.
+   optional; the current monthly roster supports at most 10 engineers plus the
+   participating admin. There is no team-wide engineer-account cap.
 2. Engineers sign in, view the active month, and toggle unavailable dates on a
    calendar. They can save and revise until collection is closed.
 3. The admin sees submission progress (submitted / total) but not an implied
@@ -626,6 +626,17 @@ this environment.
   part of the design.
 
 ## Decision log
+
+**2026-10-29 — Superseding decision: engineer account count.** Remove the
+ten-engineer account limit: the number was an estimate of the team's size,
+not a business rule. An admin may create more engineer accounts, and the total
+account count must not block month creation or roster editing. Keep the existing
+per-month roster limit of 10 engineers plus an optional participating admin
+until larger scheduling workloads have been evaluated. This supersedes the
+team-wide account-limit portion of the earlier participation decision; it does
+not change historical schedules. Verification: 36 unit/action tests, TypeScript,
+full ESLint, production build, and diff checks pass; account tests mock database
+and authentication boundaries.
 
 | Date       | Decision                                                                                                                                                                       | Status / rationale                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

@@ -7,7 +7,6 @@ import { requireAdmin } from "@/lib/auth-guard";
 import { parseOptionalPhoneNumber } from "@/lib/phone-number";
 import { prisma } from "@/lib/prisma";
 
-const MAX_ENGINEERS = 10;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export type CreateEngineerState = {
@@ -117,19 +116,12 @@ export async function createEngineer(
 
     try {
         await prisma.$transaction(async (transaction) => {
-            const [existingUser, engineerCount] = await Promise.all([
-                transaction.user.findUnique({ where: { email } }),
-                transaction.user.count({ where: { role: "ENGINEER" } }),
-            ]);
+            const existingUser = await transaction.user.findUnique({
+                where: { email },
+            });
 
             if (existingUser) {
                 throw new Error("An account with this email already exists.");
-            }
-
-            if (engineerCount >= MAX_ENGINEERS) {
-                throw new Error(
-                    "The team already has the maximum of 10 engineers.",
-                );
             }
 
             const now = new Date();

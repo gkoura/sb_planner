@@ -74,8 +74,9 @@ async function UsersContent() {
                 </h1>
 
                 <p className="text-muted-foreground">
-                    {engineerCount} of 10 engineer accounts are active. Admin
-                    accounts are separate and can opt into each month&apos;s
+                    {engineerCount} engineer{" "}
+                    {engineerCount === 1 ? "account is" : "accounts are"}{" "}
+                    active. Admin accounts can opt into each month&apos;s
                     rotation. Admins can manage schedules and team access; this
                     permission is separate from team titles.
                 </p>
