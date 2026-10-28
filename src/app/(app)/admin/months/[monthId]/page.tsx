@@ -163,6 +163,15 @@ async function PlanningMonthContent({
             {formatMonth(month.year, month.month)}
           </h1>
           <Badge variant="secondary">{month.status.toLowerCase()}</Badge>
+          <Button
+            className="sm:ml-auto"
+            nativeButton={false}
+            render={<Link href={`/admin/months/${month.id}/import`} />}
+            size="sm"
+            variant="outline"
+          >
+            Import schedule
+          </Button>
         </div>
         <p className="text-muted-foreground">
           {submittedCount} of {month.members.length} participants submitted
@@ -196,7 +205,8 @@ async function PlanningMonthContent({
                     : "Candidate schedule"}
               </CardTitle>
               <CardDescription>
-                Version {scheduleRun.version} · generated{" "}
+                Version {scheduleRun.version}
+                {scheduleRun.algorithmVersion === "csv-import-v1" ? " · imported from CSV" : " · generated"}{" "}
                 {formatDate(scheduleRun.generatedAt.toISOString().slice(0, 10))}
                 {" · "}primary fairness score {scheduleRun.fairnessScore} ·
                 lower is more balanced
@@ -321,6 +331,9 @@ async function PlanningMonthContent({
                           ) : null}
                           {run.publishedAt ? (
                             <Badge variant="outline">published</Badge>
+                          ) : null}
+                          {run.algorithmVersion === "csv-import-v1" ? (
+                            <Badge variant="outline">CSV import</Badge>
                           ) : null}
                           {warnings.length ? (
                             <Badge variant="outline">

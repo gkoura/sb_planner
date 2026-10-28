@@ -185,6 +185,16 @@ async function PlanningMonthsContent() {
                         ? "Review schedule"
                         : "Open month"}
                     </Button>
+                    <Button
+                      nativeButton={false}
+                      render={
+                        <Link href={`/admin/months/${planningMonth.id}/import`} />
+                      }
+                      size="sm"
+                      variant="outline"
+                    >
+                      Import schedule
+                    </Button>
                   </div>
                 </div>
 

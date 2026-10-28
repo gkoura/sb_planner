@@ -3,6 +3,7 @@ export type ScheduleInputMember = {
   name: string;
   mode: "AVAILABLE" | "UNAVAILABLE";
   dates: string[];
+  availabilitySubmitted?: boolean;
   participationMode?: "NORMAL" | "TRAINEE" | "MENTORED";
   shadowDayCount?: number;
 };
@@ -11,6 +12,7 @@ export type ScheduleInputSnapshot = {
   members: ScheduleInputMember[];
   month: number;
   year: number;
+  source?: "CSV_IMPORT";
 };
 
 export type ScheduleEditAssignment = {
@@ -46,7 +48,8 @@ export function parseScheduleInputSnapshot(
       !Number.isInteger(candidate.year) ||
       !Number.isInteger(candidate.month) ||
       !Array.isArray(candidate.members) ||
-      candidate.members.length === 0
+      candidate.members.length === 0 ||
+      (candidate.source !== undefined && candidate.source !== "CSV_IMPORT")
     )
       return null;
 
@@ -60,6 +63,8 @@ export function parseScheduleInputSnapshot(
         !["AVAILABLE", "UNAVAILABLE"].includes(member.mode) ||
         !Array.isArray(member.dates) ||
         member.dates.some((date) => typeof date !== "string") ||
+        (member.availabilitySubmitted !== undefined &&
+          typeof member.availabilitySubmitted !== "boolean") ||
         !["NORMAL", "TRAINEE", "MENTORED"].includes(participationMode) ||
         !Number.isInteger(shadowDayCount) ||
         shadowDayCount < 0
@@ -77,6 +82,7 @@ export function parseScheduleInputSnapshot(
       members: members as ScheduleInputMember[],
       month: candidate.month as number,
       year: candidate.year as number,
+      ...(candidate.source ? { source: candidate.source } : {}),
     };
   } catch {
     return null;
@@ -161,7 +167,10 @@ export function validateScheduleEdit(
       errors.push(`Assign a participant to ${date}.`);
       continue;
     }
-    if (!availableDatesByMember.get(memberId)?.has(date)) {
+    if (
+      memberById.get(memberId)?.availabilitySubmitted !== false &&
+      !availableDatesByMember.get(memberId)?.has(date)
+    ) {
       const name = memberById.get(memberId)?.name ?? "The selected participant";
       warnings.push(`${name} is unavailable on ${date}.`);
     }
@@ -180,6 +189,7 @@ export function validateScheduleEdit(
   }
 
   for (const member of primaryMembers) {
+    if (member.availabilitySubmitted === false) continue;
     const availableDates = availableDatesByMember.get(member.id);
     if (!availableDates || availableDates.size > 5) continue;
     for (const date of availableDates) {
