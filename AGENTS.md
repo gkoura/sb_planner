@@ -229,7 +229,13 @@ decision.
       generation will freeze changes. **Applied 2026-10-26:** the availability
       migration was applied to the local SQLite database and Prisma Client was
       regenerated. Static TypeScript checking passes. Manual sign-in and submission
-      flow still needs browser verification.
+      flow still needs browser verification. **Admin submission visibility
+      (2026-10-28):** each participant row on `/admin/months` displays a clear
+      `Submitted` or `Not submitted` badge alongside the existing total, so the
+      admin can see exactly who has responded. **Availability confirmation
+      (2026-10-28):** submitted availability has a prominent saved-state callout;
+      the action reads `Modify availability` for existing submissions and uses
+      a general saved confirmation for first submissions and updates.
 - [x] **M3 — Scheduler:** add the pure TypeScript solver, fixtures and unit
       tests for every source rule, candidate generation, constraint diagnostics,
       and admin review. **Progress (2026-10-26):** implemented deterministic

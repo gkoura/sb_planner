@@ -191,19 +191,34 @@ async function PlanningMonthsContent() {
                 <ul className="grid gap-2 sm:grid-cols-2">
                   {planningMonth.members.map((member) => (
                     <li className="min-w-0" key={member.id}>
-                      <p className="truncate text-sm font-medium">
-                        {member.nameSnapshot}
+                      <div className="flex items-start justify-between gap-3 rounded-lg border bg-card/50 p-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium">
+                            {member.nameSnapshot}
 
-                        {member.roleSnapshot === "ADMIN" ? (
-                          <span className="ml-2 text-xs font-normal text-muted-foreground">
-                            admin
-                          </span>
-                        ) : null}
-                      </p>
+                            {member.roleSnapshot === "ADMIN" ? (
+                              <span className="ml-2 text-xs font-normal text-muted-foreground">
+                                admin
+                              </span>
+                            ) : null}
+                          </p>
 
-                      <p className="truncate text-xs text-muted-foreground">
-                        {member.emailSnapshot}
-                      </p>
+                          <p className="truncate text-xs text-muted-foreground">
+                            {member.emailSnapshot}
+                          </p>
+                        </div>
+
+                        <Badge
+                          className="mt-0.5"
+                          variant={
+                            member.availabilitySubmission ? "default" : "outline"
+                          }
+                        >
+                          {member.availabilitySubmission
+                            ? "Submitted"
+                            : "Not submitted"}
+                        </Badge>
+                      </div>
                     </li>
                   ))}
                 </ul>

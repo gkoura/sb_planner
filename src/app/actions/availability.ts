@@ -165,6 +165,6 @@ export async function submitAvailability(
   revalidatePath("/");
   return {
     success:
-      "Availability submitted. You can revise it until schedule generation begins.",
+      "Availability saved. You can revise it until schedule generation begins.",
   };
 }

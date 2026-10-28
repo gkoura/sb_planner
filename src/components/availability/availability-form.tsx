@@ -14,6 +14,7 @@ import { useMemo } from "react";
 
 type AvailabilityFormProps = {
   checkedDates: string[];
+  hasSubmitted: boolean;
   mode: "AVAILABLE" | "UNAVAILABLE";
   planningMonthId: string;
   month: number;
@@ -45,6 +46,7 @@ function getMonthDateValues(year: number, month: number) {
 
 export function AvailabilityForm({
   checkedDates,
+  hasSubmitted,
   mode,
   planningMonthId,
   month,
@@ -66,6 +68,10 @@ export function AvailabilityForm({
   );
   const selectedDateValues = selectedDates.map(toDateValue).sort();
   const availableCount = monthDateValues.length - selectedDateValues.length;
+  const actionLabel = hasSubmitted
+    ? "Modify availability"
+    : "Submit availability";
+  const pendingLabel = hasSubmitted ? "Saving changes…" : "Submitting…";
 
   return (
     <form action={formAction} className="grid gap-5">
@@ -146,7 +152,7 @@ export function AvailabilityForm({
         ) : null}
       </div>
       <Button className="h-11 w-fit px-5" disabled={isPending} type="submit">
-        {isPending ? "Submitting…" : "Submit availability"}
+        {isPending ? pendingLabel : actionLabel}
       </Button>
     </form>
   );

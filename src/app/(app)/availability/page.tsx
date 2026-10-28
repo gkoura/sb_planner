@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { CalendarDays } from "lucide-react";
+import { CalendarDays, CircleCheck } from "lucide-react";
 
 import { AvailabilityForm } from "@/components/availability/availability-form";
 import { Badge } from "@/components/ui/badge";
@@ -147,15 +147,34 @@ async function AvailabilityContent() {
                   </CardDescription>
                 </div>
 
-                <Badge variant={submission ? "secondary" : "outline"}>
-                  {submission ? "submitted" : "needed"}
+                <Badge variant={submission ? "default" : "outline"}>
+                  {submission ? "Submitted" : "Needed"}
                 </Badge>
               </div>
             </CardHeader>
 
             <CardContent>
+              {submission ? (
+                <div className="mb-5 flex gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4">
+                  <CircleCheck
+                    aria-hidden="true"
+                    className="mt-0.5 size-5 shrink-0 text-primary"
+                  />
+                  <div className="grid gap-1">
+                    <p className="text-sm font-semibold">
+                      Availability submitted
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Your dates are saved. Update the calendar below and choose
+                      “Modify availability” to save changes.
+                    </p>
+                  </div>
+                </div>
+              ) : null}
+
               <AvailabilityForm
                 checkedDates={submission?.dates.map(({ date }) => date) ?? []}
+                hasSubmitted={Boolean(submission)}
                 key={`${planningMonth.id}:${
                   submission?.updatedAt.toISOString() ?? "new"
                 }`}
