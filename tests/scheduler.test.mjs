@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-import { generateSchedule } from "../src/lib/scheduler.ts";
+import {
+    generateSchedule,
+    generateShadowsForAssignments,
+} from "../src/lib/scheduler.ts";
 
 async function fixture(name) {
     return JSON.parse(
@@ -217,4 +220,121 @@ test("invalid inputs return structured validation failures", () => {
         assert.equal(result.code, "INVALID_INPUT");
         assert.ok(result.message.length > 0);
     }
+});
+
+function shadowCounterexample() {
+    return [
+        ...["A", "B", "C", "D"].map((id) => ({
+            id,
+            name: id,
+            mode: "UNAVAILABLE",
+            dates: [],
+            participationMode: id === "A" ? "MENTORED" : "NORMAL",
+        })),
+        {
+            id: "T",
+            name: "T",
+            mode: "AVAILABLE",
+            dates: ["2026-02-01"],
+            participationMode: "TRAINEE",
+            shadowDayCount: 1,
+        },
+    ];
+}
+
+test("generation finds an equally balanced primary rotation with feasible shadows", () => {
+    const members = shadowCounterexample();
+    const result = generateSchedule(2026, 2, members);
+    assertValidSchedule(result, 2026, 2, members);
+    assert.equal(result.fairnessScore, 0);
+    assert.deepEqual(result, generateSchedule(2026, 2, [...members].reverse()));
+    assert.equal(
+        result.shadows.filter((shadow) => shadow.kind === "TRAINING").length,
+        1,
+    );
+    assert.equal(
+        result.shadows.find((shadow) => shadow.kind === "TRAINING").date,
+        "2026-02-01",
+    );
+    assert.equal(
+        result.shadows.filter((shadow) => shadow.kind === "MENTORING").length,
+        7,
+    );
+    const work = new Map(members.map(({ id }) => [id, []]));
+    for (const assignment of result.assignments)
+        work.get(assignment.memberId).push(assignment.day);
+    const shadowDates = new Set();
+    for (const shadow of result.shadows) {
+        const day = Number(shadow.date.slice(-2));
+        const primary = result.assignments[day - 1];
+        assert.ok(!shadowDates.has(shadow.date));
+        shadowDates.add(shadow.date);
+        assert.notEqual(primary.memberId, shadow.shadowMemberId);
+        assert.equal(shadow.kind === "MENTORING", primary.memberId === "A");
+        work.get(shadow.shadowMemberId).push(day);
+    }
+    for (const days of work.values()) {
+        days.sort((a, b) => a - b);
+        for (let i = 1; i < days.length; i++)
+            assert.ok(days[i] - days[i - 1] > 1);
+    }
+});
+
+test("fixed primary shadow generation preserves the chosen rotation", () => {
+    const members = shadowCounterexample();
+    const fixed = (rotation) =>
+        Array.from({ length: 28 }, (_, index) => ({
+            date: `2026-02-${String(index + 1).padStart(2, "0")}`,
+            planningMemberId: rotation[index % 4],
+        }));
+    assert.equal(
+        generateShadowsForAssignments(2026, 2, members, fixed("ABCD")).ok,
+        false,
+    );
+    const result = generateShadowsForAssignments(
+        2026,
+        2,
+        members,
+        fixed("BCDA"),
+    );
+    assert.equal(result.ok, true);
+    assert.equal(
+        result.shadows.find((shadow) => shadow.kind === "TRAINING").date,
+        "2026-02-01",
+    );
+});
+
+test("exhausted complete schedules report shadow infeasibility", () => {
+    const members = ["A", "B"].map((id) => ({
+        id,
+        name: id,
+        mode: "UNAVAILABLE",
+        dates: [],
+        participationMode: "MENTORED",
+    }));
+    const result = generateSchedule(2026, 2, members);
+    assert.equal(result.ok, false);
+    assert.equal(result.code, "INFEASIBLE");
+});
+
+test("the shared state budget reports a search limit without claiming infeasibility", () => {
+    const members = ["A", "B", "C", "D"].map((id) => ({
+        id,
+        name: id,
+        mode: "UNAVAILABLE",
+        dates: [],
+    }));
+    for (const id of ["T", "U"])
+        members.push({
+            id,
+            name: id,
+            mode: "AVAILABLE",
+            dates: ["2026-02-01"],
+            participationMode: "TRAINEE",
+            shadowDayCount: 1,
+        });
+    const result = generateSchedule(2026, 2, members);
+    assert.equal(result.ok, false);
+    assert.equal(result.code, "SEARCH_LIMIT");
+    assert.equal(result.visitedStates, 250_000);
 });

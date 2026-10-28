@@ -1,4 +1,4 @@
-export const SCHEDULER_ALGORITHM_VERSION = "v2-shadow";
+export const SCHEDULER_ALGORITHM_VERSION = "v3-shadow-feasibility";
 
 const MAX_SEARCH_STATES = 250_000;
 const MANDATORY_AVAILABILITY_LIMIT = 5;
@@ -68,10 +68,24 @@ function failure(
     return { ok: false, code, message, visitedStates };
 }
 
+type SearchBudget = { visitedStates: number; limitReached: boolean };
+
+function visitState(budget: SearchBudget) {
+    if (budget.visitedStates >= MAX_SEARCH_STATES) {
+        budget.limitReached = true;
+        return false;
+    }
+    budget.visitedStates += 1;
+    return true;
+}
+
 function generatePrimarySchedule(
     year: number,
     month: number,
     input: SchedulerMemberInput[],
+    budget: SearchBudget,
+    placeShadows: (assignments: ScheduleAssignmentResult[]) => ScheduleResult,
+    canStillPlaceTraining: (assignments: (string | undefined)[]) => boolean,
 ): ScheduleResult {
     if (!Number.isInteger(year) || year < 1 || year > 9999) {
         return failure("INVALID_INPUT", "Choose a valid planning year.");
@@ -231,8 +245,9 @@ function generatePrimarySchedule(
     let bestScore = Number.POSITIVE_INFINITY;
     let bestAssignments: number[] | undefined;
     let bestWorkloads: number[] | undefined;
-    let visitedStates = 0;
-    let searchLimitReached = false;
+    let bestShadows: ScheduleShadowResult[] = [];
+    let shadowFailure = false;
+    let evaluationFailure: ScheduleResult | undefined;
     let optimalScoreReached = false;
 
     const lowerBound = () => {
@@ -312,10 +327,17 @@ function generatePrimarySchedule(
     const rootLowerBound = lowerBound();
 
     const search = () => {
-        if (optimalScoreReached || searchLimitReached) return;
-        visitedStates += 1;
-        if (visitedStates > MAX_SEARCH_STATES) {
-            searchLimitReached = true;
+        if (optimalScoreReached || budget.limitReached || evaluationFailure)
+            return;
+        if (!visitState(budget)) return;
+        if (
+            !canStillPlaceTraining(
+                assignments.map((index) =>
+                    index === -1 ? undefined : normalizedMembers[index].id,
+                ),
+            )
+        ) {
+            shadowFailure = true;
             return;
         }
 
@@ -337,9 +359,23 @@ function generatePrimarySchedule(
         if (chosenDay === -1) {
             const score = fairnessScore(workloads);
             if (score < bestScore) {
+                const candidate = assignments.map((memberIndex, dayIndex) => ({
+                    date: dateLabel(year, month, dayIndex + 1),
+                    day: dayIndex + 1,
+                    memberId: normalizedMembers[memberIndex].id,
+                    name: normalizedMembers[memberIndex].name,
+                }));
+                const shadowResult = placeShadows(candidate);
+                if (!shadowResult.ok) {
+                    if (shadowResult.code === "INFEASIBLE")
+                        shadowFailure = true;
+                    else evaluationFailure = shadowResult;
+                    return;
+                }
                 bestScore = score;
                 bestAssignments = [...assignments];
                 bestWorkloads = [...workloads];
+                bestShadows = shadowResult.shadows;
                 if (score === rootLowerBound) optimalScoreReached = true;
             }
             return;
@@ -361,7 +397,8 @@ function generatePrimarySchedule(
             search();
             workloads[memberIndex] -= 1;
             assignments[chosenDay] = -1;
-            if (optimalScoreReached || searchLimitReached) return;
+            if (optimalScoreReached || budget.limitReached || evaluationFailure)
+                return;
         }
     };
 
@@ -376,18 +413,21 @@ function generatePrimarySchedule(
         );
     }
 
-    if (searchLimitReached) {
+    if (budget.limitReached) {
         return failure(
             "SEARCH_LIMIT",
             `The search reached its ${MAX_SEARCH_STATES.toLocaleString()}-state limit before finding an optimal schedule.`,
-            visitedStates,
+            budget.visitedStates,
         );
     }
+    if (evaluationFailure) return evaluationFailure;
     if (!bestAssignments) {
         return failure(
             "INFEASIBLE",
-            "No schedule satisfies availability, mandatory assignments, and the no-consecutive-days rule.",
-            visitedStates,
+            shadowFailure
+                ? "No complete schedule satisfies primary and shadow constraints. Review shadow counts or participant availability."
+                : "No schedule satisfies availability, mandatory assignments, and the no-consecutive-days rule.",
+            budget.visitedStates,
         );
     }
 
@@ -406,20 +446,37 @@ function generatePrimarySchedule(
     return {
         ok: true,
         assignments: finalAssignments,
-        shadows: [],
+        shadows: bestShadows,
         fairnessScore: bestScore,
-        visitedStates,
+        visitedStates: budget.visitedStates,
         workloads: finalWorkloads,
     };
 }
-
-const MAX_SHADOW_SEARCH_STATES = 250_000;
 
 export function generateSchedule(
     year: number,
     month: number,
     input: SchedulerMemberInput[],
     fixedPrimaryAssignments?: ScheduleAssignmentResult[],
+): ScheduleResult {
+    return generateScheduleWithBudget(
+        year,
+        month,
+        input,
+        fixedPrimaryAssignments,
+        {
+            visitedStates: 0,
+            limitReached: false,
+        },
+    );
+}
+
+function generateScheduleWithBudget(
+    year: number,
+    month: number,
+    input: SchedulerMemberInput[],
+    fixedPrimaryAssignments: ScheduleAssignmentResult[] | undefined,
+    budget: SearchBudget,
 ): ScheduleResult {
     const days = daysInMonth(year, month);
     if (input.length === 0 || input.length > 11) {
@@ -491,6 +548,40 @@ export function generateSchedule(
             "At least one participant must be available for primary standby assignments.",
         );
     }
+    const membersById = new Map(input.map((member) => [member.id, member]));
+    const availabilityById = new Map<string, Set<number>>();
+    for (const member of input) {
+        const selected = new Set<number>();
+        for (const date of member.dates) {
+            const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+            if (
+                !match ||
+                Number(match[1]) !== year ||
+                Number(match[2]) !== month ||
+                Number(match[3]) < 1 ||
+                Number(match[3]) > days ||
+                selected.has(Number(match[3]))
+            ) {
+                return failure(
+                    "INVALID_INPUT",
+                    `${member.name} has an invalid availability date.`,
+                );
+            }
+            selected.add(Number(match[3]));
+        }
+        availabilityById.set(
+            member.id,
+            new Set(
+                member.mode === "AVAILABLE"
+                    ? selected
+                    : Array.from(
+                          { length: days },
+                          (_, index) => index + 1,
+                      ).filter((day) => !selected.has(day)),
+            ),
+        );
+    }
+
     let primaryResult: ScheduleResult;
     if (fixedPrimaryAssignments) {
         const primaryByDate = new Map(
@@ -527,43 +618,48 @@ export function generateSchedule(
             workloads: [],
         };
     } else {
-        primaryResult = generatePrimarySchedule(year, month, primaryMembers);
-    }
-    if (!primaryResult.ok) return primaryResult;
-
-    const membersById = new Map(input.map((member) => [member.id, member]));
-    const availabilityById = new Map<string, Set<number>>();
-    for (const member of input) {
-        const selected = new Set<number>();
-        for (const date of member.dates) {
-            const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
-            if (
-                !match ||
-                Number(match[1]) !== year ||
-                Number(match[2]) !== month ||
-                Number(match[3]) < 1 ||
-                Number(match[3]) > days ||
-                selected.has(Number(match[3]))
-            ) {
-                return failure(
-                    "INVALID_INPUT",
-                    `${member.name} has an invalid availability date.`,
-                );
-            }
-            selected.add(Number(match[3]));
-        }
-        availabilityById.set(
-            member.id,
-            new Set(
-                member.mode === "AVAILABLE"
-                    ? selected
-                    : Array.from(
-                          { length: days },
-                          (_, index) => index + 1,
-                      ).filter((day) => !selected.has(day)),
-            ),
+        const mentoredIds = new Set(
+            primaryMembers
+                .filter((member) => member.participationMode === "MENTORED")
+                .map((member) => member.id),
+        );
+        const trainees = input.filter(
+            (member) => member.participationMode === "TRAINEE",
+        );
+        return generatePrimarySchedule(
+            year,
+            month,
+            primaryMembers,
+            budget,
+            (assignments) =>
+                generateScheduleWithBudget(
+                    year,
+                    month,
+                    input,
+                    assignments,
+                    budget,
+                ),
+            (assignments) =>
+                trainees.every((trainee) => {
+                    const selected = new Set(trainee.dates);
+                    const possibleDays = assignments.filter(
+                        (memberId, index) => {
+                            const date = dateLabel(year, month, index + 1);
+                            const available =
+                                trainee.mode === "AVAILABLE"
+                                    ? selected.has(date)
+                                    : !selected.has(date);
+                            return (
+                                available &&
+                                (!memberId || !mentoredIds.has(memberId))
+                            );
+                        },
+                    ).length;
+                    return possibleDays >= (trainee.shadowDayCount ?? 0);
+                }),
         );
     }
+    if (!primaryResult.ok) return primaryResult;
 
     const primaryByDay = new Map(
         primaryResult.assignments.map((assignment) => [
@@ -583,8 +679,6 @@ export function generateSchedule(
     );
     const occupiedShadowDates = new Set<number>();
     const shadows: ScheduleShadowResult[] = [];
-    let shadowStates = 0;
-    let shadowLimitReached = false;
 
     const tasks: (
         | {
@@ -655,11 +749,7 @@ export function generateSchedule(
     };
 
     const searchShadows = (taskIndex: number): boolean => {
-        shadowStates += 1;
-        if (shadowStates > MAX_SHADOW_SEARCH_STATES) {
-            shadowLimitReached = true;
-            return false;
-        }
+        if (!visitState(budget)) return false;
         if (taskIndex >= orderedTasks.length) return true;
         const task = orderedTasks[taskIndex];
 
@@ -692,7 +782,7 @@ export function generateSchedule(
                 );
                 occupiedShadowDates.delete(task.day);
                 workDaysByMember.get(mentor.id)!.delete(task.day);
-                if (shadowLimitReached) return false;
+                if (budget.limitReached) return false;
             }
             return false;
         }
@@ -752,23 +842,23 @@ export function generateSchedule(
             else mentorCounts.delete(mentorId);
             occupiedShadowDates.delete(day);
             workDaysByMember.get(traineeId)!.delete(day);
-            if (shadowLimitReached) return false;
+            if (budget.limitReached) return false;
         }
         return false;
     };
 
     if (!searchShadows(0)) {
-        if (shadowLimitReached) {
+        if (budget.limitReached) {
             return failure(
                 "SEARCH_LIMIT",
                 "Shadow assignments reached the search limit before finding a conflict-free arrangement.",
-                primaryResult.visitedStates + shadowStates,
+                budget.visitedStates,
             );
         }
         return failure(
             "INFEASIBLE",
             "No shadow plan satisfies availability, mentor capacity, and the no-consecutive-days rule. Review shadow counts or participant availability.",
-            primaryResult.visitedStates + shadowStates,
+            budget.visitedStates,
         );
     }
 
@@ -780,7 +870,7 @@ export function generateSchedule(
                 left.date.localeCompare(right.date) ||
                 left.name.localeCompare(right.name),
         ),
-        visitedStates: primaryResult.visitedStates + shadowStates,
+        visitedStates: budget.visitedStates,
     };
 }
 

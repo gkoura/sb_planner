@@ -232,6 +232,8 @@ No new package is required. The server rechecks authorization, roster, month
 state, current run, CSV structure, and schedule rules before writing. Preview
 state becomes invalid if the month status or current run changes.
 
+**Scheduler feasibility correction (2026-10-29):** generation now evaluates shadow feasibility while searching primary rotations, minimizes primary imbalance among complete feasible schedules, and uses a shared 250,000-state budget. A necessary training-date check prunes impossible partial rotations. New runs record `v3-shadow-feasibility`; historical runs retain their saved algorithm version. The reported February 2026 counterexample completes in approximately 7 ms locally. TypeScript, focused lint, 12 scheduler tests, and the production build pass; full lint remains blocked by the four existing auth UI errors recorded in CODE-001. The bounded search can return `SEARCH_LIMIT` without proving infeasibility or optimality.
+
 ## Delivery milestones
 
 - [ ] **M0 — Foundation:** inspect the current Next.js version guidance;
