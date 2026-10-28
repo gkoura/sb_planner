@@ -122,10 +122,17 @@ pnpm exec prisma migrate deploy        # Apply PostgreSQL migrations
 pnpm seed:admin                       # Create or promote the initial administrator
 pnpm test                             # Run scheduling and authorization tests
 pnpm test:scheduler                   # Run scheduling-rule tests
+pnpm test:integration                 # Run isolated PostgreSQL concurrency tests
 pnpm lint                             # Run ESLint
 pnpm format:check                     # Check formatting
 pnpm build                            # Create a production build
 ```
+
+The integration tests require a disposable local PostgreSQL database named
+`sb_planner_rel001_test`, with the PostgreSQL migrations applied. Set
+`SB_TEST_DATABASE_URL` to that database before running `pnpm test:integration`.
+The tests create records in it; they reject remote hosts and other database
+names. Never point them at the development or production database.
 
 If a default build environment has Turbopack worker-port limitations, use the
 webpack build explicitly:

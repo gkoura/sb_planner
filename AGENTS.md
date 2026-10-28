@@ -238,6 +238,8 @@ state becomes invalid if the month status or current run changes.
 
 **Schedule restore correction (2026-10-29):** restoration now preserves the selected version’s input snapshot, algorithm version, assignment snapshots, and saved shadows. It recognizes shadow-only and input/provenance-only changes and continues to require an override for published past assignment or shadow changes. Six action tests use mocked transaction boundaries; all 28 tests, TypeScript, full ESLint, production build, and diff checks pass. PostgreSQL concurrency and broader shadow validation remain separate audit findings.
 
+**Month concurrency correction (2026-10-29):** month mutations acquire a PostgreSQL row lock before lifecycle decisions and re-read dependent state under READ COMMITTED isolation. Lock contention beyond three seconds returns a retry message. Coordinated tests passed against an isolated local PostgreSQL 18 database for simultaneous final submissions, generation versus a late save, both deletion/generation orderings, and lock timeout. The existing migrations were applied to the disposable database with approval; it was stopped after testing. All 28 unit/action tests, full ESLint, TypeScript, production build, and diff checks pass. Account-role concurrency remains DB-001.
+
 ## Delivery milestones
 
 - [ ] **M0 — Foundation:** inspect the current Next.js version guidance;

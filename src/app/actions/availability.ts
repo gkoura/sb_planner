@@ -4,6 +4,10 @@ import { revalidatePath } from "next/cache";
 
 import { getCurrentSession, requireAdmin } from "@/lib/auth-guard";
 import { prisma } from "@/lib/prisma";
+import {
+    lockPlanningMonth,
+    runMonthTransaction,
+} from "@/lib/planning-month-lock";
 
 export type AvailabilityState = {
     error?: string;
@@ -51,7 +55,8 @@ async function saveAvailability({
     source: AvailabilitySource;
     planningMemberId: string;
 }): Promise<AvailabilityState> {
-    const result = await prisma.$transaction(async (transaction) => {
+    const result = await runMonthTransaction(async (transaction) => {
+        await lockPlanningMonth(transaction, input.planningMonthId);
         const month = await transaction.planningMonth.findUnique({
             where: { id: input.planningMonthId },
             select: {
@@ -159,21 +164,26 @@ export async function openPlanningCollection(
         return { error: "Choose a valid planning month." };
     }
 
-    const month = await prisma.planningMonth.findUnique({
-        where: { id: planningMonthId },
-        select: { id: true, status: true },
+    const result = await runMonthTransaction(async (transaction) => {
+        await lockPlanningMonth(transaction, planningMonthId);
+        const month = await transaction.planningMonth.findUnique({
+            where: { id: planningMonthId },
+            select: { id: true, status: true },
+        });
+        if (!month || month.status !== "DRAFT") {
+            return {
+                error: "Only draft months can open availability collection.",
+            };
+        }
+        await transaction.planningMonth.update({
+            where: { id: month.id },
+            data: { status: "COLLECTING" },
+        });
+        return { id: month.id };
     });
+    if ("error" in result) return { error: result.error };
 
-    if (!month || month.status !== "DRAFT") {
-        return { error: "Only draft months can open availability collection." };
-    }
-
-    await prisma.planningMonth.update({
-        where: { id: month.id },
-        data: { status: "COLLECTING" },
-    });
-
-    revalidateAvailabilityPaths(month.id);
+    revalidateAvailabilityPaths(result.id);
     return { success: "Availability collection is open." };
 }
 
@@ -242,7 +252,8 @@ export async function clearAvailabilityForMember(
         return { error: "Choose a valid participant." };
     }
 
-    const result = await prisma.$transaction(async (transaction) => {
+    const result = await runMonthTransaction(async (transaction) => {
+        await lockPlanningMonth(transaction, planningMonthId);
         const month = await transaction.planningMonth.findUnique({
             where: { id: planningMonthId },
             select: {

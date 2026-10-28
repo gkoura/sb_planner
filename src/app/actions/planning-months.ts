@@ -4,6 +4,11 @@ import { revalidatePath } from "next/cache";
 
 import { requireAdmin } from "@/lib/auth-guard";
 import { prisma } from "@/lib/prisma";
+import {
+    isMonthTransactionConflict,
+    lockPlanningMonth,
+    runLockedMonthTransaction,
+} from "@/lib/planning-month-lock";
 
 const MAX_ENGINEERS = 10;
 
@@ -38,7 +43,8 @@ export async function saveParticipationSettings(
     if (!planningMonthId) return { error: "Planning month is missing." };
 
     try {
-        await prisma.$transaction(async (transaction) => {
+        await runLockedMonthTransaction(async (transaction) => {
+            await lockPlanningMonth(transaction, planningMonthId);
             const month = await transaction.planningMonth.findUnique({
                 where: { id: planningMonthId },
                 include: {
@@ -136,10 +142,11 @@ export async function saveParticipationSettings(
         });
     } catch (error) {
         return {
-            error:
-                error instanceof Error
-                    ? error.message
-                    : "Unable to save participation settings.",
+            error: isMonthTransactionConflict(error)
+                ? "The planning month is busy or changed concurrently. Please try again."
+                : error instanceof Error
+                  ? error.message
+                  : "Unable to save participation settings.",
         };
     }
 
@@ -297,7 +304,8 @@ export async function savePlanningMonthRoster(
     }
 
     try {
-        const result = await prisma.$transaction(async (transaction) => {
+        const result = await runLockedMonthTransaction(async (transaction) => {
+            await lockPlanningMonth(transaction, planningMonthId);
             const month = await transaction.planningMonth.findUnique({
                 where: { id: planningMonthId },
                 include: {
@@ -414,10 +422,11 @@ export async function savePlanningMonthRoster(
         };
     } catch (error) {
         return {
-            error:
-                error instanceof Error
-                    ? error.message
-                    : "Unable to save participants.",
+            error: isMonthTransactionConflict(error)
+                ? "The planning month is busy or changed concurrently. Please try again."
+                : error instanceof Error
+                  ? error.message
+                  : "Unable to save participants.",
         };
     }
 }
@@ -436,7 +445,8 @@ export async function deletePlanningMonth(
     }
 
     try {
-        await prisma.$transaction(async (transaction) => {
+        await runLockedMonthTransaction(async (transaction) => {
+            await lockPlanningMonth(transaction, planningMonthId);
             const planningMonth = await transaction.planningMonth.findUnique({
                 where: { id: planningMonthId },
                 select: {
@@ -466,10 +476,11 @@ export async function deletePlanningMonth(
         });
     } catch (error) {
         return {
-            error:
-                error instanceof Error
-                    ? error.message
-                    : "Unable to delete this planning month. Try again.",
+            error: isMonthTransactionConflict(error)
+                ? "The planning month is busy or changed concurrently. Please try again."
+                : error instanceof Error
+                  ? error.message
+                  : "Unable to delete this planning month. Try again.",
         };
     }
 

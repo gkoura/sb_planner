@@ -14,7 +14,10 @@ import {
     validateScheduleEdit,
     type ScheduleEditAssignment,
 } from "@/lib/schedule-edits";
-import { prisma } from "@/lib/prisma";
+import {
+    lockPlanningMonth,
+    runMonthTransaction,
+} from "@/lib/planning-month-lock";
 
 export type GenerateScheduleState = {
     error?: string;
@@ -54,7 +57,13 @@ export async function restoreScheduleRun(
     if (reason.length > 500)
         return { error: "Change reasons must be 500 characters or fewer." };
 
-    const result = await prisma.$transaction(async (transaction) => {
+    const result = await runMonthTransaction(async (transaction) => {
+        const runReference = await transaction.scheduleRun.findUnique({
+            where: { id: sourceRunId },
+            select: { planningMonthId: true },
+        });
+        if (!runReference) return { error: "Schedule version not found." };
+        await lockPlanningMonth(transaction, runReference.planningMonthId);
         const source = await transaction.scheduleRun.findUnique({
             where: { id: sourceRunId },
             include: {
@@ -315,7 +324,13 @@ export async function saveScheduleEdit(
         return { error: "Change reasons must be 500 characters or fewer." };
     }
 
-    const result = await prisma.$transaction(async (transaction) => {
+    const result = await runMonthTransaction(async (transaction) => {
+        const runReference = await transaction.scheduleRun.findUnique({
+            where: { id: scheduleRunId },
+            select: { planningMonthId: true },
+        });
+        if (!runReference) return { error: "Schedule version not found." };
+        await lockPlanningMonth(transaction, runReference.planningMonthId);
         const run = await transaction.scheduleRun.findUnique({
             where: { id: scheduleRunId },
             include: {
@@ -574,7 +589,13 @@ export async function publishScheduleRun(
         return { error: "Choose a valid candidate schedule." };
     }
 
-    const result = await prisma.$transaction(async (transaction) => {
+    const result = await runMonthTransaction(async (transaction) => {
+        const runReference = await transaction.scheduleRun.findUnique({
+            where: { id: scheduleRunId },
+            select: { planningMonthId: true },
+        });
+        if (!runReference) return { error: "Schedule version not found." };
+        await lockPlanningMonth(transaction, runReference.planningMonthId);
         const run = await transaction.scheduleRun.findUnique({
             where: { id: scheduleRunId },
             include: {
@@ -647,7 +668,8 @@ export async function createScheduleRun(
         return { error: "Choose a valid planning month." };
     }
 
-    const result = await prisma.$transaction(async (transaction) => {
+    const result = await runMonthTransaction(async (transaction) => {
+        await lockPlanningMonth(transaction, planningMonthId);
         const month = await transaction.planningMonth.findUnique({
             where: { id: planningMonthId },
             include: {

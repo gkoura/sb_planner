@@ -95,6 +95,10 @@ function setup({ year = 2999, published = false } = {}) {
     state.source = source;
     state.current = current;
     state.transaction = {
+        async $executeRaw() {},
+        async $queryRaw() {
+            return [];
+        },
         scheduleRun: {
             async findUnique() {
                 return state.source;

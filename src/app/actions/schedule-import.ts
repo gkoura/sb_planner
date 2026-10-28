@@ -10,6 +10,10 @@ import {
 } from "@/lib/schedule-import";
 import { getOperationalDate } from "@/lib/schedule-edits";
 import { prisma } from "@/lib/prisma";
+import {
+    lockPlanningMonth,
+    runMonthTransaction,
+} from "@/lib/planning-month-lock";
 
 const CSV_IMPORT_VERSION = "csv-import-v1";
 
@@ -226,7 +230,8 @@ export async function importScheduleCsv(
     }
 
     try {
-        const result = await prisma.$transaction(async (transaction) => {
+        const result = await runMonthTransaction(async (transaction) => {
+            await lockPlanningMonth(transaction, payload.planningMonthId);
             const month = await transaction.planningMonth.findUnique({
                 where: { id: payload.planningMonthId },
                 include: {
