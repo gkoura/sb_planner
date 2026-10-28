@@ -390,6 +390,21 @@ action only when the signed-in participant has at least one open month without
 a submission. Label it "Submit availability"; hide it when no submission is
 needed. The Availability navigation remains available for optional revisions.
 
+**Homepage architecture (2026-10-28):** the signed-in homepage now has one
+server-rendered composition for every role: welcome, today’s standby, personal
+month report, availability overview, then the admin overview when authorized.
+The homepage only authenticates and composes sections; `lib/home/queries.ts`
+owns Prisma reads and view-data shaping, `lib/home/types.ts` defines the
+presentation contracts, and `components/home/` owns each section. An admin
+who is a planning member now receives the same personal schedule and
+availability overview as an engineer. Removed the misleading three-item
+"Recent planning months" metric and the hard-coded `/ 10` denominator; the
+admin overview shows the actual engineer-account count and recent-month list.
+Verified 2026-10-28: TypeScript, focused homepage lint, scheduler tests,
+`git diff --check`, and `next build --webpack` pass. Full-repository ESLint is
+currently blocked by four pre-existing React Compiler hook warnings in Better
+Auth UI components outside this refactor; browser verification remains pending.
+
 **Account settings (2026-10-26):** `/account` allows a member to update their
 display name and optional phone number; admins can also set the optional phone
 number when creating an engineer. Email remains read-only until a verification
