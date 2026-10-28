@@ -454,6 +454,11 @@ dependency cache from type-checking against a stale generated Prisma Client
 after schema changes. **Verified 2026-10-28:** the exact `pnpm run build`
 command completes locally with Turbopack.
 
+**Participation settings affordance (2026-10-28):** show the trainee-only
+shadow-day input only while that participant’s currently selected mode is
+`TRAINEE`; normal and mentored layouts omit the irrelevant field and update
+their explanatory text immediately. TypeScript and focused ESLint pass.
+
 **Account settings (2026-10-26):** `/account` allows a member to update their
 display name and optional phone number; admins can also set the optional phone
 number when creating an engineer. Email remains read-only until a verification
