@@ -448,6 +448,12 @@ to the Neon development database; a second deploy reports no pending
 migrations. TypeScript, focused ESLint, scheduler tests, `git diff --check`,
 and `next build --webpack` pass; browser review remains pending.
 
+**Deployment Prisma generation (2026-10-28):** the production `build` script
+now runs `prisma generate` before `next build`. This prevents Netlify’s restored
+dependency cache from type-checking against a stale generated Prisma Client
+after schema changes. **Verified 2026-10-28:** the exact `pnpm run build`
+command completes locally with Turbopack.
+
 **Account settings (2026-10-26):** `/account` allows a member to update their
 display name and optional phone number; admins can also set the optional phone
 number when creating an engineer. Email remains read-only until a verification
