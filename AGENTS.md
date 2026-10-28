@@ -459,6 +459,19 @@ shadow-day input only while that participant’s currently selected mode is
 `TRAINEE`; normal and mentored layouts omit the irrelevant field and update
 their explanatory text immediately. TypeScript and focused ESLint pass.
 
+**Planning-month picker (2026-10-28):** replace the plain native month input
+with the existing shadcn-style Popover and Calendar primitives. The selected
+day is normalized to the first of its month and submitted as the same `YYYY-MM`
+value, preserving server validation and behavior. TypeScript and focused ESLint
+pass.
+
+**Planning-month picker revision (2026-10-28):** supersedes the Popover and
+Calendar picker above. Month selection does not need a day grid, so use the
+existing shadcn Select primitives for separate month and year controls instead.
+They submit the same validated `YYYY-MM` value; the year picker covers five
+years before through fifteen years after the current year. TypeScript and
+focused ESLint pass.
+
 **Account settings (2026-10-26):** `/account` allows a member to update their
 display name and optional phone number; admins can also set the optional phone
 number when creating an engineer. Email remains read-only until a verification

@@ -124,7 +124,7 @@ async function PlanningMonthsContent() {
     const now = new Date();
 
     const monthValue = `${now.getFullYear()}-${String(
-        now.getMonth() + 1,
+        now.getMonth() + 2, // Add 2 to get the next month (1-based index)
     ).padStart(2, "0")}`;
 
     return (
