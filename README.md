@@ -120,6 +120,7 @@ password.
 pnpm dev                              # Start the development server
 pnpm exec prisma migrate deploy        # Apply PostgreSQL migrations
 pnpm seed:admin                       # Create or promote the initial administrator
+pnpm test                             # Run scheduling and authorization tests
 pnpm test:scheduler                   # Run scheduling-rule tests
 pnpm lint                             # Run ESLint
 pnpm format:check                     # Check formatting

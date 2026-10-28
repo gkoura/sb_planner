@@ -1,13 +1,8 @@
 "use client";
 
-import {
-    type AuthResult,
-    getAuthResultMessage,
-    parseAuthResult,
-} from "@better-auth-ui/core";
+import { getAuthResultMessage, parseAuthResult } from "@better-auth-ui/core";
 import { useAuth } from "@better-auth-ui/react";
 import { CircleCheckIcon, CircleXIcon, TriangleAlertIcon } from "lucide-react";
-import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -18,6 +13,7 @@ import {
     CardTitle,
 } from "@/components/ui/card";
 import { cn } from "cn";
+import { useIsHydrated } from "./use-is-hydrated";
 
 type AuthResultProps = {
     className?: string;
@@ -26,13 +22,11 @@ type AuthResultProps = {
 
 function AuthResultView({ className, fallbackIntent }: AuthResultProps) {
     const { basePaths, localization, navigate, viewPaths } = useAuth();
-    const [result, setResult] = useState<AuthResult>(() =>
-        parseAuthResult("", fallbackIntent),
+    const isHydrated = useIsHydrated();
+    const result = parseAuthResult(
+        isHydrated ? window.location.search : "",
+        fallbackIntent,
     );
-
-    useEffect(() => {
-        setResult(parseAuthResult(window.location.search, fallbackIntent));
-    }, [fallbackIntent]);
 
     const message = getAuthResultMessage(result, localization);
     const action = (() => {

@@ -234,6 +234,8 @@ state becomes invalid if the month status or current run changes.
 
 **Scheduler feasibility correction (2026-10-29):** generation now evaluates shadow feasibility while searching primary rotations, minimizes primary imbalance among complete feasible schedules, and uses a shared 250,000-state budget. A necessary training-date check prunes impossible partial rotations. New runs record `v3-shadow-feasibility`; historical runs retain their saved algorithm version. The reported February 2026 counterexample completes in approximately 7 ms locally. TypeScript, focused lint, 12 scheduler tests, and the production build pass; full lint remains blocked by the four existing auth UI errors recorded in CODE-001. The bounded search can return `SEARCH_LIMIT` without proving infeasibility or optimality.
 
+**Audit testing and lint progress (2026-10-29):** corrected four auth UI React hook/compiler lint errors, preserving hydration-safe browser reads. Added `pnpm test` and focused import, edit, snapshot, authorization, and self-service ownership tests; the authorization tests mock framework and database boundaries. All 22 tests, full ESLint, TypeScript, production build, and diff checks pass. Browser review of the auth views, actual restoration and concurrent database integration tests, and a sign-in-to-publish journey remain pending; CODE-001 remains in progress.
+
 ## Delivery milestones
 
 - [ ] **M0 — Foundation:** inspect the current Next.js version guidance;
