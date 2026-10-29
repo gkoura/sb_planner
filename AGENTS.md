@@ -244,6 +244,24 @@ state becomes invalid if the month status or current run changes.
 
 ## Delivery milestones
 
+**Database SSL configuration (2026-10-29):** changed the local Neon runtime
+URL from `sslmode=require` to `sslmode=verify-full`, preserving the pg driver's
+current certificate and hostname verification while avoiding its upcoming
+semantics warning. Documented the same setting for hosted and direct URLs;
+hosted settings still need to be checked when configured.
+
+**Availability page (2026-10-29):** submitted months start with the calendar
+hidden. The View availability button opens the editable calendar, with Modify
+availability below it to save changes. Hiding the calendar discards unsaved
+changes; new submissions still open the calendar. This supersedes the earlier
+separate read-only and edit options to keep the flow simpler.
+
+**Availability save correction (2026-10-29):** replacing a submission now
+deletes old dates before inserting new dates within the locked transaction.
+The previous nested write could delete the newly created dates. An isolated
+PostgreSQL regression test reproduced the failure and passes with the fix;
+affected submissions need to be entered again if their saved dates were lost.
+
 - [ ] **M0 — Foundation:** inspect the current Next.js version guidance;
       initialize shadcn/ui; add Prisma, Better Auth, Better Auth UI, the local
       database, migrations, environment validation, and a seed path for the first

@@ -159,6 +159,29 @@ async function waitForBlockedLocks(count) {
     throw new Error(`Timed out waiting for ${count} blocked month locks`);
 }
 
+test("revising availability replaces dates and retains the new selection", async () => {
+    const { month, members } = await fixture(true);
+    const form = availabilityForm(month.id, members[0].id);
+    const first = `${month.year}-02-03`;
+    const second = `${month.year}-02-05`;
+    form.append("dates", first);
+    assert.ok((await submitAvailabilityForMember({}, form)).success);
+    let saved = await prisma.availabilitySubmission.findUniqueOrThrow({
+        where: { planningMemberId: members[0].id },
+        include: { dates: true },
+    });
+    assert.deepEqual(saved.dates.map(({ date }) => date), [first]);
+
+    form.delete("dates");
+    form.append("dates", second);
+    assert.ok((await submitAvailabilityForMember({}, form)).success);
+    saved = await prisma.availabilitySubmission.findUniqueOrThrow({
+        where: { planningMemberId: members[0].id },
+        include: { dates: true },
+    });
+    assert.deepEqual(saved.dates.map(({ date }) => date), [second]);
+});
+
 test("concurrent final submissions both persist and leave the month ready", async () => {
     const { month, members } = await fixture(false);
     const held = await holdMonth(month.id);

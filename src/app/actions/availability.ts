@@ -106,6 +106,9 @@ async function saveAvailability({
         });
         if (!member) return { error: "That participant is not in this month." };
 
+        await transaction.availabilityDate.deleteMany({
+            where: { submission: { planningMemberId: member.id } },
+        });
         await transaction.availabilitySubmission.upsert({
             where: { planningMemberId: member.id },
             create: {
@@ -118,7 +121,6 @@ async function saveAvailability({
             update: {
                 dates: {
                     create: input.dates.map((date) => ({ date })),
-                    deleteMany: {},
                 },
                 mode: input.mode,
                 source,

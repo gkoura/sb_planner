@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { CalendarDays, CircleCheck } from "lucide-react";
 
 import { AvailabilityForm } from "@/components/availability/availability-form";
+import { SavedAvailability } from "@/components/availability/saved-availability";
 import { Badge } from "@/components/ui/badge";
 import {
     Card,
@@ -182,27 +183,35 @@ async function AvailabilityContent() {
                                         </p>
                                         <p className="text-muted-foreground text-sm">
                                             {submission.source === "ADMIN"
-                                                ? "These dates are saved on your behalf. Update the calendar below to take ownership of the submission."
-                                                : "Your dates are saved. Update the calendar below and choose “Modify availability” to save changes."}
+                                                ? "These dates are saved on your behalf. Modify them to take ownership of the submission."
+                                                : "Your dates are saved. Open the calendar to view or modify them."}
                                         </p>
                                     </div>
                                 </div>
                             ) : null}
 
-                            <AvailabilityForm
-                                checkedDates={
-                                    submission?.dates.map(({ date }) => date) ??
-                                    []
-                                }
-                                hasSubmitted={Boolean(submission)}
-                                key={`${planningMonth.id}:${
-                                    submission?.updatedAt.toISOString() ?? "new"
-                                }`}
-                                mode={submission?.mode ?? "UNAVAILABLE"}
-                                planningMonthId={planningMonth.id}
-                                month={planningMonth.month}
-                                year={planningMonth.year}
-                            />
+                            {submission ? (
+                                <SavedAvailability
+                                    checkedDates={submission.dates.map(
+                                        ({ date }) => date,
+                                    )}
+                                    key={`${planningMonth.id}:${submission.updatedAt.toISOString()}`}
+                                    mode={submission.mode}
+                                    planningMonthId={planningMonth.id}
+                                    month={planningMonth.month}
+                                    year={planningMonth.year}
+                                />
+                            ) : (
+                                <AvailabilityForm
+                                    checkedDates={[]}
+                                    hasSubmitted={false}
+                                    key={`${planningMonth.id}:new`}
+                                    mode="UNAVAILABLE"
+                                    planningMonthId={planningMonth.id}
+                                    month={planningMonth.month}
+                                    year={planningMonth.year}
+                                />
+                            )}
                         </CardContent>
                     </Card>
                 );

@@ -101,6 +101,11 @@ INITIAL_ADMIN_EMAIL="admin@example.com"
 INITIAL_ADMIN_PASSWORD="choose-a-strong-password"
 ```
 
+For Neon URLs, set `sslmode=verify-full` in both `DATABASE_URL` and any
+`DIRECT_URL` to explicitly verify the server certificate and hostname. Use
+the same setting in hosted environment variables. Restart the development
+server after changing its environment.
+
 Apply the PostgreSQL migrations, seed the first administrator, then start the
 development server:
 

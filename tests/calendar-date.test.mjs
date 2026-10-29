@@ -76,6 +76,9 @@ const transaction = {
             return 1;
         },
     },
+    availabilityDate: {
+        async deleteMany() {},
+    },
 };
 globalThis.__calendarTestPrisma = {
     async $transaction(callback) {
