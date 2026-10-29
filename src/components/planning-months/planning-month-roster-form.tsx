@@ -15,7 +15,7 @@ import {
     CardTitle,
 } from "@/components/ui/card";
 
-type EngineerOption = {
+type MemberOption = {
     email: string;
     id: string;
     name: string;
@@ -25,22 +25,18 @@ const initialState: PlanningMonthRosterState = {};
 
 export function PlanningMonthRosterForm({
     planningMonthId,
-    engineers,
-    selectedEngineerIds,
-    includeAdmin,
-    adminName,
+    members,
+    selectedMemberIds,
 }: {
     planningMonthId: string;
-    engineers: EngineerOption[];
-    selectedEngineerIds: string[];
-    includeAdmin: boolean;
-    adminName: string;
+    members: MemberOption[];
+    selectedMemberIds: string[];
 }) {
     const [state, formAction, isPending] = useActionState(
         savePlanningMonthRoster,
         initialState,
     );
-    const selected = new Set(selectedEngineerIds);
+    const selected = new Set(selectedMemberIds);
 
     return (
         <Card>
@@ -59,60 +55,39 @@ export function PlanningMonthRosterForm({
                         type="hidden"
                         value={planningMonthId}
                     />
+                    <input name="rosterVersion" type="hidden" value="2" />
                     <fieldset className="grid gap-3" disabled={isPending}>
                         <legend className="mb-1 text-sm font-medium">
-                            Engineers
+                            Team members
                         </legend>
-                        {engineers.length ? (
-                            engineers.map((engineer) => (
+                        {members.length ? (
+                            members.map((member) => (
                                 <label
                                     className="flex cursor-pointer items-start gap-3 rounded-lg border p-3"
-                                    key={engineer.id}
+                                    key={member.id}
                                 >
                                     <input
                                         className="accent-primary mt-1 size-4"
-                                        defaultChecked={selected.has(
-                                            engineer.id,
-                                        )}
+                                        defaultChecked={selected.has(member.id)}
                                         name="memberIds"
                                         type="checkbox"
-                                        value={engineer.id}
+                                        value={member.id}
                                     />
                                     <span className="grid gap-0.5">
                                         <span className="text-sm font-medium">
-                                            {engineer.name}
+                                            {member.name}
                                         </span>
                                         <span className="text-muted-foreground text-xs">
-                                            {engineer.email}
+                                            {member.email}
                                         </span>
                                     </span>
                                 </label>
                             ))
                         ) : (
                             <p className="text-muted-foreground text-sm">
-                                There are no engineer accounts to add.
+                                There are no team members to add.
                             </p>
                         )}
-
-                        <label className="flex cursor-pointer items-start gap-3 border-t pt-3">
-                            <input
-                                className="accent-primary mt-1 size-4"
-                                defaultChecked={includeAdmin}
-                                name="includeAdmin"
-                                type="checkbox"
-                                value="true"
-                            />
-                            <span className="grid gap-0.5">
-                                <span className="text-sm font-medium">
-                                    Include me
-                                </span>
-                                <span className="text-muted-foreground text-xs">
-                                    {adminName} can submit availability and be
-                                    assigned standby without using an engineer
-                                    account slot.
-                                </span>
-                            </span>
-                        </label>
                     </fieldset>
 
                     <div aria-atomic="true" aria-live="polite">

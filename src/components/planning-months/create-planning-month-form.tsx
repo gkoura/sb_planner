@@ -16,15 +16,14 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 
-type EngineerOption = {
+type MemberOption = {
     email: string;
     id: string;
     name: string;
 };
 
 type CreatePlanningMonthFormProps = {
-    adminName: string;
-    engineers: EngineerOption[];
+    members: MemberOption[];
     monthValue: string;
 };
 
@@ -45,8 +44,7 @@ const MONTHS = [
 ] as const;
 
 export function CreatePlanningMonthForm({
-    adminName,
-    engineers,
+    members,
     monthValue,
 }: CreatePlanningMonthFormProps) {
     const [state, formAction, isPending] = useActionState(
@@ -149,55 +147,38 @@ export function CreatePlanningMonthForm({
                 </div>
             </div>
 
+            <input name="rosterVersion" type="hidden" value="2" />
             <fieldset className="grid gap-3" disabled={isPending}>
                 <legend className="mb-1 text-sm font-medium">
                     Participants
                 </legend>
-                {engineers.length > 0 ? (
-                    engineers.map((engineer) => (
+                {members.length > 0 ? (
+                    members.map((member) => (
                         <label
                             className="flex cursor-pointer items-start gap-3"
-                            key={engineer.id}
+                            key={member.id}
                         >
                             <input
                                 className="accent-primary mt-1 size-4"
                                 name="memberIds"
                                 type="checkbox"
-                                value={engineer.id}
+                                value={member.id}
                             />
                             <span className="grid gap-0.5">
                                 <span className="text-sm font-medium">
-                                    {engineer.name}
+                                    {member.name}
                                 </span>
                                 <span className="text-muted-foreground text-xs">
-                                    {engineer.email}
+                                    {member.email}
                                 </span>
                             </span>
                         </label>
                     ))
                 ) : (
                     <p className="text-muted-foreground text-sm">
-                        Add at least one engineer account, or include yourself
-                        below.
+                        There are no team members to add.
                     </p>
                 )}
-
-                <label className="flex cursor-pointer items-start gap-3 border-t pt-3">
-                    <input
-                        className="accent-primary mt-1 size-4"
-                        name="includeAdmin"
-                        type="checkbox"
-                        value="true"
-                    />
-                    <span className="grid gap-0.5">
-                        <span className="text-sm font-medium">Include me</span>
-                        <span className="text-muted-foreground text-xs">
-                            {adminName} will submit availability and can be
-                            assigned standby. This does not use an engineer
-                            account slot.
-                        </span>
-                    </span>
-                </label>
             </fieldset>
 
             <div aria-atomic="true" aria-live="polite">

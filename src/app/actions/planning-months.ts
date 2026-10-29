@@ -11,7 +11,7 @@ import {
     runLockedMonthTransaction,
 } from "@/lib/planning-month-lock";
 
-const MAX_MONTH_ENGINEERS = 10;
+const MAX_MONTH_PARTICIPANTS = 11;
 
 export type CreatePlanningMonthState = {
     error?: string;
@@ -160,7 +160,6 @@ export async function createPlanningMonth(
 ): Promise<CreatePlanningMonthState> {
     const adminSession = await requireAdmin();
     const rawMonth = formData.get("month");
-    const includeAdmin = formData.get("includeAdmin") === "true";
     const rawMemberIds = formData.getAll("memberIds");
 
     if (typeof rawMonth !== "string") {
@@ -178,27 +177,32 @@ export async function createPlanningMonth(
         return { error: "Choose a valid year." };
     }
 
+    if (formData.get("rosterVersion") !== "2") {
+        return {
+            error: "This form is out of date. Refresh the page and try again.",
+        };
+    }
     if (rawMemberIds.some((id) => typeof id !== "string")) {
-        return { error: "The selected engineer list is invalid." };
+        return { error: "The selected participant list is invalid." };
     }
 
     const selectedIds = rawMemberIds as string[];
     const uniqueSelectedIds = [...new Set(selectedIds)];
     if (uniqueSelectedIds.length !== selectedIds.length) {
-        return { error: "An engineer was selected more than once." };
+        return { error: "A participant was selected more than once." };
     }
 
-    if (selectedIds.length > MAX_MONTH_ENGINEERS) {
-        return { error: "A plan can include at most 10 engineer accounts." };
+    if (selectedIds.length > MAX_MONTH_PARTICIPANTS) {
+        return { error: "A plan can include at most 11 participants." };
     }
 
-    if (selectedIds.length === 0 && !includeAdmin) {
+    if (selectedIds.length === 0) {
         return { error: "Select at least one participant for this month." };
     }
 
     try {
         await prisma.$transaction(async (transaction) => {
-            const [existingMonth, selectedEngineers] = await Promise.all([
+            const [existingMonth, selectedMembers] = await Promise.all([
                 transaction.planningMonth.findUnique({
                     where: { year_month: { year, month } },
                     select: { id: true },
@@ -207,7 +211,7 @@ export async function createPlanningMonth(
                     ? transaction.user.findMany({
                           where: {
                               id: { in: uniqueSelectedIds },
-                              role: "ENGINEER",
+                              role: { in: ["ADMIN", "ENGINEER"] },
                           },
                           select: {
                               email: true,
@@ -225,25 +229,16 @@ export async function createPlanningMonth(
                 );
             }
 
-            if (selectedEngineers.length !== uniqueSelectedIds.length) {
-                throw new Error("Choose only existing engineer accounts.");
+            if (selectedMembers.length !== uniqueSelectedIds.length) {
+                throw new Error("Choose only existing team members.");
             }
 
-            const participants = selectedEngineers.map((engineer) => ({
-                emailSnapshot: engineer.email,
-                nameSnapshot: engineer.name,
-                roleSnapshot: engineer.role,
-                userId: engineer.id,
+            const participants = selectedMembers.map((member) => ({
+                emailSnapshot: member.email,
+                nameSnapshot: member.name,
+                roleSnapshot: member.role,
+                userId: member.id,
             }));
-
-            if (includeAdmin) {
-                participants.push({
-                    emailSnapshot: adminSession.user.email,
-                    nameSnapshot: adminSession.user.name,
-                    roleSnapshot: "ADMIN",
-                    userId: adminSession.user.id,
-                });
-            }
 
             await transaction.planningMonth.create({
                 data: {
@@ -272,27 +267,31 @@ export async function savePlanningMonthRoster(
     _previousState: PlanningMonthRosterState,
     formData: FormData,
 ): Promise<PlanningMonthRosterState> {
-    const adminSession = await requireAdmin();
+    await requireAdmin();
     const planningMonthId = String(
         formData.get("planningMonthId") ?? "",
     ).trim();
-    const includeAdmin = formData.get("includeAdmin") === "true";
     const rawMemberIds = formData.getAll("memberIds");
 
     if (!planningMonthId) return { error: "Planning month is missing." };
+    if (formData.get("rosterVersion") !== "2") {
+        return {
+            error: "This form is out of date. Refresh the page and try again.",
+        };
+    }
     if (rawMemberIds.some((id) => typeof id !== "string")) {
-        return { error: "The selected engineer list is invalid." };
+        return { error: "The selected participant list is invalid." };
     }
 
     const selectedIds = rawMemberIds as string[];
     const uniqueSelectedIds = [...new Set(selectedIds)];
     if (uniqueSelectedIds.length !== selectedIds.length) {
-        return { error: "An engineer was selected more than once." };
+        return { error: "A participant was selected more than once." };
     }
-    if (uniqueSelectedIds.length > MAX_MONTH_ENGINEERS) {
-        return { error: "A plan can include at most 10 engineer accounts." };
+    if (uniqueSelectedIds.length > MAX_MONTH_PARTICIPANTS) {
+        return { error: "A plan can include at most 11 participants." };
     }
-    if (!uniqueSelectedIds.length && !includeAdmin) {
+    if (!uniqueSelectedIds.length) {
         return { error: "Select at least one participant for this month." };
     }
 
@@ -316,59 +315,45 @@ export async function savePlanningMonthRoster(
                 );
             }
 
-            const selectedEngineers = uniqueSelectedIds.length
+            const selectedMembers = uniqueSelectedIds.length
                 ? await transaction.user.findMany({
                       where: {
                           id: { in: uniqueSelectedIds },
-                          role: "ENGINEER",
+                          role: { in: ["ADMIN", "ENGINEER"] },
                       },
                       select: { email: true, id: true, name: true, role: true },
                   })
                 : [];
-            if (selectedEngineers.length !== uniqueSelectedIds.length) {
-                throw new Error("Choose only existing engineer accounts.");
+            if (selectedMembers.length !== uniqueSelectedIds.length) {
+                throw new Error("Choose only existing team members.");
             }
 
             const desiredUserIds = new Set(uniqueSelectedIds);
-            if (includeAdmin) desiredUserIds.add(adminSession.user.id);
             const currentUserIds = new Set(
                 month.members.map((member) => member.userId),
             );
             const removedMemberIds = month.members
                 .filter((member) => !desiredUserIds.has(member.userId))
                 .map((member) => member.id);
-            const addedEngineers = selectedEngineers.filter(
-                (engineer) => !currentUserIds.has(engineer.id),
+            const addedMembers = selectedMembers.filter(
+                (member) => !currentUserIds.has(member.id),
             );
-            const addAdmin =
-                includeAdmin && !currentUserIds.has(adminSession.user.id);
 
             if (removedMemberIds.length) {
                 await transaction.planningMember.deleteMany({
                     where: { id: { in: removedMemberIds } },
                 });
             }
-            if (addedEngineers.length || addAdmin) {
+            if (addedMembers.length) {
                 await transaction.planningMember.createMany({
                     data: [
-                        ...addedEngineers.map((engineer) => ({
-                            emailSnapshot: engineer.email,
-                            nameSnapshot: engineer.name,
-                            roleSnapshot: engineer.role,
+                        ...addedMembers.map((member) => ({
+                            emailSnapshot: member.email,
+                            nameSnapshot: member.name,
+                            roleSnapshot: member.role,
                             planningMonthId: month.id,
-                            userId: engineer.id,
+                            userId: member.id,
                         })),
-                        ...(addAdmin
-                            ? [
-                                  {
-                                      emailSnapshot: adminSession.user.email,
-                                      nameSnapshot: adminSession.user.name,
-                                      roleSnapshot: "ADMIN",
-                                      planningMonthId: month.id,
-                                      userId: adminSession.user.id,
-                                  },
-                              ]
-                            : []),
                     ],
                 });
             }

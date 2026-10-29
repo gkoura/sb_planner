@@ -7,8 +7,8 @@ multi-tenant SaaS product.
 Team members sign in to see who is on standby today, submit their availability,
 and review published schedules. Administrators create planning months, choose
 participants, generate or import schedules, review them, and publish an
-immutable version for the team. A monthly roster currently supports up to 10
-engineers plus an optional participating admin.
+immutable version for the team. A monthly roster currently supports up to 11
+team members, regardless of whether they are admins or engineers.
 
 ## What it does
 

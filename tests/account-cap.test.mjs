@@ -28,6 +28,8 @@ const state = (globalThis.__accountCapTest = {
     users: [],
     createdMonth: null,
     rosterAdded: null,
+    monthMembers: [],
+    removedIds: [],
 });
 const tx = {
     async $executeRaw() {},
@@ -43,7 +45,8 @@ const tx = {
         async findMany({ where }) {
             return state.users.filter(
                 (user) =>
-                    where.id.in.includes(user.id) && user.role === where.role,
+                    where.id.in.includes(user.id) &&
+                    where.role.in.includes(user.role),
             );
         },
         async create({ data }) {
@@ -58,7 +61,7 @@ const tx = {
                 : {
                       id: "month",
                       status: "DRAFT",
-                      members: [],
+                      members: state.monthMembers,
                       scheduleRuns: [],
                   };
         },
@@ -67,6 +70,9 @@ const tx = {
         },
     },
     planningMember: {
+        async deleteMany({ where }) {
+            state.removedIds = where.id.in;
+        },
         async createMany({ data }) {
             state.rosterAdded = data;
         },
@@ -89,11 +95,14 @@ function resetUsers() {
     }));
     state.createdMonth = null;
     state.rosterAdded = null;
+    state.monthMembers = [];
+    state.removedIds = [];
 }
 function rosterForm(count) {
     const form = new FormData();
     form.set("month", "2027-01");
     form.set("planningMonthId", "month");
+    form.set("rosterVersion", "2");
     for (let i = 0; i < count; i++) form.append("memberIds", `user-${i}`);
     return form;
 }
@@ -125,11 +134,61 @@ test("month creation and roster editing work when the team has more than ten eng
 
 test("the existing monthly roster limit still applies", async () => {
     resetUsers();
-    const form = rosterForm(11);
+    const form = rosterForm(12);
     const create = await createPlanningMonth({}, form);
     const update = await savePlanningMonthRoster({}, form);
-    assert.match(create.error, /at most 10 engineer/);
-    assert.match(update.error, /at most 10 engineer/);
+    assert.match(create.error, /at most 11 participants/);
+    assert.match(update.error, /at most 11 participants/);
     assert.equal(state.createdMonth, null);
     assert.equal(state.rosterAdded, null);
+});
+
+test("admins and engineers can participate together or in an all-admin month", async () => {
+    resetUsers();
+    state.users[0].role = "ADMIN";
+    state.users[1].role = "ADMIN";
+    let result = await createPlanningMonth({}, rosterForm(3));
+    assert.ok(result.success, result.error);
+    assert.deepEqual(
+        state.createdMonth.members.create.map((member) => member.roleSnapshot),
+        ["ADMIN", "ADMIN", "ENGINEER"],
+    );
+    state.createdMonth = null;
+    result = await createPlanningMonth({}, rosterForm(2));
+    assert.ok(result.success, result.error);
+    assert.deepEqual(
+        state.createdMonth.members.create.map((member) => member.roleSnapshot),
+        ["ADMIN", "ADMIN"],
+    );
+    result = await savePlanningMonthRoster({}, rosterForm(2));
+    assert.ok(result.success, result.error);
+    assert.equal(state.rosterAdded.length, 2);
+});
+
+test("a promoted participant stays in the roster without losing their submission", async () => {
+    resetUsers();
+    state.users[0].role = "ADMIN";
+    state.monthMembers = [{ id: "existing-member", userId: "user-0" }];
+    const result = await savePlanningMonthRoster({}, rosterForm(1));
+    assert.ok(result.success, result.error);
+    assert.deepEqual(state.removedIds, []);
+    assert.equal(state.rosterAdded, null);
+});
+
+test("eleven participants are accepted, independent of role", async () => {
+    resetUsers();
+    for (const user of state.users) user.role = "ADMIN";
+    const result = await createPlanningMonth({}, rosterForm(11));
+    assert.ok(result.success, result.error);
+    assert.equal(state.createdMonth.members.create.length, 11);
+});
+
+test("an old roster form cannot overwrite the roster", async () => {
+    resetUsers();
+    const form = rosterForm(1);
+    form.delete("rosterVersion");
+    const result = await savePlanningMonthRoster({}, form);
+    assert.match(result.error, /out of date/);
+    assert.equal(state.rosterAdded, null);
+    assert.deepEqual(state.removedIds, []);
 });

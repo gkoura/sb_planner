@@ -41,8 +41,7 @@ export default function PlanningMonthsPage() {
 
                 <p className="text-muted-foreground">
                     Choose who will participate in each month. Membership is
-                    saved as a snapshot, and you can opt into a month without
-                    using an engineer slot.
+                    saved as a snapshot, regardless of admin access.
                 </p>
 
                 <p className="text-muted-foreground text-sm">
@@ -85,9 +84,9 @@ function PlanningMonthsFallback() {
 }
 
 async function PlanningMonthsContent() {
-    const session = await requireAdmin();
+    await requireAdmin();
 
-    const [months, engineers] = await Promise.all([
+    const [months, members] = await Promise.all([
         prisma.planningMonth.findMany({
             include: {
                 scheduleRuns: {
@@ -112,7 +111,7 @@ async function PlanningMonthsContent() {
         }),
 
         prisma.user.findMany({
-            where: { role: "ENGINEER" },
+            where: { role: { in: ["ADMIN", "ENGINEER"] } },
             orderBy: { name: "asc" },
             select: {
                 email: true,
@@ -298,15 +297,13 @@ async function PlanningMonthsContent() {
                     <CardTitle>Create a month</CardTitle>
 
                     <CardDescription>
-                        Select engineers and decide whether to join the rotation
-                        yourself.
+                        Select team members to join the rotation.
                     </CardDescription>
                 </CardHeader>
 
                 <CardContent>
                     <CreatePlanningMonthForm
-                        adminName={session.user.name}
-                        engineers={engineers}
+                        members={members}
                         monthValue={monthValue}
                     />
                 </CardContent>

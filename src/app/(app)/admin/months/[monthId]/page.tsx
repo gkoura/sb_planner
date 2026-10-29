@@ -75,11 +75,11 @@ async function PlanningMonthContent({
     params,
     searchParams,
 }: PlanningMonthPageProps) {
-    const admin = await requireAdmin();
+    await requireAdmin();
     const [{ monthId }, query] = await Promise.all([params, searchParams]);
     const requestedVersionId =
         typeof query.version === "string" ? query.version : undefined;
-    const [month, engineers] = await Promise.all([
+    const [month, members] = await Promise.all([
         prisma.planningMonth.findUnique({
             where: { id: monthId },
             include: {
@@ -111,7 +111,7 @@ async function PlanningMonthContent({
             },
         }),
         prisma.user.findMany({
-            where: { role: "ENGINEER" },
+            where: { role: { in: ["ADMIN", "ENGINEER"] } },
             orderBy: { name: "asc" },
             select: { email: true, id: true, name: true },
         }),
@@ -197,15 +197,11 @@ async function PlanningMonthContent({
 
             {canEditParticipation ? (
                 <PlanningMonthRosterForm
-                    adminName={admin.user.name}
-                    engineers={engineers}
-                    includeAdmin={month.members.some(
-                        (member) => member.userId === admin.user.id,
-                    )}
+                    members={members}
                     planningMonthId={month.id}
-                    selectedEngineerIds={month.members
-                        .filter((member) => member.roleSnapshot === "ENGINEER")
-                        .map((member) => member.userId)}
+                    selectedMemberIds={month.members.map(
+                        (member) => member.userId,
+                    )}
                 />
             ) : null}
 

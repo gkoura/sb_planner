@@ -48,7 +48,7 @@ const { submitAvailabilityForMember } =
     await import("../../src/app/actions/availability.ts");
 const { createScheduleRun } =
     await import("../../src/app/actions/schedules.ts");
-const { deletePlanningMonth } =
+const { deletePlanningMonth, savePlanningMonthRoster } =
     await import("../../src/app/actions/planning-months.ts");
 after(async () => prisma.$disconnect());
 
@@ -170,7 +170,10 @@ test("revising availability replaces dates and retains the new selection", async
         where: { planningMemberId: members[0].id },
         include: { dates: true },
     });
-    assert.deepEqual(saved.dates.map(({ date }) => date), [first]);
+    assert.deepEqual(
+        saved.dates.map(({ date }) => date),
+        [first],
+    );
 
     form.delete("dates");
     form.append("dates", second);
@@ -179,7 +182,10 @@ test("revising availability replaces dates and retains the new selection", async
         where: { planningMemberId: members[0].id },
         include: { dates: true },
     });
-    assert.deepEqual(saved.dates.map(({ date }) => date), [second]);
+    assert.deepEqual(
+        saved.dates.map(({ date }) => date),
+        [second],
+    );
 });
 
 test("concurrent final submissions both persist and leave the month ready", async () => {
@@ -308,4 +314,32 @@ test("a long-held month lock returns an actionable retry message", async () => {
         where: { id: month.id },
     });
     assert.equal(saved.status, "COLLECTING");
+});
+
+test("promoting a roster member and saving keeps their availability", async () => {
+    const { month, members } = await fixture(true);
+    const original = await prisma.availabilitySubmission.findUnique({
+        where: { planningMemberId: members[0].id },
+    });
+    await prisma.user.update({
+        where: { id: members[0].userId },
+        data: { role: "ADMIN" },
+    });
+    const form = new FormData();
+    form.set("planningMonthId", month.id);
+    form.set("rosterVersion", "2");
+    for (const member of members) form.append("memberIds", member.userId);
+    const result = await savePlanningMonthRoster({}, form);
+    assert.ok(result.success, JSON.stringify(result));
+    const retained = await prisma.planningMember.findUnique({
+        where: { id: members[0].id },
+        include: { availabilitySubmission: true },
+    });
+    assert.equal(retained.availabilitySubmission.id, original.id);
+    assert.equal(retained.roleSnapshot, "ENGINEER");
+    assert.equal(
+        (await prisma.planningMonth.findUnique({ where: { id: month.id } }))
+            .status,
+        "READY",
+    );
 });

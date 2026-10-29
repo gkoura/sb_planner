@@ -59,7 +59,7 @@ whether historical schedules keep the old semantics in the decision log.
 | Authentication     | Better Auth + Prisma adapter, email/password only at first                                                                                      | Fits the requested practice goal without OAuth configuration or paid services. Account creation will be invite/admin controlled.                                                                                        |
 | Auth UI            | Better Auth UI components through its shadcn registry, with shadcn/ui as the general component foundation                                       | Keeps ownership of copied UI code and avoids building routine auth screens. Pin and verify compatible versions during implementation.                                                                                   |
 | Authorization      | One application-level `ADMIN` role and `ENGINEER` role; multiple accounts may be admins                                                         | Better Auth authenticates; our app authorizes. Admin status grants team and schedule management, independent of someone's real-world team title. Keep one team only; do not add organizations or multi-tenancy.         |
-| Schedule algorithm | Implement a small, pure TypeScript scheduling module inside this app                                                                            | A monthly roster is currently bounded (<= 10 engineers plus an optional admin × <= 31 days), runs on demand, and needs no network or separate runtime. A pure module is easy to test and deploy.                                                              |
+| Schedule algorithm | Implement a small, pure TypeScript scheduling module inside this app                                                                            | A monthly roster is currently bounded (<= 11 participants × <= 31 days), runs on demand, and needs no network or separate runtime. A pure module is easy to test and deploy.                                                              |
 | No Python service  | Do not create an external Python/OR-Tools service for v1                                                                                        | It adds a second deployment, authentication boundary, observability surface, and non-zero hosting risk without a benefit at this scale. Reconsider only if future rules make the in-app solver demonstrably inadequate. |
 | Deployment         | Deploy the Next.js app to a free hosting tier compatible with the selected database and Better Auth; keep secrets in host environment variables | The exact host is intentionally deferred until dependencies and provider free tiers are checked at deployment time.                                                                                                     |
 
@@ -176,10 +176,9 @@ saved pairings.
 
 ## v1 scope and user flow
 
-1. Admin creates a month, selects eligible engineers and may opt themselves
-   into that month's rotation, then opens collection. Admin participation is
-   optional; the current monthly roster supports at most 10 engineers plus the
-   participating admin. There is no team-wide engineer-account cap.
+1. Admin creates a month, selects participating team members regardless of role,
+   then opens collection. Participation is optional; the current monthly roster
+   supports at most 11 participants. There is no team-wide engineer-account cap.
 2. Engineers sign in, view the active month, and toggle unavailable dates on a
    calendar. They can save and revise until collection is closed.
 3. The admin sees submission progress (submitted / total) but not an implied
@@ -644,6 +643,17 @@ this environment.
   part of the design.
 
 ## Decision log
+
+**2026-10-29 — Superseding decision: monthly participation and admin roles.**
+All team members can be selected for a planning month, including any number of
+admins, because admin access does not affect standby eligibility. Replace the
+10-engineer-plus-optional-admin roster limit with the scheduler's existing limit
+of 11 total participants. Existing monthly snapshots and saved submissions are
+retained when an account's role changes. Outdated roster forms require a refresh
+before saving. This supersedes the earlier role-specific roster limit without
+changing historical schedules. Verification: all 40 unit/action tests, seven
+local PostgreSQL integration tests, TypeScript, full ESLint, production build,
+and diff checks pass. Interactive browser review remains pending.
 
 **2026-10-29 — Superseding decision: engineer account count.** Remove the
 ten-engineer account limit: the number was an estimate of the team's size,
