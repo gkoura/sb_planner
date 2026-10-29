@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import { AdminOverview } from "@/components/home/admin-overview";
 import { AvailabilityOverview } from "@/components/home/availability-overview";
+import { EmergencyContactCard } from "@/components/home/emergency-contact-card";
 import { HomeHeader } from "@/components/home/home-header";
 import { PersonalMonthReport } from "@/components/home/personal-month-report";
 import { TodayStandbyCard } from "@/components/home/today-standby-card";
@@ -42,6 +43,7 @@ async function HomeContent() {
                 name={session.user.name}
             />
             <TodayStandbyCard assignment={data.todayAssignment} today={today} />
+            <EmergencyContactCard />
             <PersonalMonthReport
                 schedule={data.personalSchedule}
                 today={today}

@@ -674,6 +674,11 @@ this environment.
 
 ## Decision log
 
+**2026-10-29 — Emergency contact on the team hub.** Show the MR Operators
+emergency contact (`2103578130`) on every signed-in home dashboard as a
+prominent, tap-to-call card. It is a shared operational escalation contact,
+not a replacement for the published on-standby engineer's contact number.
+
 **2026-10-29 — Superseding decision: monthly participation and admin roles.**
 All team members can be selected for a planning month, including any number of
 admins, because admin access does not affect standby eligibility. Replace the
