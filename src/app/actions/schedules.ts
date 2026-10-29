@@ -1,5 +1,6 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 
 import { requireAdmin } from "@/lib/auth-guard";
@@ -707,7 +708,72 @@ export async function createScheduleRun(
             participationMode: member.participationMode,
             shadowDayCount: member.shadowDayCount,
         }));
-        const generated = generateSchedule(month.year, month.month, members);
+        const neighbors = [
+            month.month === 1
+                ? { year: month.year - 1, month: 12 }
+                : { year: month.year, month: month.month - 1 },
+            month.month === 12
+                ? { year: month.year + 1, month: 1 }
+                : { year: month.year, month: month.month + 1 },
+        ];
+        const memberIdByUser = new Map(
+            month.members.map((member) => [member.userId, member.id]),
+        );
+        const boundaryIds = await Promise.all(
+            neighbors.map(async (neighbor, index) => {
+                if (neighbor.year < 1 || neighbor.year > 9999) return [];
+                const day =
+                    index === 0
+                        ? daysInCalendarMonth(neighbor.year, neighbor.month)
+                        : 1;
+                const date = `${String(neighbor.year).padStart(4, "0")}-${String(neighbor.month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+                const run = await transaction.scheduleRun.findFirst({
+                    where: {
+                        planningMonth: {
+                            year: neighbor.year,
+                            month: neighbor.month,
+                            status: "PUBLISHED",
+                        },
+                        publishedAt: { not: null },
+                    },
+                    orderBy: [{ publishedAt: "desc" }, { version: "desc" }],
+                    select: {
+                        assignments: {
+                            where: { date },
+                            select: {
+                                planningMember: { select: { userId: true } },
+                                shadows: {
+                                    select: {
+                                        shadowMember: {
+                                            select: { userId: true },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                });
+                const assignment = run?.assignments[0];
+                if (!assignment) return [];
+                return [
+                    assignment.planningMember.userId,
+                    ...assignment.shadows.map(
+                        (shadow) => shadow.shadowMember.userId,
+                    ),
+                ].flatMap((userId) => {
+                    const id = memberIdByUser.get(userId);
+                    return id ? [id] : [];
+                });
+            }),
+        );
+        const boundaries = { previous: boundaryIds[0], next: boundaryIds[1] };
+        const generated = generateSchedule(
+            month.year,
+            month.month,
+            members,
+            undefined,
+            boundaries,
+        );
 
         if (!generated.ok) return { error: generated.message };
 
@@ -738,50 +804,49 @@ export async function createScheduleRun(
                     })),
                     month: month.month,
                     year: month.year,
+                    boundaries,
                 }),
                 planningMonthId: month.id,
                 version,
-                assignments: {
-                    create: generated.assignments.map((assignment) => {
-                        const member = memberById.get(assignment.memberId);
-                        if (!member)
-                            throw new Error(
-                                "A generated assignment has an unknown participant.",
-                            );
-
-                        return {
-                            date: assignment.date,
-                            nameSnapshot: assignment.name,
-                            planningMemberId: member.id,
-                            roleSnapshot: member.roleSnapshot,
-                            shadows: {
-                                create: generated.shadows
-                                    .filter(
-                                        (shadow) =>
-                                            shadow.date === assignment.date,
-                                    )
-                                    .map((shadow) => {
-                                        const shadowMember = memberById.get(
-                                            shadow.shadowMemberId,
-                                        );
-                                        if (!shadowMember)
-                                            throw new Error(
-                                                "A generated shadow has an unknown participant.",
-                                            );
-                                        return {
-                                            kind: shadow.kind,
-                                            nameSnapshot: shadow.name,
-                                            roleSnapshot:
-                                                shadowMember.roleSnapshot,
-                                            shadowMemberId: shadowMember.id,
-                                        };
-                                    }),
-                            },
-                        };
-                    }),
-                },
             },
         });
+
+        const assignments = generated.assignments.map((assignment) => {
+            const member = memberById.get(assignment.memberId);
+            if (!member)
+                throw new Error(
+                    "A generated assignment has an unknown participant.",
+                );
+            return {
+                id: randomUUID(),
+                scheduleRunId: scheduleRun.id,
+                date: assignment.date,
+                nameSnapshot: assignment.name,
+                planningMemberId: member.id,
+                roleSnapshot: member.roleSnapshot,
+            };
+        });
+        await transaction.scheduleAssignment.createMany({ data: assignments });
+        const assignmentByDate = new Map(
+            assignments.map((assignment) => [assignment.date, assignment.id]),
+        );
+        const shadows = generated.shadows.map((shadow) => {
+            const shadowMember = memberById.get(shadow.shadowMemberId);
+            const assignmentId = assignmentByDate.get(shadow.date);
+            if (!shadowMember || !assignmentId)
+                throw new Error(
+                    "A generated shadow has an unknown participant or date.",
+                );
+            return {
+                scheduleAssignmentId: assignmentId,
+                kind: shadow.kind,
+                nameSnapshot: shadow.name,
+                roleSnapshot: shadowMember.roleSnapshot,
+                shadowMemberId: shadowMember.id,
+            };
+        });
+        if (shadows.length > 0)
+            await transaction.scheduleShadow.createMany({ data: shadows });
 
         await transaction.planningMonth.update({
             where: { id: month.id },

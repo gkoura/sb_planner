@@ -243,6 +243,36 @@ state becomes invalid if the month status or current run changes.
 
 ## Delivery milestones
 
+**Schedule generation persistence (2026-10-29):** after a reported PostgreSQL
+foreign-key failure in Prisma's nested run creation, generation now inserts the
+run, assignments, and shadows in explicit parent-first batches within the same
+locked transaction. The configured development database has the expected
+foreign keys and no custom triggers on these tables. The original error did not
+reproduce locally, so its precise cause remains unconfirmed. Nine isolated
+PostgreSQL integration tests pass, including generation with mentoring shadows
+and rollback after a forced assignment failure; all 44 unit tests, TypeScript,
+and ESLint pass. Retry in the affected development environment remains needed.
+
+**Weekend fairness and neighboring months (2026-10-29):** new generated runs
+use `v4-weekends-boundaries`. This supersedes the prior primary-only fairness
+objective: generation gives equal weight to total primary deviation normalized
+by month length and weekend primary deviation normalized by weekend count.
+Historical runs retain their original semantics, and the stored/displayed
+fairness score remains the existing total-primary measure. Generation reads the
+latest published run in each neighboring month, maps primary and shadow duties
+through user IDs, and excludes those people at the adjacent boundary. Missing
+published neighbors impose no restriction. Boundary inputs are saved in new run
+snapshots. Candidate generation checks the published state at generation time;
+publication, manual edits, imports, and restoration do not revalidate neighboring
+months, and neighboring months are not locked together. A later change or
+concurrent publication can therefore introduce a boundary conflict; enforcing
+this across all lifecycle paths remains open. No neighboring schedule is changed
+automatically. Focused scheduler regression tests cover balanced weekends,
+exhaustive comparison for a constrained month, boundary restrictions, mandatory
+conflicts, and shadow behavior. All 44 tests, TypeScript, ESLint, and the
+webpack production build pass. The default Turbopack build could not bind a
+local port in the sandbox; database-backed neighbor retrieval remains untested.
+
 **Database SSL configuration (2026-10-29):** changed the local Neon runtime
 URL from `sslmode=require` to `sslmode=verify-full`, preserving the pg driver's
 current certificate and hostname verification while avoiding its upcoming
@@ -714,9 +744,9 @@ and authentication boundaries.
    service is needed.
 2. **Resolved:** generation is blocked until all planning members have
    submitted; early generation exceptions are not in v1.
-3. Are weekends/holidays weighted differently, and should fairness carry over
-   from previous months? Current source behaviour treats every date equally and
-   each month independently.
+3. **Partly resolved 2026-10-29:** generated schedules balance weekend and total
+   primary duties within each month. Public holidays and fairness carryover
+   across months remain open.
 4. Should v1 include CSV/Excel or image export, or only the in-app calendar?
 5. **Resolved:** initial deployment uses Netlify Free + Neon Free PostgreSQL;
    production starts empty. Apply a new PostgreSQL migration baseline, with no

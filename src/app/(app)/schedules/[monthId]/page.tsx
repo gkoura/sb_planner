@@ -177,7 +177,7 @@ async function PublishedScheduleContent({
                         <CardTitle>Standby schedule</CardTitle>
 
                         <CardDescription>
-                            Official version {run.version} · fairness score{" "}
+                            Official version {run.version} · primary workload fairness score{" "}
                             {run.fairnessScore} · lower is more balanced
                         </CardDescription>
                     </div>

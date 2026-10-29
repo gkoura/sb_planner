@@ -129,6 +129,58 @@ function monthForm(monthId) {
     data.set("planningMonthId", monthId);
     return data;
 }
+
+test("generation persists primary and shadow assignments in one transaction", async () => {
+    const { month, members } = await fixture(true);
+    await prisma.planningMember.update({
+        where: { id: members[0].id },
+        data: { participationMode: "MENTORED" },
+    });
+    const result = await createScheduleRun({}, monthForm(month.id));
+    assert.ok(result.success, JSON.stringify(result));
+    const saved = await prisma.planningMonth.findUniqueOrThrow({
+        where: { id: month.id },
+        include: {
+            scheduleRuns: {
+                include: { assignments: { include: { shadows: true } } },
+            },
+        },
+    });
+    assert.equal(saved.status, "GENERATED");
+    assert.equal(saved.scheduleRuns.length, 1);
+    assert.ok(
+        saved.scheduleRuns[0].assignments.some(
+            (assignment) => assignment.shadows.length > 0,
+        ),
+    );
+    assert.ok(
+        saved.scheduleRuns[0].assignments.every(
+            (assignment) =>
+                (assignment.planningMemberId === members[0].id) ===
+                (assignment.shadows.length === 1),
+        ),
+    );
+});
+
+test("a failed assignment insert rolls back the run and month status", async () => {
+    const { month } = await fixture(true);
+    await prisma.$executeRawUnsafe(
+        `ALTER TABLE "ScheduleAssignment" ADD CONSTRAINT "test_generation_rollback" CHECK ("nameSnapshot" <> 'Member 0') NOT VALID`,
+    );
+    try {
+        await assert.rejects(createScheduleRun({}, monthForm(month.id)));
+        const saved = await prisma.planningMonth.findUniqueOrThrow({
+            where: { id: month.id },
+            include: { scheduleRuns: true },
+        });
+        assert.equal(saved.status, "READY");
+        assert.equal(saved.scheduleRuns.length, 0);
+    } finally {
+        await prisma.$executeRawUnsafe(
+            `ALTER TABLE "ScheduleAssignment" DROP CONSTRAINT "test_generation_rollback"`,
+        );
+    }
+});
 async function holdMonth(monthId) {
     let acquired;
     const locked = new Promise((resolve) => {

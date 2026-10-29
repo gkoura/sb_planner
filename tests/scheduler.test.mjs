@@ -338,3 +338,157 @@ test("the shared state budget reports a search limit without claiming infeasibil
     assert.equal(result.code, "SEARCH_LIMIT");
     assert.equal(result.visitedStates, 250_000);
 });
+
+test("weekend fairness reaches the balanced optimum in eight and ten weekend months", () => {
+    const members = ["A", "B", "C", "D"].map((id) => ({
+        id,
+        name: id,
+        mode: "UNAVAILABLE",
+        dates: [],
+    }));
+    for (const [year, month, expectedWeekends] of [
+        [2026, 2, 8],
+        [2026, 5, 10],
+    ]) {
+        const result = generateSchedule(year, month, members);
+        assertValidSchedule(result, year, month, members);
+        const counts = Object.fromEntries(members.map(({ id }) => [id, 0]));
+        for (const assignment of result.assignments) {
+            const weekday = new Date(
+                `${assignment.date}T00:00:00Z`,
+            ).getUTCDay();
+            if (weekday === 0 || weekday === 6) counts[assignment.memberId]++;
+        }
+        assert.equal(
+            Object.values(counts).reduce((a, b) => a + b, 0),
+            expectedWeekends,
+        );
+        assert.ok(
+            Math.max(...Object.values(counts)) -
+                Math.min(...Object.values(counts)) <=
+                1,
+        );
+        assert.deepEqual(
+            result,
+            generateSchedule(year, month, [...members].reverse()),
+        );
+    }
+});
+
+test("boundary restrictions apply to both edges and mandatory assignments", () => {
+    const members = ["A", "B", "C", "D"].map((id) => ({
+        id,
+        name: id,
+        mode: "UNAVAILABLE",
+        dates: [],
+    }));
+    const result = generateSchedule(2027, 1, members, undefined, {
+        previous: ["A", "B"],
+        next: ["C", "D"],
+    });
+    assertValidSchedule(result, 2027, 1, members);
+    assert.ok(!["A", "B"].includes(result.assignments[0].memberId));
+    assert.ok(!["C", "D"].includes(result.assignments.at(-1).memberId));
+    const mandatory = [
+        ...members,
+        {
+            id: "M",
+            name: "M",
+            mode: "AVAILABLE",
+            dates: ["2027-01-01", "2027-01-10", "2027-01-20"],
+        },
+    ];
+    const conflict = generateSchedule(2027, 1, mandatory, undefined, {
+        previous: ["M"],
+    });
+    assert.equal(conflict.ok, false);
+    assert.equal(conflict.code, "INFEASIBLE");
+    assert.match(conflict.message, /mandatory.*2027-01-01.*neighboring/);
+});
+
+test("training and mentoring shadows cannot work at a blocked boundary", () => {
+    const base = ["A", "B", "C", "D"].map((id) => ({
+        id,
+        name: id,
+        mode: "UNAVAILABLE",
+        dates: [],
+    }));
+    const trainee = {
+        id: "T",
+        name: "T",
+        mode: "AVAILABLE",
+        dates: ["2026-02-01"],
+        participationMode: "TRAINEE",
+        shadowDayCount: 1,
+    };
+    const training = generateSchedule(2026, 2, [...base, trainee], undefined, {
+        previous: ["T"],
+    });
+    assert.equal(training.ok, false);
+    assert.equal(training.code, "INFEASIBLE");
+    const members = base.map((member) => ({
+        ...member,
+        participationMode: member.id === "A" ? "MENTORED" : "NORMAL",
+    }));
+    const result = generateSchedule(2026, 2, members, undefined, {
+        previous: ["B", "C"],
+        next: ["D"],
+    });
+    assertValidSchedule(result, 2026, 2, members);
+    for (const shadow of result.shadows) {
+        if (shadow.date === "2026-02-01")
+            assert.ok(!["B", "C"].includes(shadow.shadowMemberId));
+        if (shadow.date === "2026-02-28")
+            assert.notEqual(shadow.shadowMemberId, "D");
+    }
+});
+
+test("combined fairness matches exhaustive search with constrained weekend availability", () => {
+    const ids = ["A", "B", "C"];
+    const days = 28;
+    const flexible = new Set([1, 4, 8, 12, 19, 25]);
+    const choices = Array.from({ length: days }, (_, i) => {
+        const primary = ids[i % ids.length];
+        return flexible.has(i)
+            ? [primary, ids[(i + 1) % ids.length]]
+            : [primary];
+    });
+    const date = (i) => `2026-02-${String(i + 1).padStart(2, "0")}`;
+    const members = ids.map((id) => ({
+        id,
+        name: id,
+        mode: "AVAILABLE",
+        dates: choices.flatMap((options, i) =>
+            options.includes(id) ? [date(i)] : [],
+        ),
+    }));
+    const weekend = (i) =>
+        [0, 6].includes(new Date(`${date(i)}T00:00:00Z`).getUTCDay());
+    const score = (rotation) => {
+        const totals = ids.map((id) => rotation.filter((x) => x === id).length);
+        const weekends = ids.map(
+            (id) => rotation.filter((x, i) => x === id && weekend(i)).length,
+        );
+        return (
+            8 * totals.reduce((sum, n) => sum + Math.abs(3 * n - 28), 0) +
+            28 * weekends.reduce((sum, n) => sum + Math.abs(3 * n - 8), 0)
+        );
+    };
+    let optimum = Infinity;
+    function enumerate(rotation) {
+        const i = rotation.length;
+        if (i === days) {
+            optimum = Math.min(optimum, score(rotation));
+            return;
+        }
+        for (const id of choices[i])
+            if (rotation.at(-1) !== id) enumerate([...rotation, id]);
+    }
+    enumerate([]);
+    const result = generateSchedule(2026, 2, members);
+    assertValidSchedule(result, 2026, 2, members);
+    assert.equal(
+        score(result.assignments.map(({ memberId }) => memberId)),
+        optimum,
+    );
+});

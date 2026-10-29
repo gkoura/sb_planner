@@ -1,4 +1,6 @@
-export const SCHEDULER_ALGORITHM_VERSION = "v3-shadow-feasibility";
+export const SCHEDULER_ALGORITHM_VERSION = "v4-weekends-boundaries";
+
+export type ScheduleBoundaries = { previous?: string[]; next?: string[] };
 
 const MAX_SEARCH_STATES = 250_000;
 const MANDATORY_AVAILABILITY_LIMIT = 5;
@@ -86,6 +88,7 @@ function generatePrimarySchedule(
     budget: SearchBudget,
     placeShadows: (assignments: ScheduleAssignmentResult[]) => ScheduleResult,
     canStillPlaceTraining: (assignments: (string | undefined)[]) => boolean,
+    boundaries: ScheduleBoundaries,
 ): ScheduleResult {
     if (!Number.isInteger(year) || year < 1 || year > 9999) {
         return failure("INVALID_INPUT", "Choose a valid planning year.");
@@ -126,6 +129,15 @@ function generatePrimarySchedule(
 
     const days = daysInMonth(year, month);
     const allDays = Array.from({ length: days }, (_, index) => index + 1);
+    const blocked = (id: string, day: number) =>
+        (day === 1 && boundaries.previous?.includes(id)) ||
+        (day === days && boundaries.next?.includes(id));
+    const weekend = allDays.map((day) => {
+        const date = new Date(0);
+        date.setUTCFullYear(year, month - 1, day);
+        return date.getUTCDay() === 0 || date.getUTCDay() === 6;
+    });
+    const weekendDays = weekend.filter(Boolean).length;
     let normalizedMembers: (SchedulerMemberInput & {
         availableDays: Set<number>;
     })[];
@@ -203,6 +215,11 @@ function generatePrimarySchedule(
         if (member.availableDays.size > MANDATORY_AVAILABILITY_LIMIT) continue;
 
         for (const day of member.availableDays) {
+            if (blocked(member.id, day))
+                return failure(
+                    "INFEASIBLE",
+                    `${member.name} has a mandatory assignment on ${dateLabel(year, month, day)} but worked on the adjacent day in a neighboring published schedule.`,
+                );
             const existing = assignments[day - 1];
             if (existing !== -1 && existing !== memberIndex) {
                 return failure(
@@ -228,10 +245,16 @@ function generatePrimarySchedule(
     }
 
     const participantCount = normalizedMembers.length;
+    const weekendWorkloads = Array<number>(participantCount).fill(0);
+    assignments.forEach((memberIndex, dayIndex) => {
+        if (memberIndex !== -1 && weekend[dayIndex])
+            weekendWorkloads[memberIndex] += 1;
+    });
     const eligibleForDay = (dayIndex: number) =>
         availableMembersByDay[dayIndex].filter(
             (memberIndex) =>
                 assignments[dayIndex] === -1 &&
+                !blocked(normalizedMembers[memberIndex].id, dayIndex + 1) &&
                 assignments[dayIndex - 1] !== memberIndex &&
                 assignments[dayIndex + 1] !== memberIndex,
         );
@@ -242,6 +265,17 @@ function generatePrimarySchedule(
             0,
         );
 
+    const weekendScore = (counts: number[]) =>
+        counts.reduce(
+            (score, count) =>
+                score + Math.abs(participantCount * count - weekendDays),
+            0,
+        );
+    // Equivalent to equal-weight deviations normalized by the number of days.
+    const combinedScore = () =>
+        weekendDays * fairnessScore(workloads) +
+        days * weekendScore(weekendWorkloads);
+
     let bestScore = Number.POSITIVE_INFINITY;
     let bestAssignments: number[] | undefined;
     let bestWorkloads: number[] | undefined;
@@ -250,7 +284,11 @@ function generatePrimarySchedule(
     let evaluationFailure: ScheduleResult | undefined;
     let optimalScoreReached = false;
 
-    const lowerBound = () => {
+    const metricLowerBound = (
+        counts: number[],
+        targetDays: number,
+        includeDay: (index: number) => boolean,
+    ) => {
         let bound = 0;
         const potentialDaysByMember = Array<number>(participantCount).fill(0);
         for (
@@ -260,7 +298,12 @@ function generatePrimarySchedule(
         ) {
             let potentialDays = 0;
             for (let dayIndex = 0; dayIndex < days; dayIndex += 1) {
-                if (assignments[dayIndex] !== -1) continue;
+                if (
+                    assignments[dayIndex] !== -1 ||
+                    !includeDay(dayIndex) ||
+                    blocked(normalizedMembers[memberIndex].id, dayIndex + 1)
+                )
+                    continue;
                 if (
                     availableMembersByDay[dayIndex].includes(memberIndex) &&
                     assignments[dayIndex - 1] !== memberIndex &&
@@ -270,24 +313,25 @@ function generatePrimarySchedule(
             }
 
             potentialDaysByMember[memberIndex] = potentialDays;
-            const minCount = workloads[memberIndex];
+            const minCount = counts[memberIndex];
             const maxCount = minCount + potentialDays;
-            const target = days / participantCount;
+            const target = targetDays / participantCount;
             const nearestCounts = [Math.floor(target), Math.ceil(target)].map(
                 (count) => Math.max(minCount, Math.min(maxCount, count)),
             );
             bound += Math.min(
                 ...nearestCounts.map((count) =>
-                    Math.abs(participantCount * count - days),
+                    Math.abs(participantCount * count - targetDays),
                 ),
             );
         }
 
         const remainingDays = assignments.reduce(
-            (count, memberIndex) => count + (memberIndex === -1 ? 1 : 0),
+            (count, memberIndex, index) =>
+                count + (memberIndex === -1 && includeDay(index) ? 1 : 0),
             0,
         );
-        const relaxedWorkloads = [...workloads];
+        const relaxedWorkloads = [...counts];
         let allocationBound = 0;
         for (let slot = 0; slot < remainingDays; slot += 1) {
             let bestMember = -1;
@@ -298,7 +342,7 @@ function generatePrimarySchedule(
                 memberIndex += 1
             ) {
                 if (
-                    relaxedWorkloads[memberIndex] - workloads[memberIndex] >=
+                    relaxedWorkloads[memberIndex] - counts[memberIndex] >=
                     potentialDaysByMember[memberIndex]
                 ) {
                     continue;
@@ -306,10 +350,11 @@ function generatePrimarySchedule(
                 const change =
                     Math.abs(
                         participantCount * (relaxedWorkloads[memberIndex] + 1) -
-                            days,
+                            targetDays,
                     ) -
                     Math.abs(
-                        participantCount * relaxedWorkloads[memberIndex] - days,
+                        participantCount * relaxedWorkloads[memberIndex] -
+                            targetDays,
                     );
                 if (change < bestChange) {
                     bestMember = memberIndex;
@@ -321,8 +366,25 @@ function generatePrimarySchedule(
             allocationBound += bestChange;
         }
 
-        return Math.max(bound, allocationBound + fairnessScore(workloads));
+        return Math.max(
+            bound,
+            allocationBound +
+                counts.reduce(
+                    (sum, count) =>
+                        sum + Math.abs(participantCount * count - targetDays),
+                    0,
+                ),
+        );
     };
+
+    const lowerBound = () =>
+        weekendDays * metricLowerBound(workloads, days, () => true) +
+        days *
+            metricLowerBound(
+                weekendWorkloads,
+                weekendDays,
+                (index) => weekend[index],
+            );
 
     const rootLowerBound = lowerBound();
 
@@ -357,7 +419,7 @@ function generatePrimarySchedule(
         }
 
         if (chosenDay === -1) {
-            const score = fairnessScore(workloads);
+            const score = combinedScore();
             if (score < bestScore) {
                 const candidate = assignments.map((memberIndex, dayIndex) => ({
                     date: dateLabel(year, month, dayIndex + 1),
@@ -385,6 +447,9 @@ function generatePrimarySchedule(
 
         chosenCandidates.sort(
             (left, right) =>
+                (weekend[chosenDay]
+                    ? weekendWorkloads[left] - weekendWorkloads[right]
+                    : 0) ||
                 workloads[left] - workloads[right] ||
                 (normalizedMembers[left].name < normalizedMembers[right].name
                     ? -1
@@ -394,7 +459,9 @@ function generatePrimarySchedule(
         for (const memberIndex of chosenCandidates) {
             assignments[chosenDay] = memberIndex;
             workloads[memberIndex] += 1;
+            if (weekend[chosenDay]) weekendWorkloads[memberIndex] += 1;
             search();
+            if (weekend[chosenDay]) weekendWorkloads[memberIndex] -= 1;
             workloads[memberIndex] -= 1;
             assignments[chosenDay] = -1;
             if (optimalScoreReached || budget.limitReached || evaluationFailure)
@@ -426,7 +493,7 @@ function generatePrimarySchedule(
             "INFEASIBLE",
             shadowFailure
                 ? "No complete schedule satisfies primary and shadow constraints. Review shadow counts or participant availability."
-                : "No schedule satisfies availability, mandatory assignments, and the no-consecutive-days rule.",
+                : "No schedule satisfies availability, mandatory assignments, and the no-consecutive-days rule, including neighboring published schedules.",
             budget.visitedStates,
         );
     }
@@ -447,7 +514,7 @@ function generatePrimarySchedule(
         ok: true,
         assignments: finalAssignments,
         shadows: bestShadows,
-        fairnessScore: bestScore,
+        fairnessScore: fairnessScore(bestWorkloads!),
         visitedStates: budget.visitedStates,
         workloads: finalWorkloads,
     };
@@ -458,12 +525,14 @@ export function generateSchedule(
     month: number,
     input: SchedulerMemberInput[],
     fixedPrimaryAssignments?: ScheduleAssignmentResult[],
+    boundaries: ScheduleBoundaries = {},
 ): ScheduleResult {
     return generateScheduleWithBudget(
         year,
         month,
         input,
         fixedPrimaryAssignments,
+        boundaries,
         {
             visitedStates: 0,
             limitReached: false,
@@ -476,6 +545,7 @@ function generateScheduleWithBudget(
     month: number,
     input: SchedulerMemberInput[],
     fixedPrimaryAssignments: ScheduleAssignmentResult[] | undefined,
+    boundaries: ScheduleBoundaries,
     budget: SearchBudget,
 ): ScheduleResult {
     const days = daysInMonth(year, month);
@@ -637,6 +707,7 @@ function generateScheduleWithBudget(
                     month,
                     input,
                     assignments,
+                    boundaries,
                     budget,
                 ),
             (assignments) =>
@@ -651,12 +722,21 @@ function generateScheduleWithBudget(
                                     : !selected.has(date);
                             return (
                                 available &&
+                                !(
+                                    index === 0 &&
+                                    boundaries.previous?.includes(trainee.id)
+                                ) &&
+                                !(
+                                    index === days - 1 &&
+                                    boundaries.next?.includes(trainee.id)
+                                ) &&
                                 (!memberId || !mentoredIds.has(memberId))
                             );
                         },
                     ).length;
                     return possibleDays >= (trainee.shadowDayCount ?? 0);
                 }),
+            boundaries,
         );
     }
     if (!primaryResult.ok) return primaryResult;
@@ -670,6 +750,10 @@ function generateScheduleWithBudget(
     const workDaysByMember = new Map<string, Set<number>>(
         input.map((member) => [member.id, new Set<number>()]),
     );
+    for (const id of boundaries.previous ?? [])
+        workDaysByMember.get(id)?.add(0);
+    for (const id of boundaries.next ?? [])
+        workDaysByMember.get(id)?.add(days + 1);
     for (const assignment of primaryResult.assignments) {
         workDaysByMember.get(assignment.memberId)!.add(assignment.day);
     }
