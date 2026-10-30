@@ -33,6 +33,12 @@ const state = (globalThis.__callOutTest = {
                 assert.equal(skipDuplicates, true);
                 if (!rows.has(data.id)) rows.set(data.id, data);
             },
+            async updateMany({ where, data }) {
+                const row = rows.get(where.id);
+                if (!row || row.userId !== where.userId) return { count: 0 };
+                rows.set(where.id, { ...row, ...data });
+                return { count: 1 };
+            },
             async findFirst({ where }) {
                 const row = rows.get(where.id);
                 return row?.userId === where.userId ? row : null;
@@ -40,7 +46,8 @@ const state = (globalThis.__callOutTest = {
         },
     },
 });
-const { createCallOut } = await import("../src/app/actions/call-outs.ts");
+const { createCallOut, updateCallOut } =
+    await import("../src/app/actions/call-outs.ts");
 function form(id) {
     const data = new FormData();
     for (const [key, value] of Object.entries({
@@ -84,4 +91,27 @@ test("a submission identifier belonging to another user cannot be reused", async
         /Unable to save/,
     );
     assert.equal(rows.size, 2);
+});
+
+test("edits validate and only update the owner's record", async () => {
+    const id = "11111111-1111-4111-8111-111111111111";
+    const data = form(id);
+    data.set("id", id);
+    data.set("start", "2026-10-22T08:00");
+    data.set("end", "2026-10-22T10:00");
+    state.session = { user: { id: "other" } };
+    assert.match((await updateCallOut({}, data)).error, /could not be found/);
+    state.session = { user: { id: "user" } };
+    data.set("end", "2026-10-22T07:00");
+    assert.match((await updateCallOut({}, data)).error, /Check the reason/);
+    data.set("end", "2026-10-22T10:00");
+    await assert.rejects(
+        updateCallOut({}, data),
+        /redirect:\/call-outs\?saved=1/,
+    );
+    assert.equal(rows.get(id).dutyDate, "2026-10-21");
+    assert.equal(
+        rows.get(id).startedAt.toISOString(),
+        "2026-10-22T05:00:00.000Z",
+    );
 });

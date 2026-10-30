@@ -7,18 +7,12 @@ import { dutyDate, parseAthensDateTime } from "@/lib/call-outs";
 import { prisma } from "@/lib/prisma";
 import { CallOutRole } from "@prisma/client";
 
-export async function createCallOut(form: FormData) {
-    const session = await getCurrentSession();
-    if (!session) redirect("/sign-in");
-    const submissionId = String(form.get("submissionId") ?? "");
+function parseCallOut(form: FormData) {
     const reason = String(form.get("reason") ?? "").trim();
     const role = String(form.get("role") ?? "");
     const start = parseAthensDateTime(String(form.get("start") ?? ""));
     const end = parseAthensDateTime(String(form.get("end") ?? ""));
     if (
-        !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-            submissionId,
-        ) ||
         !reason ||
         reason.length > 2000 ||
         !Object.values(CallOutRole).includes(role as CallOutRole) ||
@@ -26,6 +20,52 @@ export async function createCallOut(form: FormData) {
         !end ||
         end <= start ||
         end.getTime() - start.getTime() > 7 * 86400000
+    )
+        return null;
+    return {
+        reason,
+        role: role as CallOutRole,
+        dutyDate: dutyDate(start),
+        startedAt: start,
+        endedAt: end,
+    };
+}
+
+export type EditCallOutState = { error?: string };
+
+export async function updateCallOut(
+    _state: EditCallOutState,
+    form: FormData,
+): Promise<EditCallOutState> {
+    const session = await getCurrentSession();
+    if (!session) redirect("/sign-in");
+    const values = parseCallOut(form);
+    if (!values)
+        return {
+            error: "Check the reason, role and times. End must be after start, within seven days. Times during a daylight-saving clock change may be ambiguous or unavailable.",
+        };
+    const result = await prisma.callOut.updateMany({
+        where: { id: String(form.get("id") ?? ""), userId: session.user.id },
+        data: values,
+    });
+    if (!result.count)
+        return {
+            error: "This call-out could not be found. It may have been deleted.",
+        };
+    revalidatePath("/call-outs");
+    redirect("/call-outs?saved=1");
+}
+
+export async function createCallOut(form: FormData) {
+    const session = await getCurrentSession();
+    if (!session) redirect("/sign-in");
+    const submissionId = String(form.get("submissionId") ?? "");
+    const values = parseCallOut(form);
+    if (
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+            submissionId,
+        ) ||
+        !values
     ) {
         redirect("/call-outs?error=invalid");
     }
@@ -34,11 +74,7 @@ export async function createCallOut(form: FormData) {
         data: {
             id: submissionId,
             userId: session.user.id,
-            reason,
-            role: role as CallOutRole,
-            dutyDate: dutyDate(start),
-            startedAt: start,
-            endedAt: end,
+            ...values,
         },
     });
     const saved = await prisma.callOut.findFirst({

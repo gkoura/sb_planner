@@ -1,9 +1,11 @@
 import { randomUUID } from "node:crypto";
+import Link from "next/link";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 
 import { createCallOut, deleteCallOut } from "@/app/actions/call-outs";
 import { Button } from "@/components/ui/button";
+import { CallOutMonthGroups } from "@/components/call-outs/month-groups";
 import { SaveCallOutButton } from "@/components/call-outs/save-button";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { getCurrentSession } from "@/lib/auth-guard";
@@ -31,6 +33,12 @@ export default function CallOutsPage({ searchParams }: CallOutsPageProps) {
                 <h1 className="text-3xl font-semibold tracking-tight">
                     Call-outs
                 </h1>
+                <Link
+                    href="/call-outs/import"
+                    className="text-primary w-fit text-sm font-medium underline"
+                >
+                    Import call-outs
+                </Link>
 
                 <p className="text-muted-foreground">
                     Record your call-outs and export the hours worked. All times
@@ -70,6 +78,10 @@ async function CallOutsContent({ searchParams }: CallOutsPageProps) {
             startedAt: "desc",
         },
     });
+
+    const entriesByMonth = Map.groupBy(entries, (entry) =>
+        athensParts(entry.startedAt).slice(0, 7),
+    );
 
     return (
         <>
@@ -158,7 +170,7 @@ async function CallOutsContent({ searchParams }: CallOutsPageProps) {
 
                         <p className="text-muted-foreground text-sm">
                             Each call-out is rounded up separately for each
-                            calendar day.
+                            calendar day. Grouped by the Athens start month.
                         </p>
                     </div>
 
@@ -175,62 +187,99 @@ async function CallOutsContent({ searchParams }: CallOutsPageProps) {
                         No call-outs recorded yet.
                     </p>
                 ) : (
-                    entries.map((entry) => (
-                        <article
-                            key={entry.id}
-                            className="bg-card grid gap-3 rounded-2xl border p-5"
-                        >
-                            <div className="flex flex-wrap justify-between gap-2">
-                                <h3 className="font-semibold">
-                                    {labels[entry.role]} · standby{" "}
-                                    {entry.dutyDate}
-                                </h3>
-
-                                <form action={deleteCallOut}>
-                                    <input
-                                        type="hidden"
-                                        name="id"
-                                        value={entry.id}
-                                    />
-
-                                    <Button
-                                        type="submit"
-                                        variant="outline"
-                                        size="sm"
+                    <CallOutMonthGroups
+                        groups={Array.from(
+                            entriesByMonth,
+                            ([month, monthEntries]) => ({
+                                month,
+                                count: monthEntries.length,
+                                content: monthEntries.map((entry) => (
+                                    <article
+                                        key={entry.id}
+                                        className="bg-card grid gap-3 rounded-2xl border p-5"
                                     >
-                                        Delete
-                                    </Button>
-                                </form>
-                            </div>
+                                        <div className="flex flex-wrap justify-between gap-2">
+                                            <h3 className="font-semibold">
+                                                {labels[entry.role]}
+                                            </h3>
 
-                            <p className="whitespace-pre-wrap">
-                                {entry.reason}
-                            </p>
+                                            <div className="flex gap-2">
+                                                <Button
+                                                    nativeButton={false}
+                                                    render={
+                                                        <Link
+                                                            href={`/call-outs/${entry.id}/edit`}
+                                                        />
+                                                    }
+                                                    variant="outline"
+                                                    size="sm"
+                                                >
+                                                    Edit
+                                                    <span className="sr-only">
+                                                        {" "}
+                                                        call-out from{" "}
+                                                        {athensParts(
+                                                            entry.startedAt,
+                                                        ).slice(0, 10)}
+                                                    </span>
+                                                </Button>
+                                                <form action={deleteCallOut}>
+                                                    <input
+                                                        type="hidden"
+                                                        name="id"
+                                                        value={entry.id}
+                                                    />
 
-                            <p className="text-muted-foreground text-sm">
-                                {athensParts(entry.startedAt).replace("T", " ")}{" "}
-                                – {athensParts(entry.endedAt).replace("T", " ")}{" "}
-                                (Athens)
-                            </p>
+                                                    <Button
+                                                        type="submit"
+                                                        variant="outline"
+                                                        size="sm"
+                                                    >
+                                                        Delete
+                                                    </Button>
+                                                </form>
+                                            </div>
+                                        </div>
 
-                            <ul className="text-sm">
-                                {splitCallOut(
-                                    entry.startedAt,
-                                    entry.endedAt,
-                                ).map((day) => (
-                                    <li key={day.date}>
-                                        {day.date}: {day.roundedHours}{" "}
-                                        {day.roundedHours === 1
-                                            ? "hour"
-                                            : "hours"}{" "}
-                                        <span className="text-muted-foreground">
-                                            ({day.minutes} minutes worked)
-                                        </span>
-                                    </li>
-                                ))}
-                            </ul>
-                        </article>
-                    ))
+                                        <p className="whitespace-pre-wrap">
+                                            {entry.reason}
+                                        </p>
+
+                                        <p className="text-muted-foreground text-sm">
+                                            {athensParts(
+                                                entry.startedAt,
+                                            ).replace("T", " ")}{" "}
+                                            –{" "}
+                                            {athensParts(entry.endedAt).replace(
+                                                "T",
+                                                " ",
+                                            )}{" "}
+                                            (Athens)
+                                        </p>
+
+                                        <ul className="text-sm">
+                                            {splitCallOut(
+                                                entry.startedAt,
+                                                entry.endedAt,
+                                            ).map((day) => (
+                                                <li key={day.date}>
+                                                    {day.date}:{" "}
+                                                    {day.roundedHours}{" "}
+                                                    {day.roundedHours === 1
+                                                        ? "hour"
+                                                        : "hours"}{" "}
+                                                    <span className="text-muted-foreground">
+                                                        ({day.minutes} minutes
+                                                        worked)
+                                                    </span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </article>
+                                )),
+                            }),
+                        )}
+                    />
                 )}
             </section>
         </>
