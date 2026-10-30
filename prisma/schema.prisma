@@ -45,6 +45,7 @@ model User {
   role                  String           @default("ENGINEER")
   createdAt             DateTime
   updatedAt             DateTime
+  callOuts              CallOut[]
   sessions              Session[]
   accounts              Account[]
   planningMonthsCreated PlanningMonth[]  @relation("PlanningMonthCreator")
@@ -212,4 +213,26 @@ model ScheduleShadow {
 
   @@unique([scheduleAssignmentId, shadowMemberId])
   @@index([shadowMemberId])
+}
+
+enum CallOutRole {
+  PRIMARY
+  TRAINEE
+  MENTOR
+  SUPPORT
+}
+
+model CallOut {
+  id        String      @id @default(cuid())
+  userId    String
+  reason    String
+  role      CallOutRole
+  dutyDate  String
+  startedAt DateTime
+  endedAt   DateTime
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  user      User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId, startedAt])
 }
