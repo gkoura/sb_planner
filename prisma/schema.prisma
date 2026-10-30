@@ -245,7 +245,7 @@ model CallOut {
   userId    String
   reason    String
   role      CallOutRole
-  dutyDate  String
+  dutyDate  String?
   startedAt DateTime
   endedAt   DateTime
   createdAt DateTime    @default(now())

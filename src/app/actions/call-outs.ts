@@ -6,6 +6,7 @@ import { getCurrentSession } from "@/lib/auth-guard";
 import { dutyDate, parseAthensDateTime } from "@/lib/call-outs";
 import { prisma } from "@/lib/prisma";
 import { CallOutRole } from "@prisma/client";
+import { validateCallOutDuties } from "@/lib/call-out-duty";
 
 function parseCallOut(form: FormData) {
     const reason = String(form.get("reason") ?? "").trim();
@@ -25,7 +26,7 @@ function parseCallOut(form: FormData) {
     return {
         reason,
         role: role as CallOutRole,
-        dutyDate: dutyDate(start),
+        dutyDate: dutyDate(start, role),
         startedAt: start,
         endedAt: end,
     };
@@ -44,6 +45,16 @@ export async function updateCallOut(
         return {
             error: "Check the reason, role and times. End must be after start, within seven days. Times during a daylight-saving clock change may be ambiguous or unavailable.",
         };
+    const existing = await prisma.callOut.findFirst({
+        where: { id: String(form.get("id") ?? ""), userId: session.user.id },
+        select: { id: true },
+    });
+    if (!existing)
+        return {
+            error: "This call-out could not be found. It may have been deleted.",
+        };
+    const errors = await validateCallOutDuties(session.user.id, [values]);
+    if (errors.length) return { error: errors[0] };
     const result = await prisma.callOut.updateMany({
         where: { id: String(form.get("id") ?? ""), userId: session.user.id },
         data: values,
@@ -69,6 +80,8 @@ export async function createCallOut(form: FormData) {
     ) {
         redirect("/call-outs?error=invalid");
     }
+    const errors = await validateCallOutDuties(session.user.id, [values]);
+    if (errors.length) redirect("/call-outs?error=schedule");
     await prisma.callOut.createMany({
         skipDuplicates: true,
         data: {

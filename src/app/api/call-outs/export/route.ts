@@ -30,7 +30,7 @@ export async function GET() {
                 day.date,
                 day.roundedHours,
                 day.minutes,
-                entry.dutyDate,
+                entry.role === "SUPPORT" ? "" : (entry.dutyDate ?? ""),
                 entry.role,
                 athensParts(entry.startedAt),
                 athensParts(entry.endedAt),

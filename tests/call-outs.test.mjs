@@ -23,6 +23,27 @@ test("splits and rounds each calendar day independently", () => {
     );
 });
 
+test("duty dates use the 09:00 handover only for standby roles", () => {
+    for (const role of ["PRIMARY", "TRAINEE", "MENTOR"]) {
+        assert.equal(
+            dutyDate(parseAthensDateTime("2026-10-30T00:30"), role),
+            "2026-10-29",
+        );
+        assert.equal(
+            dutyDate(parseAthensDateTime("2026-10-30T09:00"), role),
+            "2026-10-30",
+        );
+    }
+    assert.equal(
+        dutyDate(parseAthensDateTime("2026-10-30T00:30"), "SUPPORT"),
+        null,
+    );
+    assert.equal(
+        dutyDate(parseAthensDateTime("2026-10-30T10:00"), "SUPPORT"),
+        null,
+    );
+});
+
 test("rounds small durations and does not create an empty midnight segment", () => {
     assert.deepEqual(
         splitCallOut(

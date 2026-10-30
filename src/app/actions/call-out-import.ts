@@ -6,13 +6,23 @@ import { getCurrentSession } from "@/lib/auth-guard";
 import { parseAthensDateTime } from "@/lib/call-outs";
 import { validateCallOutImport } from "@/lib/call-out-import";
 import { prisma } from "@/lib/prisma";
+import { validateCallOutDuties } from "@/lib/call-out-duty";
 
 export async function previewCallOutImport(csv: string) {
     const session = await getCurrentSession();
     if (!session) return { errors: ["Please sign in again."], entries: [] };
     if (typeof csv !== "string")
         return { errors: ["Invalid CSV file."], entries: [] };
-    return validateCallOutImport(csv);
+    const result = validateCallOutImport(csv);
+    if (result.errors.length) return result;
+    const errors = await validateCallOutDuties(
+        session.user.id,
+        result.entries.map((entry) => ({
+            role: entry.role,
+            startedAt: parseAthensDateTime(entry.start)!,
+        })),
+    );
+    return { entries: errors.length ? [] : result.entries, errors };
 }
 
 export async function importCallOuts(
@@ -23,6 +33,14 @@ export async function importCallOuts(
     if (typeof csv !== "string") return { error: "Invalid CSV file." };
     const { entries, errors } = validateCallOutImport(csv);
     if (errors.length) return { error: errors.join(" ") };
+    const dutyErrors = await validateCallOutDuties(
+        session.user.id,
+        entries.map((entry) => ({
+            role: entry.role,
+            startedAt: parseAthensDateTime(entry.start)!,
+        })),
+    );
+    if (dutyErrors.length) return { error: dutyErrors.join(" ") };
     const data = entries.map((entry) => ({
         id: `import-${createHash("sha256")
             .update(

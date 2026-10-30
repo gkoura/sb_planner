@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { createCallOut, deleteCallOut } from "@/app/actions/call-outs";
 import { Button } from "@/components/ui/button";
+import { ExportMenu } from "@/components/ui/export-menu";
 import { CallOutMonthGroups } from "@/components/call-outs/month-groups";
 import { SaveCallOutButton } from "@/components/call-outs/save-button";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
@@ -70,9 +71,16 @@ async function CallOutsContent({ searchParams }: CallOutsPageProps) {
 
                 {params.error && (
                     <p role="alert" className="text-destructive mt-4 text-sm">
-                        Check the reason, role and times. End must be after
-                        start, within seven days. Times during a daylight-saving
-                        clock change may be ambiguous or unavailable.
+                        {params.error === "schedule" ? (
+                            "Your role must match your assignment on the derived duty date in the latest published schedule. Before 09:00 Athens, that is the previous date. Support is only available when you have no scheduled duty for that date. A published schedule is required for primary, trainee, and mentor call-outs."
+                        ) : (
+                            <>
+                                Check the reason, role and times. End must be
+                                after start, within seven days. Times during a
+                                daylight-saving clock change may be ambiguous or
+                                unavailable.
+                            </>
+                        )}
                     </p>
                 )}
 
@@ -150,12 +158,15 @@ async function CallOutsContent({ searchParams }: CallOutsPageProps) {
                         </p>
                     </div>
 
-                    <a
-                        href="/api/call-outs/export"
-                        className="text-primary font-medium underline"
-                    >
-                        Download CSV
-                    </a>
+                    <ExportMenu
+                        items={[
+                            {
+                                format: "csv",
+                                label: "Export CSV",
+                                href: "/api/call-outs/export",
+                            },
+                        ]}
+                    />
                 </div>
 
                 {entries.length === 0 ? (

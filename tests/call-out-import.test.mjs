@@ -28,9 +28,33 @@ registerHooks({
     },
 });
 const rows = new Map();
+let scheduleAvailable = true;
 const state = (globalThis.__importTest = {
     session: { user: { id: "first" } },
     prisma: {
+        planningMonth: {
+            async findMany() {
+                return scheduleAvailable
+                    ? [
+                          {
+                              scheduleRuns: [
+                                  {
+                                      assignments: [
+                                          {
+                                              date: "2026-10-21",
+                                              planningMember: {
+                                                  userId: state.session.user.id,
+                                              },
+                                              shadows: [],
+                                          },
+                                      ],
+                                  },
+                              ],
+                          },
+                      ]
+                    : [];
+            },
+        },
         callOut: {
             async findMany({ where }) {
                 if (where.id)
@@ -94,6 +118,8 @@ test("template contains valid example rows and preview requires a session", asyn
     const sample = validateCallOutImport(CALL_OUT_IMPORT_TEMPLATE);
     assert.equal(sample.entries.length, 2);
     assert.deepEqual(sample.errors, []);
+    assert.equal(sample.entries[0].dutyDate, "2026-10-21");
+    assert.equal(sample.entries[1].dutyDate, null);
     state.session = null;
     assert.deepEqual(await previewCallOutImport(csv), {
         errors: ["Please sign in again."],
@@ -110,4 +136,33 @@ test("an edited imported record does not block importing its original data", asy
     [...rows.values()][0].reason = "Changed incident";
     assert.deepEqual(await importCallOuts(csv), { imported: 1, skipped: 0 });
     assert.deepEqual(await importCallOuts(csv), { imported: 0, skipped: 1 });
+});
+
+test("preview and import reject unscheduled duties, while support needs no schedule", async () => {
+    state.session = { user: { id: "first" } };
+    assert.deepEqual((await previewCallOutImport(csv)).errors, []);
+    const support = csv.replace("primary", "SUPPORT");
+    const count = rows.size;
+    assert.match(
+        (await previewCallOutImport(support)).errors[0],
+        /scheduled role instead of support/,
+    );
+    assert.match(
+        (await importCallOuts(support)).error,
+        /scheduled role instead of support/,
+    );
+    assert.equal(rows.size, count);
+    scheduleAvailable = false;
+    assert.match(
+        (await previewCallOutImport(csv)).errors[0],
+        /no published duty/,
+    );
+    assert.match((await importCallOuts(csv)).error, /no published duty/);
+    assert.equal(rows.size, count);
+    assert.deepEqual((await previewCallOutImport(support)).errors, []);
+    assert.deepEqual(await importCallOuts(support), {
+        imported: 1,
+        skipped: 0,
+    });
+    scheduleAvailable = true;
 });

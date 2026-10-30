@@ -215,8 +215,10 @@ export function CallOutImportForm() {
                                         className="rounded-lg border px-3 py-2 text-sm"
                                     >
                                         <p className="font-medium">
-                                            {entry.role} · standby{" "}
-                                            {entry.dutyDate}
+                                            {entry.role}
+                                            {entry.dutyDate
+                                                ? ` · standby ${entry.dutyDate}`
+                                                : ""}
                                         </p>
                                         <p className="mt-1 whitespace-pre-wrap">
                                             {entry.reason}

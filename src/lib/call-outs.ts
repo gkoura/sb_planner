@@ -27,7 +27,8 @@ export function parseAthensDateTime(value: string): Date | null {
     return candidates.length === 1 ? candidates[0] : null;
 }
 
-export function dutyDate(start: Date): string {
+export function dutyDate(start: Date, role?: string): string | null {
+    if (role === "SUPPORT") return null;
     const local = athensParts(start);
     if (local.slice(11) >= "09:00") return local.slice(0, 10);
     const previous = new Date(`${local.slice(0, 10)}T12:00:00Z`);

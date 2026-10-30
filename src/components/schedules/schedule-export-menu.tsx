@@ -1,17 +1,10 @@
 "use client";
 
-import { Menu } from "@base-ui/react/menu";
-import {
-    ChevronDown,
-    Clipboard,
-    FileImage,
-    FileSpreadsheet,
-} from "lucide-react";
 import { toast } from "sonner";
 
 import { buildMonthWeeks } from "@/lib/month-calendar";
 import { SCHEDULE_COLORS } from "@/lib/schedule-colors";
-import { buttonVariants } from "@/components/ui/button";
+import { ExportMenu } from "@/components/ui/export-menu";
 
 type ExportMember = {
     id: string;
@@ -359,46 +352,16 @@ export function ScheduleExportMenu({
     }
 
     return (
-        <Menu.Root>
-            <Menu.Trigger className={buttonVariants({ variant: "outline" })}>
-                Export <ChevronDown aria-hidden="true" />
-            </Menu.Trigger>
-            <Menu.Portal>
-                <Menu.Positioner align="end" sideOffset={6}>
-                    <Menu.Popup className="bg-popover text-popover-foreground z-50 min-w-52 rounded-xl border p-1.5 shadow-lg outline-none">
-                        <Menu.Item
-                            className="hover:bg-accent focus:bg-accent flex cursor-default items-center gap-2 rounded-lg px-3 py-2 text-sm outline-none"
-                            onClick={() => void copyMarkdown()}
-                        >
-                            <Clipboard
-                                aria-hidden="true"
-                                className="text-muted-foreground size-4"
-                            />
-                            Copy as Markdown
-                        </Menu.Item>
-                        <Menu.Item
-                            className="hover:bg-accent focus:bg-accent flex cursor-default items-center gap-2 rounded-lg px-3 py-2 text-sm outline-none"
-                            onClick={downloadPng}
-                        >
-                            <FileImage
-                                aria-hidden="true"
-                                className="text-muted-foreground size-4"
-                            />
-                            Export PNG
-                        </Menu.Item>
-                        <Menu.Item
-                            className="hover:bg-accent focus:bg-accent flex cursor-default items-center gap-2 rounded-lg px-3 py-2 text-sm outline-none"
-                            onClick={downloadCsv}
-                        >
-                            <FileSpreadsheet
-                                aria-hidden="true"
-                                className="text-muted-foreground size-4"
-                            />
-                            Export CSV
-                        </Menu.Item>
-                    </Menu.Popup>
-                </Menu.Positioner>
-            </Menu.Portal>
-        </Menu.Root>
+        <ExportMenu
+            items={[
+                {
+                    format: "markdown",
+                    label: "Copy as Markdown",
+                    onClick: () => void copyMarkdown(),
+                },
+                { format: "png", label: "Export PNG", onClick: downloadPng },
+                { format: "csv", label: "Export CSV", onClick: downloadCsv },
+            ]}
+        />
     );
 }

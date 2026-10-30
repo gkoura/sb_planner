@@ -13,7 +13,7 @@ export type ImportEntry = {
     role: Role;
     start: string;
     end: string;
-    dutyDate: string;
+    dutyDate: string | null;
     days: ReturnType<typeof splitCallOut>;
 };
 
@@ -138,7 +138,7 @@ export function validateCallOutImport(text: string): {
             role: role as Role,
             start,
             end,
-            dutyDate: dutyDate(startDate),
+            dutyDate: dutyDate(startDate, role),
             days: splitCallOut(startDate, endDate),
         });
     });
