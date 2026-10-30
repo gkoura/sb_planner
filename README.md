@@ -101,6 +101,10 @@ INITIAL_ADMIN_EMAIL="admin@example.com"
 INITIAL_ADMIN_PASSWORD="choose-a-strong-password"
 ```
 
+Calendar subscription links use `BETTER_AUTH_URL`. Set it to the public HTTPS
+origin in hosted environments and apply migrations before using subscriptions.
+Subscription URLs are private credentials; avoid recording them in request logs.
+
 For Neon URLs, set `sslmode=verify-full` in both `DATABASE_URL` and any
 `DIRECT_URL` to explicitly verify the server certificate and hostname. Use
 the same setting in hosted environment variables. Restart the development

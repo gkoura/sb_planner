@@ -243,6 +243,17 @@ state becomes invalid if the month status or current run changes.
 
 ## Delivery milestones
 
+**Calendar subscriptions (2026-10-30):** signed-in users can create, replace,
+and revoke private links for all primary standby dates or their own primary,
+training, and mentoring duties. Read-only iCalendar feeds use the latest
+published run per month, stable date-based event IDs, and date-only events.
+Only token hashes are stored; links are shown once and calendar clients refresh
+on their own schedule. The PostgreSQL migration was applied to the configured
+development database. All 69 unit/action tests, TypeScript, full ESLint, and
+the webpack production build pass. Subscription tests mock database boundaries;
+interactive iPhone subscription and refresh verification remains pending.
+Hosted deployments need the migration and a public HTTPS `BETTER_AUTH_URL`.
+
 **Duplicate-name scheduler correction (2026-10-30):** participant IDs must be
 unique, but equal display names are allowed. Primary and shadow searches use
 IDs to resolve name ties deterministically. New runs record
