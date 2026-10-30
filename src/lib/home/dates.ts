@@ -7,13 +7,13 @@ export function formatMonth(year: number, month: number) {
     }).format(utcCalendarDate(year, month, 1));
 }
 
-export function getTodayInAthens() {
+export function getTodayInAthens(now = new Date()) {
     const parts = new Intl.DateTimeFormat("en-CA", {
         day: "2-digit",
         month: "2-digit",
         timeZone: "Europe/Athens",
         year: "numeric",
-    }).formatToParts(new Date());
+    }).formatToParts(now);
     const values = Object.fromEntries(
         parts.map((part) => [part.type, part.value]),
     );

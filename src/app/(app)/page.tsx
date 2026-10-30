@@ -9,6 +9,7 @@ import { PersonalMonthReport } from "@/components/home/personal-month-report";
 import { TodayStandbyCard } from "@/components/home/today-standby-card";
 import { getCurrentSession } from "@/lib/auth-guard";
 import { getTodayInAthens } from "@/lib/home/dates";
+import { dutyDate } from "@/lib/call-outs";
 import { getHomeData } from "@/lib/home/queries";
 
 export default function Home() {
@@ -23,7 +24,9 @@ async function HomeContent() {
     const session = await getCurrentSession();
     if (!session) redirect("/sign-in");
 
-    const today = getTodayInAthens();
+    const now = new Date();
+    const today = getTodayInAthens(now);
+    const standbyDate = dutyDate(now)!;
     const data = await getHomeData(
         {
             id: session.user.id,
@@ -31,6 +34,7 @@ async function HomeContent() {
             role: session.user.role === "ADMIN" ? "ADMIN" : "ENGINEER",
         },
         today,
+        standbyDate,
     );
     const availabilityNeeded = data.availabilityMonths.some(
         (month) => !month.submitted,
@@ -42,7 +46,10 @@ async function HomeContent() {
                 availabilityNeeded={availabilityNeeded}
                 name={session.user.name}
             />
-            <TodayStandbyCard assignment={data.todayAssignment} today={today} />
+            <TodayStandbyCard
+                assignment={data.todayAssignment}
+                dutyDate={standbyDate}
+            />
             <EmergencyContactCard />
             <PersonalMonthReport
                 schedule={data.personalSchedule}

@@ -8,10 +8,10 @@ import type { TodayStandbyAssignment } from "@/lib/home/types";
 
 export function TodayStandbyCard({
     assignment,
-    today,
+    dutyDate,
 }: {
     assignment: TodayStandbyAssignment | null;
-    today: string;
+    dutyDate: string;
 }) {
     return (
         <Card className="border-primary/20 overflow-hidden shadow-sm">
@@ -22,12 +22,16 @@ export function TodayStandbyCard({
                     </span>
                     <div>
                         <p className="text-muted-foreground text-sm font-medium">
-                            On standby today · {formatScheduleDate(today)}
+                            On standby now · duty date{" "}
+                            {formatScheduleDate(dutyDate)}
                         </p>
                         <h2 className="mt-1 text-2xl font-semibold tracking-tight">
                             {assignment?.name ??
                                 "No published standby assignment"}
                         </h2>
+                        <p className="text-muted-foreground mt-1 text-sm">
+                            09:00–09:00 the next day · Athens time
+                        </p>
                     </div>
                 </div>
                 {assignment ? (
@@ -62,7 +66,7 @@ export function TodayStandbyCard({
                     </div>
                 ) : (
                     <p className="text-muted-foreground text-sm">
-                        The team schedule for today hasn’t been published.
+                        No published assignment exists for this duty date.
                     </p>
                 )}
             </CardContent>

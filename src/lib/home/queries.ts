@@ -5,16 +5,22 @@ import type { HomeData, HomeUser } from "./types";
 export async function getHomeData(
     user: HomeUser,
     today: string,
+    standbyDate: string,
 ): Promise<HomeData> {
-    const [publishedMonth, availabilityMonths, admin] = await Promise.all([
-        getCurrentPublishedMonth(today),
-        getAvailabilityOverview(user.id),
-        user.role === "ADMIN" ? getAdminOverview() : Promise.resolve(null),
-    ]);
+    const currentMonth = getCurrentPublishedMonth(today);
+    const [publishedMonth, standbyMonth, availabilityMonths, admin] =
+        await Promise.all([
+            currentMonth,
+            today.slice(0, 7) === standbyDate.slice(0, 7)
+                ? currentMonth
+                : getCurrentPublishedMonth(standbyDate),
+            getAvailabilityOverview(user.id),
+            user.role === "ADMIN" ? getAdminOverview() : Promise.resolve(null),
+        ]);
 
     const currentRun = publishedMonth?.scheduleRuns[0];
-    const todayAssignment = currentRun?.assignments.find(
-        (assignment) => assignment.date === today,
+    const todayAssignment = standbyMonth?.scheduleRuns[0]?.assignments.find(
+        (assignment) => assignment.date === standbyDate,
     );
     const member = publishedMonth?.members.find(
         (candidate) => candidate.userId === user.id,
@@ -56,12 +62,12 @@ export async function getHomeData(
                   }
                 : null,
         todayAssignment:
-            todayAssignment && publishedMonth
+            todayAssignment && standbyMonth
                 ? {
                       name: todayAssignment.nameSnapshot,
                       phoneNumber:
                           todayAssignment.planningMember.user.phoneNumber,
-                      planningMonthId: publishedMonth.id,
+                      planningMonthId: standbyMonth.id,
                   }
                 : null,
     };
