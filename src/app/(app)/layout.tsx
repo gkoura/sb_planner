@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
 
+import { WhatsNew } from "@/components/announcements/whats-new";
 import { AppHeader } from "@/components/layout/app-header";
 import { getCurrentSession } from "@/lib/auth-guard";
 
@@ -28,6 +29,9 @@ async function AuthenticatedAppLayout({ children }: AppLayoutProps) {
             <AppHeader name={session.user.name} role={session.user.role} />
 
             <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
+                <Suspense fallback={null}>
+                    <WhatsNew userId={session.user.id} />
+                </Suspense>
                 {children}
             </main>
         </div>

@@ -45,6 +45,7 @@ model User {
   role                  String           @default("ENGINEER")
   createdAt             DateTime
   updatedAt             DateTime
+  announcementDismissals AnnouncementDismissal[]
   callOuts              CallOut[]
   sessions              Session[]
   accounts              Account[]
@@ -235,4 +236,13 @@ model CallOut {
   user      User        @relation(fields: [userId], references: [id], onDelete: Restrict)
 
   @@index([userId, startedAt])
+}
+
+model AnnouncementDismissal {
+  userId         String
+  announcementId String
+  dismissedAt    DateTime @default(now())
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, announcementId])
 }
