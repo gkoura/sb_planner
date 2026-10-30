@@ -40,7 +40,7 @@ export function MobileNavigation({
                         sideOffset={8}
                         className="z-50 sm:hidden"
                     >
-                        <Menu.Popup className="bg-popover text-popover-foreground max-h-[var(--available-height)] w-64 max-w-[var(--available-width)] overflow-y-auto rounded-xl border p-1.5 shadow-lg outline-none">
+                        <Menu.Popup className="bg-popover text-popover-foreground max-h-(--available-height) w-64 max-w-(--available-width) overflow-y-auto rounded-xl border p-1.5 shadow-lg outline-none">
                             {links.map((link) => (
                                 <Menu.LinkItem
                                     key={link.href}
