@@ -33,48 +33,143 @@ const minutes = Array.from({ length: 60 }, (_, i) =>
     String(i).padStart(2, "0"),
 );
 
+const subscribeToNothing = () => () => {};
+const getClientSnapshot = () => true;
+const getServerSnapshot = () => false;
+
+function parseLocalDateTime(value?: string): Date | undefined {
+    if (!value) return undefined;
+
+    const match = value.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/);
+
+    if (!match) return undefined;
+
+    const [, year, month, day, hour, minute] = match;
+
+    const date = new Date(
+        Number(year),
+        Number(month) - 1,
+        Number(day),
+        Number(hour),
+        Number(minute),
+    );
+
+    if (
+        date.getFullYear() !== Number(year) ||
+        date.getMonth() !== Number(month) - 1 ||
+        date.getDate() !== Number(day) ||
+        date.getHours() !== Number(hour) ||
+        date.getMinutes() !== Number(minute)
+    ) {
+        return undefined;
+    }
+
+    return date;
+}
+
+function getDefaultDateTime(name: string): Date {
+    const now = new Date();
+
+    // Round upwards to the next full hour.
+    const end = new Date(now);
+
+    end.setHours(
+        end.getHours() +
+            (end.getMinutes() > 0 ||
+            end.getSeconds() > 0 ||
+            end.getMilliseconds() > 0
+                ? 1
+                : 0),
+        0,
+        0,
+        0,
+    );
+
+    // Start is exactly one hour before end.
+    if (name === "start") {
+        return new Date(end.getTime() - 60 * 60 * 1000);
+    }
+
+    return end;
+}
+
 export function DateTimePicker({
     name,
     label,
     defaultValue,
     disabled = false,
 }: DateTimePickerProps) {
-    const initialDate = React.useMemo(() => {
-        if (!defaultValue) return undefined;
-
-        const match = defaultValue.match(
-            /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/,
-        );
-
-        if (!match) return undefined;
-
-        const [, year, month, day] = match;
-
-        const date = new Date(Number(year), Number(month) - 1, Number(day));
-
-        if (
-            date.getFullYear() !== Number(year) ||
-            date.getMonth() !== Number(month) - 1 ||
-            date.getDate() !== Number(day)
-        ) {
-            return undefined;
-        }
-
-        return date;
-    }, [defaultValue]);
-
-    const [date, setDate] = React.useState<Date | undefined>(initialDate);
-    const [hour, setHour] = React.useState(
-        defaultValue?.match(/T(\d{2}):/)?.[1] ?? "09",
+    const isClient = React.useSyncExternalStore(
+        subscribeToNothing,
+        getClientSnapshot,
+        getServerSnapshot,
     );
-    const [minute, setMinute] = React.useState(
-        defaultValue?.match(/:(\d{2})$/)?.[1] ?? "00",
+    const [dateTime, setDateTime] = React.useState<Date | undefined>(
+        () =>
+            parseLocalDateTime(defaultValue) ??
+            (!defaultValue ? getDefaultDateTime(name) : undefined),
     );
+
     const [open, setOpen] = React.useState(false);
 
-    // Keep the original datetime-local form-data format.
-    // Do not convert this value to UTC or ISO.
-    const value = date ? `${format(date, "yyyy-MM-dd")}T${hour}:${minute}` : "";
+    // Keep dynamic defaults out of server-rendered output.
+    const visibleDateTime = isClient ? dateTime : parseLocalDateTime(defaultValue);
+
+    const date = visibleDateTime;
+
+    const hour = date
+        ? String(date.getHours()).padStart(2, "0")
+        : "00";
+
+    const minute = date
+        ? String(date.getMinutes()).padStart(2, "0")
+        : "00";
+
+    // Preserve the datetime-local format without UTC conversion.
+    const value = date ? format(date, "yyyy-MM-dd'T'HH:mm") : "";
+
+    function handleDateChange(selectedDate: Date | undefined) {
+        if (!selectedDate) return;
+
+        setDateTime((previous) => {
+            const updated = new Date(selectedDate);
+
+            updated.setHours(
+                previous?.getHours() ?? 0,
+                previous?.getMinutes() ?? 0,
+                0,
+                0,
+            );
+
+            return updated;
+        });
+    }
+
+    function handleHourChange(value: string | null) {
+        if (value === null) return;
+
+        setDateTime((previous) => {
+            if (!previous) return previous;
+
+            const updated = new Date(previous);
+            updated.setHours(Number(value));
+
+            return updated;
+        });
+    }
+
+    function handleMinuteChange(value: string | null) {
+        if (value === null) return;
+
+        setDateTime((previous) => {
+            if (!previous) return previous;
+
+            const updated = new Date(previous);
+            updated.setMinutes(Number(value));
+
+            return updated;
+        });
+    }
 
     return (
         <div className="grid gap-1.5">
@@ -82,7 +177,12 @@ export function DateTimePicker({
                 {label}
             </label>
 
-            <input type="hidden" name={name} value={value} />
+            <input
+                type="hidden"
+                name={name}
+                value={value}
+                disabled={disabled}
+            />
 
             <Popover open={open} onOpenChange={setOpen}>
                 <PopoverTrigger
@@ -110,7 +210,7 @@ export function DateTimePicker({
                     <Calendar
                         mode="single"
                         selected={date}
-                        onSelect={setDate}
+                        onSelect={handleDateChange}
                         defaultMonth={date}
                         autoFocus
                     />
@@ -124,9 +224,7 @@ export function DateTimePicker({
                         <div className="flex items-center gap-2">
                             <Select
                                 value={hour}
-                                onValueChange={(value) => {
-                                    if (value !== null) setHour(value);
-                                }}
+                                onValueChange={handleHourChange}
                             >
                                 <SelectTrigger
                                     aria-label={`${label} hour`}
@@ -134,6 +232,7 @@ export function DateTimePicker({
                                 >
                                     <SelectValue placeholder="Hour" />
                                 </SelectTrigger>
+
                                 <SelectContent>
                                     {hours.map((h) => (
                                         <SelectItem key={h} value={h}>
@@ -147,9 +246,7 @@ export function DateTimePicker({
 
                             <Select
                                 value={minute}
-                                onValueChange={(value) => {
-                                    if (value !== null) setMinute(value);
-                                }}
+                                onValueChange={handleMinuteChange}
                             >
                                 <SelectTrigger
                                     aria-label={`${label} minute`}
@@ -157,6 +254,7 @@ export function DateTimePicker({
                                 >
                                     <SelectValue placeholder="Minute" />
                                 </SelectTrigger>
+
                                 <SelectContent>
                                     {minutes.map((m) => (
                                         <SelectItem key={m} value={m}>

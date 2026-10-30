@@ -26,33 +26,6 @@ type CallOutsPageProps = {
     }>;
 };
 
-export default function CallOutsPage({ searchParams }: CallOutsPageProps) {
-    return (
-        <div className="grid gap-8">
-            <section className="grid gap-2">
-                <h1 className="text-3xl font-semibold tracking-tight">
-                    Call-outs
-                </h1>
-                <Link
-                    href="/call-outs/import"
-                    className="text-primary w-fit text-sm font-medium underline"
-                >
-                    Import call-outs
-                </Link>
-
-                <p className="text-muted-foreground">
-                    Record your call-outs and export the hours worked. All times
-                    are in Europe/Athens.
-                </p>
-            </section>
-
-            <Suspense fallback={<CallOutsLoading />}>
-                <CallOutsContent searchParams={searchParams} />
-            </Suspense>
-        </div>
-    );
-}
-
 function CallOutsLoading() {
     return (
         <div role="status" className="text-muted-foreground py-8 text-sm">
@@ -122,7 +95,10 @@ async function CallOutsContent({ searchParams }: CallOutsPageProps) {
                             required
                             maxLength={2000}
                             rows={3}
-                            placeholder="Describe the reason for the call-out..."
+                            placeholder={
+                                "Describe the reason for the call-out...\n" +
+                                "e.g. Job: P.JW.GR.CMS.COSMOS.MASSISSKA.MASS_KA_8.BAT Ended NOT Ok"
+                            }
                             className="border-input bg-background placeholder:text-muted-foreground rounded-md border p-3 text-sm"
                         />
                     </label>
@@ -193,6 +169,19 @@ async function CallOutsContent({ searchParams }: CallOutsPageProps) {
                             ([month, monthEntries]) => ({
                                 month,
                                 count: monthEntries.length,
+                                totalHours: monthEntries.reduce(
+                                    (total, entry) =>
+                                        total +
+                                        splitCallOut(
+                                            entry.startedAt,
+                                            entry.endedAt,
+                                        ).reduce(
+                                            (hours, day) =>
+                                                hours + day.roundedHours,
+                                            0,
+                                        ),
+                                    0,
+                                ),
                                 content: monthEntries.map((entry) => (
                                     <article
                                         key={entry.id}
@@ -283,5 +272,32 @@ async function CallOutsContent({ searchParams }: CallOutsPageProps) {
                 )}
             </section>
         </>
+    );
+}
+
+export default function CallOutsPage({ searchParams }: CallOutsPageProps) {
+    return (
+        <div className="grid gap-8">
+            <section className="grid gap-2">
+                <h1 className="text-3xl font-semibold tracking-tight">
+                    Call-outs
+                </h1>
+                <Link
+                    href="/call-outs/import"
+                    className="text-primary w-fit text-sm font-medium underline"
+                >
+                    Import call-outs
+                </Link>
+
+                <p className="text-muted-foreground">
+                    Record your call-outs and export the hours worked. All times
+                    are in Europe/Athens.
+                </p>
+            </section>
+
+            <Suspense fallback={<CallOutsLoading />}>
+                <CallOutsContent searchParams={searchParams} />
+            </Suspense>
+        </div>
     );
 }

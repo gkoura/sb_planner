@@ -829,3 +829,5 @@ and authentication boundaries.
 **Call-out history grouping (2026-10-30):** call-outs are grouped by Athens start month, shown as MM-YYYY with the latest month open initially. Individual months and expand-all/collapse-all controls toggle visibility; overnight and cross-month call-outs remain in their start month. TypeScript, focused ESLint, and webpack production build pass; interactive browser verification remains pending.
 
 **Call-out card wording (2026-10-30):** removed the standby date from the call-out history card heading; the duty role remains visible. Focused ESLint and diff checks pass.
+
+**Call-out monthly hours (2026-10-30):** each month’s collapsible header shows the sum of its call-outs’ rounded daily hours alongside the entry count, visible while collapsed. Cross-month entries retain their full hours in their Athens start-month group. TypeScript, focused ESLint, and diff checks pass; interactive browser verification remains pending.

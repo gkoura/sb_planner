@@ -4,7 +4,12 @@ import { useState, type ReactNode } from "react";
 import { ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-type MonthGroup = { month: string; count: number; content: ReactNode };
+type MonthGroup = {
+    month: string;
+    count: number;
+    totalHours: number;
+    content: ReactNode;
+};
 
 export function CallOutMonthGroups({ groups }: { groups: MonthGroup[] }) {
     const [openMonths, setOpenMonths] = useState<string[]>(() =>
@@ -65,6 +70,11 @@ export function CallOutMonthGroups({ groups }: { groups: MonthGroup[] }) {
                                         {group.count === 1
                                             ? "call-out"
                                             : "call-outs"}
+                                        {" · "}
+                                        {group.totalHours}{" "}
+                                        {group.totalHours === 1
+                                            ? "hour logged"
+                                            : "hours logged"}
                                     </span>
                                 </span>
                                 <ChevronDown
