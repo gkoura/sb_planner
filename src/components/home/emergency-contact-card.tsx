@@ -14,13 +14,13 @@ export function EmergencyContactCard() {
                         <PhoneCall aria-hidden="true" className="size-6" />
                     </span>
                     <div>
-                        <p className="text-sm font-medium text-muted-foreground">
+                        <p className="text-muted-foreground text-sm font-medium">
                             Emergency contact
                         </p>
                         <h2 className="mt-1 text-xl font-semibold tracking-tight">
                             MR Operators
                         </h2>
-                        <p className="mt-1 text-sm text-muted-foreground">
+                        <p className="text-muted-foreground mt-1 text-sm">
                             Call for escalation or other team contact details.
                         </p>
                     </div>

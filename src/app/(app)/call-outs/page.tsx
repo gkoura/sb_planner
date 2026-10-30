@@ -1,9 +1,11 @@
-
+import { randomUUID } from "node:crypto";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 
 import { createCallOut, deleteCallOut } from "@/app/actions/call-outs";
 import { Button } from "@/components/ui/button";
+import { SaveCallOutButton } from "@/components/call-outs/save-button";
+import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { getCurrentSession } from "@/lib/auth-guard";
 import { athensParts, splitCallOut } from "@/lib/call-outs";
 import { prisma } from "@/lib/prisma";
@@ -16,18 +18,20 @@ const labels = {
 };
 
 type CallOutsPageProps = {
-    searchParams: Promise<{ error?: string; saved?: string }>;
+    searchParams: Promise<{
+        error?: string;
+        saved?: string;
+    }>;
 };
 
-export default function CallOutsPage({
-    searchParams,
-}: CallOutsPageProps) {
+export default function CallOutsPage({ searchParams }: CallOutsPageProps) {
     return (
         <div className="grid gap-8">
             <section className="grid gap-2">
                 <h1 className="text-3xl font-semibold tracking-tight">
                     Call-outs
                 </h1>
+
                 <p className="text-muted-foreground">
                     Record your call-outs and export the hours worked. All times
                     are in Europe/Athens.
@@ -43,18 +47,13 @@ export default function CallOutsPage({
 
 function CallOutsLoading() {
     return (
-        <div
-            role="status"
-            className="text-muted-foreground py-8 text-sm"
-        >
+        <div role="status" className="text-muted-foreground py-8 text-sm">
             Loading call-outs...
         </div>
     );
 }
 
-async function CallOutsContent({
-    searchParams,
-}: CallOutsPageProps) {
+async function CallOutsContent({ searchParams }: CallOutsPageProps) {
     const session = await getCurrentSession();
 
     if (!session) {
@@ -64,21 +63,28 @@ async function CallOutsContent({
     const params = await searchParams;
 
     const entries = await prisma.callOut.findMany({
-        where: { userId: session.user.id },
-        orderBy: { startedAt: "desc" },
+        where: {
+            userId: session.user.id,
+        },
+        orderBy: {
+            startedAt: "desc",
+        },
     });
 
     return (
         <>
             <section className="bg-card rounded-2xl border p-6">
-                <h2 className="text-xl font-semibold">Log a call-out</h2>
-                <p className="text-muted-foreground mt-1 text-sm">
-                    Standby runs from 09:00 to 09:00 the next day. Choose
-                    support when helping outside your assigned duty.
-                </p>
+                <div className="grid gap-1">
+                    <h2 className="text-xl font-semibold">Log a call-out</h2>
+
+                    <p className="text-muted-foreground text-sm">
+                        Standby runs from 09:00 to 09:00 the next day. Choose
+                        support when helping outside your assigned duty.
+                    </p>
+                </div>
 
                 {params.error && (
-                    <p role="alert" className="text-destructive mt-4">
+                    <p role="alert" className="text-destructive mt-4 text-sm">
                         Check the reason, role and times. End must be after
                         start, within seven days. Times during a daylight-saving
                         clock change may be ambiguous or unavailable.
@@ -86,12 +92,17 @@ async function CallOutsContent({
                 )}
 
                 {params.saved && (
-                    <p role="status" className="mt-4 text-green-700">
+                    <p role="status" className="mt-4 text-sm text-green-700">
                         Call-out saved.
                     </p>
                 )}
 
-                <form action={createCallOut} className="mt-5 grid gap-4">
+                <form action={createCallOut} className="mt-6 grid gap-5">
+                    <input
+                        type="hidden"
+                        name="submissionId"
+                        value={randomUUID()}
+                    />
                     <label className="grid gap-1.5 text-sm font-medium">
                         Reason
                         <textarea
@@ -99,51 +110,42 @@ async function CallOutsContent({
                             required
                             maxLength={2000}
                             rows={3}
-                            className="border-input bg-background rounded-md border p-2"
+                            placeholder="Describe the reason for the call-out..."
+                            className="border-input bg-background placeholder:text-muted-foreground rounded-md border p-3 text-sm"
                         />
                     </label>
 
-                    <div className="grid gap-4 sm:grid-cols-3">
-                        <label className="grid gap-1.5 text-sm font-medium">
-                            Duty role
-                            <select
-                                name="role"
-                                required
-                                className="border-input bg-background rounded-md border p-2"
-                            >
-                                <option value="PRIMARY">Primary</option>
-                                <option value="TRAINEE">
-                                    Trainee (shadow)
-                                </option>
-                                <option value="MENTOR">Mentor</option>
-                                <option value="SUPPORT">Support</option>
-                            </select>
-                        </label>
+                    <label className="grid gap-1.5 text-sm font-medium">
+                        Duty role
+                        <select
+                            name="role"
+                            required
+                            className="border-input bg-background h-10 rounded-md border px-3 text-sm"
+                        >
+                            <option value="PRIMARY">Primary</option>
 
-                        <label className="grid gap-1.5 text-sm font-medium">
-                            Start
-                            <input
-                                name="start"
-                                type="datetime-local"
-                                required
-                                className="border-input bg-background rounded-md border p-2"
-                            />
-                        </label>
+                            <option value="TRAINEE">Trainee (shadow)</option>
 
-                        <label className="grid gap-1.5 text-sm font-medium">
-                            End
-                            <input
-                                name="end"
-                                type="datetime-local"
-                                required
-                                className="border-input bg-background rounded-md border p-2"
-                            />
-                        </label>
+                            <option value="MENTOR">Mentor</option>
+
+                            <option value="SUPPORT">Support</option>
+                        </select>
+                    </label>
+
+                    <div className="grid gap-4 sm:grid-cols-2">
+                        <DateTimePicker name="start" label="Start" />
+
+                        <DateTimePicker name="end" label="End" />
                     </div>
 
-                    <Button type="submit" className="w-fit">
-                        Save call-out
-                    </Button>
+                    <p className="text-muted-foreground text-xs">
+                        All dates and times are interpreted in Europe/Athens
+                        (24-hour format).
+                    </p>
+
+                    <div className="flex justify-end border-t pt-5">
+                        <SaveCallOutButton />
+                    </div>
                 </form>
             </section>
 
@@ -153,6 +155,7 @@ async function CallOutsContent({
                         <h2 className="text-xl font-semibold">
                             Your call-outs
                         </h2>
+
                         <p className="text-muted-foreground text-sm">
                             Each call-out is rounded up separately for each
                             calendar day.
@@ -189,7 +192,12 @@ async function CallOutsContent({
                                         name="id"
                                         value={entry.id}
                                     />
-                                    <Button variant="outline" size="sm">
+
+                                    <Button
+                                        type="submit"
+                                        variant="outline"
+                                        size="sm"
+                                    >
                                         Delete
                                     </Button>
                                 </form>

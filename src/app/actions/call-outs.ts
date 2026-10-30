@@ -10,11 +10,15 @@ import { CallOutRole } from "@prisma/client";
 export async function createCallOut(form: FormData) {
     const session = await getCurrentSession();
     if (!session) redirect("/sign-in");
+    const submissionId = String(form.get("submissionId") ?? "");
     const reason = String(form.get("reason") ?? "").trim();
     const role = String(form.get("role") ?? "");
     const start = parseAthensDateTime(String(form.get("start") ?? ""));
     const end = parseAthensDateTime(String(form.get("end") ?? ""));
     if (
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+            submissionId,
+        ) ||
         !reason ||
         reason.length > 2000 ||
         !Object.values(CallOutRole).includes(role as CallOutRole) ||
@@ -25,8 +29,10 @@ export async function createCallOut(form: FormData) {
     ) {
         redirect("/call-outs?error=invalid");
     }
-    await prisma.callOut.create({
+    await prisma.callOut.createMany({
+        skipDuplicates: true,
         data: {
+            id: submissionId,
             userId: session.user.id,
             reason,
             role: role as CallOutRole,
@@ -35,6 +41,11 @@ export async function createCallOut(form: FormData) {
             endedAt: end,
         },
     });
+    const saved = await prisma.callOut.findFirst({
+        where: { id: submissionId, userId: session.user.id },
+        select: { id: true },
+    });
+    if (!saved) throw new Error("Unable to save call-out.");
     revalidatePath("/call-outs");
     redirect("/call-outs?saved=1");
 }
