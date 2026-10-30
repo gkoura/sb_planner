@@ -97,7 +97,7 @@ export function AppHeader({ name, role }: AppHeaderProps) {
                             </span>
                         </div>
                         <Button
-                            className="hidden xl:inline-flex"
+                            className="hidden sm:inline-flex"
                             nativeButton={false}
                             render={<Link href="/sign-out" />}
                             size="sm"
@@ -110,6 +110,22 @@ export function AppHeader({ name, role }: AppHeaderProps) {
                         </Button>
                     </div>
                 </div>
+                <nav
+                    aria-label="Main navigation"
+                    className="hidden flex-wrap items-center gap-1 border-t py-2 sm:flex xl:hidden"
+                >
+                    {links.map((link) => (
+                        <Button
+                            key={link.href}
+                            nativeButton={false}
+                            render={<Link href={link.href} />}
+                            size="sm"
+                            variant="ghost"
+                        >
+                            {link.label}
+                        </Button>
+                    ))}
+                </nav>
             </div>
         </header>
     );
