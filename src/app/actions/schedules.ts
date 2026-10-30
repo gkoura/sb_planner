@@ -14,6 +14,9 @@ import {
     getOperationalDate,
     parseScheduleInputSnapshot,
     validateScheduleEdit,
+    validateScheduleShadows,
+    scheduleShadowSignature,
+    type ScheduleEditShadow,
     validateShadowAvailability,
     type ScheduleEditAssignment,
 } from "@/lib/schedule-edits";
@@ -328,6 +331,33 @@ export async function saveScheduleEdit(
         return { error: "The edited assignments are invalid." };
     }
 
+    // Older forms omit shadows and retain their automatic placement behavior.
+    let explicitShadows: ScheduleEditShadow[] | undefined;
+    const shadowsValue = formData.get("shadows");
+    if (shadowsValue !== null) {
+        try {
+            const parsed: unknown =
+                typeof shadowsValue === "string"
+                    ? JSON.parse(shadowsValue)
+                    : null;
+            if (
+                !Array.isArray(parsed) ||
+                parsed.some(
+                    (shadow) =>
+                        !shadow ||
+                        typeof shadow.date !== "string" ||
+                        typeof shadow.shadowMemberId !== "string" ||
+                        !["TRAINING", "MENTORING"].includes(shadow.kind),
+                )
+            ) {
+                return { error: "The edited shadow assignments are invalid." };
+            }
+            explicitShadows = parsed;
+        } catch {
+            return { error: "The edited shadow assignments are invalid." };
+        }
+    }
+
     const revisionReason =
         typeof revisionReasonValue === "string"
             ? revisionReasonValue.trim()
@@ -428,7 +458,21 @@ export async function saveScheduleEdit(
                 (assignment) =>
                     oldAssignments.get(assignment.date) ===
                     assignment.planningMemberId,
-            )
+            ) &&
+            (explicitShadows === undefined ||
+                assignments.every(
+                    (assignment) =>
+                        scheduleShadowSignature(
+                            run.assignments.find(
+                                (original) => original.date === assignment.date,
+                            )?.shadows ?? [],
+                        ) ===
+                        scheduleShadowSignature(
+                            explicitShadows!.filter(
+                                (shadow) => shadow.date === assignment.date,
+                            ),
+                        ),
+                ))
         ) {
             return {
                 error: "Make at least one assignment change before saving.",
@@ -468,30 +512,46 @@ export async function saveScheduleEdit(
             };
         }
 
-        const shadowPlan = generateShadowsForAssignments(
-            snapshot.year,
-            snapshot.month,
-            snapshot.members,
-            assignments,
-        );
-        if (!shadowPlan.ok) {
-            return {
-                error: `Could not place the required shadows: ${shadowPlan.message}`,
-            };
+        let shadows: ScheduleEditShadow[];
+        if (explicitShadows !== undefined) {
+            shadows = explicitShadows;
+            const errors = validateScheduleShadows(
+                snapshot.year,
+                snapshot.month,
+                snapshot.members,
+                assignments,
+                shadows,
+            );
+            if (errors.length) return { error: errors.slice(0, 3).join(" ") };
+        } else {
+            const shadowPlan = generateShadowsForAssignments(
+                snapshot.year,
+                snapshot.month,
+                snapshot.members,
+                assignments,
+            );
+            if (!shadowPlan.ok)
+                return {
+                    error: `Could not place the required shadows: ${shadowPlan.message}`,
+                };
+            shadows = shadowPlan.shadows;
+            const errors = validateShadowAvailability(
+                snapshot.year,
+                snapshot.month,
+                snapshot.members,
+                assignments.map((assignment) => ({
+                    ...assignment,
+                    shadows: shadows.filter(
+                        (shadow) => shadow.date === assignment.date,
+                    ),
+                })),
+            );
+            if (errors.length) return { error: errors.slice(0, 3).join(" ") };
         }
-        const shadowAvailabilityErrors = validateShadowAvailability(
-            snapshot.year,
-            snapshot.month,
-            snapshot.members,
-            assignments.map((assignment) => ({
-                ...assignment,
-                shadows: shadowPlan.shadows.filter(
-                    (shadow) => shadow.date === assignment.date,
-                ),
-            })),
-        );
-        if (shadowAvailabilityErrors.length)
-            return { error: shadowAvailabilityErrors.slice(0, 3).join(" ") };
+        if (shadows.some((shadow) => !memberById.has(shadow.shadowMemberId)))
+            return {
+                error: "A shadow participant is no longer in this planning month.",
+            };
         if (isPublished && !allowPastChanges) {
             const shadowSignature = (
                 shadows: { kind: string; shadowMemberId: string }[],
@@ -507,7 +567,7 @@ export async function saveScheduleEdit(
                 ]),
             );
             const newShadowsByDate = new Map<string, string>();
-            for (const shadow of shadowPlan.shadows) {
+            for (const shadow of shadows) {
                 newShadowsByDate.set(
                     shadow.date,
                     [
@@ -562,7 +622,7 @@ export async function saveScheduleEdit(
                             planningMemberId: member.id,
                             roleSnapshot: member.roleSnapshot,
                             shadows: {
-                                create: shadowPlan.shadows
+                                create: shadows
                                     .filter(
                                         (shadow) =>
                                             shadow.date === assignment.date,
@@ -573,7 +633,8 @@ export async function saveScheduleEdit(
                                         )!;
                                         return {
                                             kind: shadow.kind,
-                                            nameSnapshot: shadow.name,
+                                            nameSnapshot:
+                                                shadowMember.nameSnapshot,
                                             roleSnapshot:
                                                 shadowMember.roleSnapshot,
                                             shadowMemberId: shadowMember.id,
@@ -863,7 +924,7 @@ export async function createScheduleRun(
             return {
                 scheduleAssignmentId: assignmentId,
                 kind: shadow.kind,
-                nameSnapshot: shadow.name,
+                nameSnapshot: shadowMember.nameSnapshot,
                 roleSnapshot: shadowMember.roleSnapshot,
                 shadowMemberId: shadowMember.id,
             };

@@ -46,6 +46,11 @@ export function ScheduleCalendar({
     members,
     assignments,
     today,
+    onSelectDate,
+    selectedDates = [],
+    isDateLocked,
+    disabled = false,
+    showLegend = true,
 }: {
     year: number;
     month: number;
@@ -53,7 +58,13 @@ export function ScheduleCalendar({
     assignments: ScheduleAssignment[];
     /** ISO date in the team's operational timezone. */
     today?: string;
+    onSelectDate?: (date: string) => void;
+    selectedDates?: string[];
+    isDateLocked?: (date: string) => boolean;
+    disabled?: boolean;
+    showLegend?: boolean;
 }) {
+    const Cell = onSelectDate ? "button" : "div";
     const weeks = buildMonthWeeks(year, month);
     const isCurrentMonth = today?.startsWith(
         `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}`,
@@ -154,8 +165,41 @@ export function ScheduleCalendar({
                                             className="p-0 align-top"
                                             key={cell.date}
                                         >
-                                            <div
-                                                className={`relative flex min-h-14 flex-col justify-between gap-1 rounded-lg border p-1.5 sm:min-h-24 sm:p-2.5 ${isPast ? "opacity-60 grayscale" : ""} ${isToday ? "ring-primary ring-offset-background z-10 ring-2 ring-offset-2" : ""}`}
+                                            <Cell
+                                                type={
+                                                    onSelectDate
+                                                        ? "button"
+                                                        : undefined
+                                                }
+                                                onClick={
+                                                    onSelectDate
+                                                        ? () =>
+                                                              onSelectDate(
+                                                                  cell.date,
+                                                              )
+                                                        : undefined
+                                                }
+                                                disabled={
+                                                    onSelectDate
+                                                        ? disabled ||
+                                                          isDateLocked?.(
+                                                              cell.date,
+                                                          )
+                                                        : undefined
+                                                }
+                                                aria-label={
+                                                    onSelectDate
+                                                        ? `${formatDate(cell.date)}: ${assignment?.nameSnapshot ?? "Unassigned"}${(assignment?.shadows ?? []).map((shadow) => `; ${shadow.kind === "TRAINING" ? "Shadow" : "Mentor"}: ${shadow.nameSnapshot}`).join("")}${isDateLocked?.(cell.date) ? ", past date locked" : ", click to edit"}`
+                                                        : undefined
+                                                }
+                                                aria-pressed={
+                                                    onSelectDate
+                                                        ? selectedDates.includes(
+                                                              cell.date,
+                                                          )
+                                                        : undefined
+                                                }
+                                                className={`focus-visible:outline-ring w-full text-left focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed ${selectedDates.includes(cell.date) ? "ring-primary ring-2 ring-offset-2" : ""} relative flex min-h-14 flex-col justify-between gap-1 rounded-lg border p-1.5 sm:min-h-24 sm:p-2.5 ${isPast ? "opacity-60 grayscale" : ""} ${isToday ? "ring-primary ring-offset-background z-10 ring-2 ring-offset-2" : ""}`}
                                                 style={
                                                     color
                                                         ? {
@@ -254,7 +298,7 @@ export function ScheduleCalendar({
                                                         </span>
                                                     );
                                                 })}
-                                            </div>
+                                            </Cell>
                                         </td>
                                     );
                                 })}
@@ -263,42 +307,47 @@ export function ScheduleCalendar({
                     </tbody>
                 </table>
             </div>
-            <ul
-                aria-label="Participant colors and total primary and shadow duties"
-                className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-3"
-            >
-                {members.map((member) => {
-                    const color = colorsByMemberId.get(member.id);
-                    return (
-                        <li
-                            className="bg-background grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 rounded-lg border px-3 py-2"
-                            key={member.id}
-                        >
-                            <span
-                                aria-hidden="true"
-                                className="size-3 shrink-0 rounded-sm"
-                                style={{ backgroundColor: color?.foreground }}
-                            />
-                            <span className="min-w-0 truncate text-sm font-medium">
-                                {member.nameSnapshot}
-                            </span>
-                            {member.phoneNumber ? (
-                                <a
-                                    className="text-primary col-start-2 w-fit text-xs underline-offset-4 hover:underline"
-                                    href={`tel:${member.phoneNumber}`}
-                                >
-                                    {member.phoneNumber}
-                                </a>
-                            ) : null}
-                            <span className="text-muted-foreground col-start-3 row-span-2 row-start-1 text-xs">
-                                {(assignmentsByMember.get(member.id) ?? 0) +
-                                    (shadowsByMember.get(member.id) ?? 0)}{" "}
-                                duties
-                            </span>
-                        </li>
-                    );
-                })}
-            </ul>
+            {showLegend ? (
+                <ul
+                    aria-label="Participant colors and total primary and shadow duties"
+                    className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-3"
+                >
+                    {members.map((member) => {
+                        const color = colorsByMemberId.get(member.id);
+                        return (
+                            <li
+                                className="bg-background grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 rounded-lg border px-3 py-2"
+                                key={member.id}
+                            >
+                                <span
+                                    aria-hidden="true"
+                                    className="size-3 shrink-0 rounded-sm"
+                                    style={{
+                                        backgroundColor: color?.foreground,
+                                    }}
+                                />
+                                <span className="min-w-0 truncate text-sm font-medium">
+                                    {member.nameSnapshot}
+                                </span>
+                                {member.phoneNumber ? (
+                                    <a
+                                        className="text-primary col-start-2 w-fit text-xs underline-offset-4 hover:underline"
+                                        href={`tel:${member.phoneNumber}`}
+                                    >
+                                        {member.phoneNumber}
+                                    </a>
+                                ) : null}
+                                <span className="text-muted-foreground col-start-3 row-span-2 row-start-1 text-xs">
+                                    {(assignmentsByMember.get(member.id) ?? 0) +
+                                        (shadowsByMember.get(member.id) ??
+                                            0)}{" "}
+                                    duties
+                                </span>
+                            </li>
+                        );
+                    })}
+                </ul>
+            ) : null}
         </>
     );
 }

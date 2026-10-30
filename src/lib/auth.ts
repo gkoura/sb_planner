@@ -7,6 +7,19 @@ export const auth = betterAuth({
     database: prismaAdapter(prisma, {
         provider: "postgresql",
     }),
+    databaseHooks: {
+        session: {
+            create: {
+                before: async (session) => {
+                    const user = await prisma.user.findUnique({
+                        where: { id: session.userId },
+                        select: { isActive: true },
+                    });
+                    if (!user?.isActive) return false;
+                },
+            },
+        },
+    },
     emailAndPassword: {
         enabled: true,
         // Accounts will be created by an administrator in M1.

@@ -301,3 +301,136 @@ export function getOperationalDate(now = new Date()) {
         parts.find((entry) => entry.type === type)?.value ?? "00";
     return `${part("year")}-${part("month")}-${part("day")}`;
 }
+
+export type ScheduleEditShadow = {
+    date: string;
+    shadowMemberId: string;
+    kind: "TRAINING" | "MENTORING";
+};
+
+export function scheduleShadowSignature(
+    shadows: { shadowMemberId: string; kind: string }[],
+) {
+    return shadows
+        .map((shadow) => `${shadow.kind}:${shadow.shadowMemberId}`)
+        .sort()
+        .join("|");
+}
+
+/** Shadow rules are hard constraints even when a primary-only exception is approved. */
+export function validateScheduleShadows(
+    year: number,
+    month: number,
+    members: ScheduleInputMember[],
+    assignments: ScheduleEditAssignment[],
+    shadows: ScheduleEditShadow[],
+): string[] {
+    const errors = new Set<string>();
+    const memberById = new Map(members.map((member) => [member.id, member]));
+    const byDate = new Map(
+        assignments.map((assignment) => [assignment.date, assignment]),
+    );
+    const shadowByDate = new Map<string, ScheduleEditShadow>();
+    const traineeCounts = new Map<string, number>();
+    const workDates = new Map(
+        members.map((member) => [member.id, new Set<string>()]),
+    );
+    const shadowWorkDates = new Map(
+        members.map((member) => [member.id, new Set<string>()]),
+    );
+    for (const assignment of assignments)
+        workDates.get(assignment.planningMemberId)?.add(assignment.date);
+    for (const shadow of shadows) {
+        const assignment = byDate.get(shadow.date);
+        const member = memberById.get(shadow.shadowMemberId);
+        const primary =
+            assignment && memberById.get(assignment.planningMemberId);
+        if (!assignment || !member || !primary) {
+            errors.add(
+                `A shadow pair on ${shadow.date} has an unknown date or participant.`,
+            );
+            continue;
+        }
+        if (shadowByDate.has(shadow.date))
+            errors.add(`Only one shadow pair is allowed on ${shadow.date}.`);
+        shadowByDate.set(shadow.date, shadow);
+        if (primary.id === member.id)
+            errors.add(
+                `${member.name} cannot be both primary and shadow on ${shadow.date}.`,
+            );
+        if (shadow.kind === "TRAINING") {
+            if (
+                member.participationMode !== "TRAINEE" ||
+                (primary.participationMode ?? "NORMAL") !== "NORMAL"
+            ) {
+                errors.add(
+                    `Training on ${shadow.date} requires a trainee and a normal primary participant.`,
+                );
+            }
+            traineeCounts.set(
+                member.id,
+                (traineeCounts.get(member.id) ?? 0) + 1,
+            );
+        } else if (shadow.kind === "MENTORING") {
+            if (
+                primary.participationMode !== "MENTORED" ||
+                member.participationMode === "TRAINEE"
+            ) {
+                errors.add(
+                    `Mentoring on ${shadow.date} requires a mentored primary and a non-trainee mentor.`,
+                );
+            }
+        } else errors.add(`Choose a valid shadow kind on ${shadow.date}.`);
+        workDates.get(member.id)?.add(shadow.date);
+        shadowWorkDates.get(member.id)?.add(shadow.date);
+    }
+    for (const assignment of assignments) {
+        const member = memberById.get(assignment.planningMemberId);
+        if (
+            member?.participationMode === "MENTORED" &&
+            shadowByDate.get(assignment.date)?.kind !== "MENTORING"
+        ) {
+            errors.add(
+                `${member.name} needs a MENTORING partner on ${assignment.date}.`,
+            );
+        }
+    }
+    for (const member of members) {
+        if (
+            member.participationMode === "TRAINEE" &&
+            (traineeCounts.get(member.id) ?? 0) !== (member.shadowDayCount ?? 0)
+        ) {
+            errors.add(
+                `${member.name} needs exactly ${member.shadowDayCount ?? 0} training shadow day(s); currently assigned ${traineeCounts.get(member.id) ?? 0}.`,
+            );
+        }
+        const dates = [...(workDates.get(member.id) ?? [])].sort();
+        for (let index = 1; index < dates.length; index++) {
+            const previous = dates[index - 1];
+            const current = dates[index];
+            if (
+                Date.parse(`${current}T00:00:00Z`) -
+                    Date.parse(`${previous}T00:00:00Z`) ===
+                    86_400_000 &&
+                (shadowWorkDates.get(member.id)?.has(previous) ||
+                    shadowWorkDates.get(member.id)?.has(current))
+            ) {
+                errors.add(
+                    `${member.name} has consecutive primary or shadow duties on ${previous} and ${current}.`,
+                );
+            }
+        }
+    }
+    validateShadowAvailability(
+        year,
+        month,
+        members,
+        assignments.map((assignment) => ({
+            ...assignment,
+            shadows: shadows.filter(
+                (shadow) => shadow.date === assignment.date,
+            ),
+        })),
+    ).forEach((error) => errors.add(error));
+    return [...errors];
+}

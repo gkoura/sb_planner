@@ -23,17 +23,20 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { buildMonthWeeks } from "@/lib/month-calendar";
+import { ScheduleCalendar } from "@/components/schedules/schedule-calendar";
 import { SCHEDULE_COLORS } from "@/lib/schedule-colors";
 import {
     getAvailableDates,
     validateScheduleEdit,
+    validateScheduleShadows,
+    scheduleShadowSignature,
     type ScheduleEditAssignment,
     type ScheduleInputMember,
 } from "@/lib/schedule-edits";
 
 type EditorMember = ScheduleInputMember & {
     roleSnapshot: string;
+    phoneNumber?: string | null;
 };
 
 type EditorAssignment = ScheduleEditAssignment & {
@@ -47,15 +50,6 @@ type EditorAssignment = ScheduleEditAssignment & {
     }[];
 };
 
-const WEEKDAYS = [
-    "Monday",
-    "Tuesday",
-    "Wednesday",
-    "Thursday",
-    "Friday",
-    "Saturday",
-    "Sunday",
-];
 const initialState: EditScheduleState = {};
 
 function formatDate(value: string) {
@@ -70,7 +64,10 @@ function formatDate(value: string) {
 function toEditorAssignments(
     assignments: EditorAssignment[],
 ): EditorAssignment[] {
-    return assignments.map((assignment) => ({ ...assignment }));
+    return assignments.map((assignment) => ({
+        ...assignment,
+        shadows: assignment.shadows?.map((shadow) => ({ ...shadow })) ?? [],
+    }));
 }
 
 export function ScheduleEditor({
@@ -97,13 +94,14 @@ export function ScheduleEditor({
     const [assignments, setAssignments] = useState(() =>
         toEditorAssignments(initialAssignments),
     );
+    const [isRecalculating, setIsRecalculating] = useState(false);
+    const isBusy = isPending || isRecalculating;
     const [mode, setMode] = useState<"assign" | "swap">("assign");
     const [activeDate, setActiveDate] = useState<string | null>(null);
     const [swapDates, setSwapDates] = useState<string[]>([]);
     const [allowPastChanges, setAllowPastChanges] = useState(false);
     const [revisionReason, setRevisionReason] = useState("");
     const [feedback, setFeedback] = useState("");
-    const weeks = useMemo(() => buildMonthWeeks(year, month), [month, year]);
     const availableDatesByMember = useMemo(
         () =>
             new Map(
@@ -139,6 +137,21 @@ export function ScheduleEditor({
         () => validateScheduleEdit(year, month, members, assignments),
         [assignments, members, month, year],
     );
+    const shadows = assignments.flatMap((assignment) =>
+        (assignment.shadows ?? []).map((shadow) => ({
+            date: assignment.date,
+            shadowMemberId: shadow.shadowMemberId,
+            kind: shadow.kind,
+        })),
+    );
+    const shadowErrors = validateScheduleShadows(
+        year,
+        month,
+        members,
+        assignments,
+        shadows,
+    );
+    const shadowsJson = JSON.stringify(shadows);
     const primaryAssignmentsJson = JSON.stringify(
         assignments.map(({ date, planningMemberId }) => ({
             date,
@@ -151,7 +164,17 @@ export function ScheduleEditor({
             planningMemberId,
         })),
     );
-    const hasChanges = primaryAssignmentsJson !== initialPrimaryAssignmentsJson;
+    const hasChanges =
+        primaryAssignmentsJson !== initialPrimaryAssignmentsJson ||
+        assignments.some(
+            (assignment) =>
+                scheduleShadowSignature(assignment.shadows ?? []) !==
+                scheduleShadowSignature(
+                    initialAssignments.find(
+                        (original) => original.date === assignment.date,
+                    )?.shadows ?? [],
+                ),
+        );
     const selectedAssignment = activeDate
         ? assignmentsByDate.get(activeDate)
         : undefined;
@@ -166,7 +189,7 @@ export function ScheduleEditor({
             (workloads.get(assignment.planningMemberId) ?? 0) + 1,
         );
     }
-    for (const assignment of initialAssignments) {
+    for (const assignment of assignments) {
         for (const shadow of assignment.shadows ?? []) {
             shadowWorkloads.set(
                 shadow.shadowMemberId,
@@ -179,24 +202,32 @@ export function ScheduleEditor({
         !allowPastChanges &&
         assignments.some(
             (assignment) =>
-                assignment.date < today &&
-                initialAssignments.find(
-                    (original) => original.date === assignment.date,
-                )?.planningMemberId !== assignment.planningMemberId,
+                (assignment.date < today &&
+                    initialAssignments.find(
+                        (original) => original.date === assignment.date,
+                    )?.planningMemberId !== assignment.planningMemberId) ||
+                (assignment.date < today &&
+                    scheduleShadowSignature(assignment.shadows ?? []) !==
+                        scheduleShadowSignature(
+                            initialAssignments.find(
+                                (original) => original.date === assignment.date,
+                            )?.shadows ?? [],
+                        )),
         );
     const canSave =
         hasChanges &&
         validation.ok &&
+        shadowErrors.length === 0 &&
         !lockedPastChange &&
         (!(isPublished || validation.warnings.length > 0) ||
             revisionReason.trim().length > 0) &&
         revisionReason.trim().length <= 500 &&
-        !isPending;
-    const saveDisabledReason = isPending
+        !isBusy;
+    const saveDisabledReason = isBusy
         ? null
         : !hasChanges
           ? "Make a calendar assignment change before saving."
-          : !validation.ok
+          : !validation.ok || shadowErrors.length > 0
             ? "Fix the schedule structure issues shown above before saving."
             : lockedPastChange
               ? "Enable past-date corrections to save changes to earlier dates."
@@ -221,7 +252,11 @@ export function ScheduleEditor({
     }
 
     function applyAssignment(memberId: string) {
-        if (!activeDate) return;
+        if (
+            !activeDate ||
+            (isPublished && activeDate < today && !allowPastChanges)
+        )
+            return;
         const member = memberById.get(memberId);
         if (!member) return;
         setAssignments((current) =>
@@ -241,8 +276,107 @@ export function ScheduleEditor({
         );
     }
 
+    function applyShadow(memberId: string) {
+        if (
+            !activeDate ||
+            !selectedAssignment ||
+            (isPublished && activeDate < today && !allowPastChanges)
+        )
+            return;
+        const member = memberById.get(memberId);
+        const primary = memberById.get(selectedAssignment.planningMemberId);
+        setAssignments((current) =>
+            current.map((assignment) =>
+                assignment.date === activeDate
+                    ? {
+                          ...assignment,
+                          shadows: member
+                              ? [
+                                    {
+                                        id: `${activeDate}:${member.id}`,
+                                        shadowMemberId: member.id,
+                                        nameSnapshot: member.name,
+                                        kind:
+                                            primary?.participationMode ===
+                                            "MENTORED"
+                                                ? "MENTORING"
+                                                : "TRAINING",
+                                    },
+                                ]
+                              : [],
+                      }
+                    : assignment,
+            ),
+        );
+        setFeedback("Shadow change staged. Save the revision when ready.");
+    }
+
+    async function regenerateShadows() {
+        // Load the bounded solver only when automatic placement is requested.
+        setIsRecalculating(true);
+        try {
+            const { generateShadowsForAssignments } =
+                await import("@/lib/scheduler");
+            const result = generateShadowsForAssignments(
+                year,
+                month,
+                members,
+                assignments,
+            );
+            if (!result.ok) {
+                setFeedback(result.message);
+                return;
+            }
+            const next = assignments.map((assignment) => ({
+                ...assignment,
+                shadows: result.shadows
+                    .filter((shadow) => shadow.date === assignment.date)
+                    .map((shadow) => ({
+                        id: `${shadow.date}:${shadow.shadowMemberId}`,
+                        shadowMemberId: shadow.shadowMemberId,
+                        nameSnapshot: shadow.name,
+                        kind: shadow.kind,
+                    })),
+            }));
+            if (
+                isPublished &&
+                !allowPastChanges &&
+                next.some(
+                    (assignment) =>
+                        assignment.date < today &&
+                        scheduleShadowSignature(assignment.shadows) !==
+                            scheduleShadowSignature(
+                                initialAssignments.find(
+                                    (original) =>
+                                        original.date === assignment.date,
+                                )?.shadows ?? [],
+                            ),
+                )
+            ) {
+                setFeedback(
+                    "Automatic placement would change past shadow pairings. Enable past-date corrections or edit future shadows manually.",
+                );
+                return;
+            }
+            setAssignments(next);
+            setFeedback(
+                "Shadow pairings recalculated in the preview. Save the revision when ready.",
+            );
+        } catch {
+            setFeedback("Unable to recalculate shadows. Try again.");
+        } finally {
+            setIsRecalculating(false);
+        }
+    }
+
     function applySwap() {
-        if (swapDates.length !== 2) return;
+        if (
+            swapDates.length !== 2 ||
+            (isPublished &&
+                !allowPastChanges &&
+                swapDates.some((date) => date < today))
+        )
+            return;
         const [firstDate, secondDate] = swapDates;
         const first = assignmentsByDate.get(firstDate);
         const second = assignmentsByDate.get(secondDate);
@@ -285,6 +419,7 @@ export function ScheduleEditor({
 
     return (
         <form action={formAction} className="grid gap-5">
+            <input name="shadows" type="hidden" value={shadowsJson} />
             <input name="scheduleRunId" type="hidden" value={scheduleRunId} />
             <input
                 name="assignments"
@@ -307,8 +442,9 @@ export function ScheduleEditor({
                         </CardTitle>
                         <CardDescription className="mt-1">
                             Change one day at a time, or swap two days. Other
-                            dates stay where they are; shadow pairings are
-                            recalculated when you save.
+                            Edit primary and shadow participants for each date.
+                            Pairings stay as shown until you edit them or choose
+                            Recalculate shadows.
                         </CardDescription>
                     </div>
                     <div className="flex gap-2">
@@ -365,188 +501,25 @@ export function ScheduleEditor({
                         </label>
                     ) : null}
 
-                    <div className="bg-background overflow-hidden rounded-xl border p-1 sm:p-3">
-                        <table
-                            aria-label="Editable daily standby assignments"
-                            className="w-full table-fixed border-separate border-spacing-1 text-left"
-                        >
-                            <thead>
-                                <tr>
-                                    {WEEKDAYS.map((weekday) => (
-                                        <th
-                                            className="text-muted-foreground pb-2 text-center text-[0.65rem] font-semibold tracking-wide uppercase sm:text-xs"
-                                            key={weekday}
-                                            scope="col"
-                                        >
-                                            <span className="sm:hidden">
-                                                {weekday.slice(0, 1)}
-                                            </span>
-                                            <span className="hidden sm:inline">
-                                                {weekday.slice(0, 3)}
-                                            </span>
-                                        </th>
-                                    ))}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {weeks.map((week, weekIndex) => (
-                                    <tr key={weekIndex}>
-                                        {week.map((cell, weekdayIndex) => {
-                                            if (!cell)
-                                                return (
-                                                    <td
-                                                        aria-hidden="true"
-                                                        className="p-0"
-                                                        key={`${weekIndex}-${weekdayIndex}`}
-                                                    />
-                                                );
-                                            const assignment =
-                                                assignmentsByDate.get(
-                                                    cell.date,
-                                                );
-                                            const isToday = cell.date === today;
-                                            const color = assignment
-                                                ? colorsByMemberId.get(
-                                                      assignment.planningMemberId,
-                                                  )
-                                                : undefined;
-                                            const isSelected =
-                                                activeDate === cell.date ||
-                                                swapDates.includes(cell.date);
-                                            const isLocked =
-                                                isPublished &&
-                                                cell.date < today &&
-                                                !allowPastChanges;
-                                            const initials =
-                                                assignment?.nameSnapshot
-                                                    .trim()
-                                                    .split(/\s+/)
-                                                    .slice(0, 2)
-                                                    .map((part) => part[0])
-                                                    .join("")
-                                                    .toUpperCase();
-
-                                            return (
-                                                <td
-                                                    className="p-0 align-top"
-                                                    key={cell.date}
-                                                >
-                                                    <button
-                                                        aria-current={
-                                                            isToday
-                                                                ? "date"
-                                                                : undefined
-                                                        }
-                                                        aria-label={`${isToday ? "Today, " : ""}${formatDate(cell.date)}: ${assignment?.nameSnapshot ?? "unassigned"}${isLocked ? ", past date locked" : ", click to edit"}`}
-                                                        aria-pressed={
-                                                            isSelected
-                                                        }
-                                                        className={`focus-visible:outline-ring relative flex min-h-12 w-full flex-col justify-between rounded-lg border p-1.5 text-left transition-[box-shadow,transform] hover:-translate-y-0.5 hover:shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-65 sm:min-h-20 sm:p-2.5 ${isSelected || isToday ? "ring-primary ring-offset-background ring-2 ring-offset-2" : ""}`}
-                                                        disabled={
-                                                            isLocked ||
-                                                            isPending
-                                                        }
-                                                        onClick={() =>
-                                                            selectDay(cell.date)
-                                                        }
-                                                        style={
-                                                            color
-                                                                ? {
-                                                                      backgroundColor:
-                                                                          color.background,
-                                                                      borderColor: `${color.foreground}70`,
-                                                                  }
-                                                                : undefined
-                                                        }
-                                                        title={`${formatDate(cell.date)} · ${assignment?.nameSnapshot ?? "Unassigned"}${isToday ? " · Today" : ""}${isLocked ? " · past date locked" : " · click to edit"}`}
-                                                        type="button"
-                                                    >
-                                                        <span className="flex items-start justify-between gap-1">
-                                                            <span
-                                                                className="text-[0.65rem] font-semibold sm:text-xs"
-                                                                style={{
-                                                                    color:
-                                                                        color?.foreground ??
-                                                                        "var(--muted-foreground)",
-                                                                }}
-                                                            >
-                                                                {cell.day}
-                                                            </span>
-                                                            {isToday ? (
-                                                                <span className="bg-primary text-primary-foreground rounded px-1 py-0.5 text-[0.5rem] font-bold tracking-wide uppercase sm:text-[0.55rem]">
-                                                                    Today
-                                                                </span>
-                                                            ) : null}
-                                                        </span>
-                                                        {assignment ? (
-                                                            <>
-                                                                <span
-                                                                    className="my-1 grid size-6 place-items-center self-center rounded-full text-[0.6rem] font-bold sm:hidden"
-                                                                    style={{
-                                                                        backgroundColor:
-                                                                            color?.foreground,
-                                                                        color: color?.background,
-                                                                    }}
-                                                                >
-                                                                    {initials}
-                                                                </span>
-                                                                <span
-                                                                    className="hidden truncate text-[0.7rem] leading-tight font-semibold sm:block"
-                                                                    style={{
-                                                                        color: color?.foreground,
-                                                                    }}
-                                                                >
-                                                                    {
-                                                                        assignment.nameSnapshot
-                                                                    }
-                                                                </span>
-                                                                {!hasChanges
-                                                                    ? (
-                                                                          assignment.shadows ??
-                                                                          []
-                                                                      ).map(
-                                                                          (
-                                                                              shadow,
-                                                                          ) => (
-                                                                              <span
-                                                                                  className="hidden truncate text-[0.6rem] leading-tight font-medium sm:block"
-                                                                                  key={
-                                                                                      shadow.id
-                                                                                  }
-                                                                              >
-                                                                                  {shadow.kind ===
-                                                                                  "TRAINING"
-                                                                                      ? "Shadow"
-                                                                                      : "Mentor"}
-
-                                                                                  :{" "}
-                                                                                  {
-                                                                                      shadow.nameSnapshot
-                                                                                  }
-                                                                              </span>
-                                                                          ),
-                                                                      )
-                                                                    : null}
-                                                            </>
-                                                        ) : (
-                                                            <span className="text-muted-foreground text-[0.6rem]">
-                                                                Open
-                                                            </span>
-                                                        )}
-                                                        {isLocked ? (
-                                                            <span className="text-muted-foreground hidden text-[0.55rem] sm:block">
-                                                                Past
-                                                            </span>
-                                                        ) : null}
-                                                    </button>
-                                                </td>
-                                            );
-                                        })}
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                    <ScheduleCalendar
+                        year={year}
+                        month={month}
+                        today={today}
+                        members={members.map((member) => ({
+                            id: member.id,
+                            nameSnapshot: member.name,
+                            roleSnapshot: member.roleSnapshot,
+                            phoneNumber: member.phoneNumber,
+                        }))}
+                        assignments={assignments}
+                        onSelectDate={selectDay}
+                        selectedDates={activeDate ? [activeDate] : swapDates}
+                        isDateLocked={(date) =>
+                            isPublished && date < today && !allowPastChanges
+                        }
+                        disabled={isBusy}
+                        showLegend={false}
+                    />
 
                     {mode === "assign" ? (
                         <div className="bg-muted/20 grid gap-3 rounded-xl border p-4 sm:grid-cols-[minmax(0,1fr)_minmax(14rem,0.8fr)] sm:items-end">
@@ -570,7 +543,13 @@ export function ScheduleEditor({
                                     Assign participant
                                 </label>
                                 <Select
-                                    disabled={!activeDate || isPending}
+                                    disabled={
+                                        !activeDate ||
+                                        isBusy ||
+                                        (isPublished &&
+                                            activeDate < today &&
+                                            !allowPastChanges)
+                                    }
                                     itemToStringLabel={(memberId) =>
                                         memberById.get(memberId)?.name ??
                                         memberId
@@ -591,11 +570,14 @@ export function ScheduleEditor({
                                     </SelectTrigger>
                                     <SelectContent>
                                         {membersForDate.map((member) => {
-                                            const isAvailable = activeDate
-                                                ? availableDatesByMember
-                                                      .get(member.id)
-                                                      ?.has(activeDate)
-                                                : true;
+                                            const isAvailable =
+                                                activeDate &&
+                                                member.availabilitySubmitted !==
+                                                    false
+                                                    ? availableDatesByMember
+                                                          .get(member.id)
+                                                          ?.has(activeDate)
+                                                    : true;
                                             return (
                                                 <SelectItem
                                                     key={member.id}
@@ -610,6 +592,89 @@ export function ScheduleEditor({
                                         })}
                                     </SelectContent>
                                 </Select>
+                            </div>
+                            <div className="grid gap-1.5 sm:col-start-2">
+                                <label
+                                    className="text-xs font-medium"
+                                    htmlFor="schedule-shadow"
+                                >
+                                    {memberById.get(
+                                        selectedAssignment?.planningMemberId ??
+                                            "",
+                                    )?.participationMode === "MENTORED"
+                                        ? "Mentor"
+                                        : "Training shadow"}
+                                </label>
+                                <Select
+                                    disabled={
+                                        !activeDate ||
+                                        isBusy ||
+                                        (isPublished &&
+                                            activeDate < today &&
+                                            !allowPastChanges)
+                                    }
+                                    value={
+                                        selectedAssignment?.shadows?.[0]
+                                            ?.shadowMemberId ?? "none"
+                                    }
+                                    itemToStringLabel={(id) =>
+                                        id === "none"
+                                            ? "No shadow"
+                                            : (memberById.get(id)?.name ?? id)
+                                    }
+                                    onValueChange={(id) => {
+                                        if (id) applyShadow(id);
+                                    }}
+                                >
+                                    <SelectTrigger
+                                        id="schedule-shadow"
+                                        className="w-full"
+                                    >
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="none">
+                                            No shadow
+                                        </SelectItem>
+                                        {members
+                                            .filter(
+                                                (member) =>
+                                                    member.id !==
+                                                        selectedAssignment?.planningMemberId &&
+                                                    (memberById.get(
+                                                        selectedAssignment?.planningMemberId ??
+                                                            "",
+                                                    )?.participationMode ===
+                                                    "MENTORED"
+                                                        ? member.participationMode !==
+                                                          "TRAINEE"
+                                                        : member.participationMode ===
+                                                          "TRAINEE"),
+                                            )
+                                            .map((member) => (
+                                                <SelectItem
+                                                    key={member.id}
+                                                    value={member.id}
+                                                >
+                                                    {member.name}
+                                                    {activeDate &&
+                                                    member.availabilitySubmitted !==
+                                                        false &&
+                                                    !availableDatesByMember
+                                                        .get(member.id)
+                                                        ?.has(activeDate)
+                                                        ? " · unavailable"
+                                                        : ""}
+                                                </SelectItem>
+                                            ))}
+                                    </SelectContent>
+                                </Select>
+                                <p className="text-muted-foreground text-xs">
+                                    To move a trainee day, remove the shadow
+                                    here and add it on the new date. All
+                                    required shadow days must be assigned before
+                                    saving.
+                                </p>
                             </div>
                         </div>
                     ) : (
@@ -630,7 +695,7 @@ export function ScheduleEditor({
                                 </p>
                             </div>
                             <Button
-                                disabled={swapDates.length !== 2 || isPending}
+                                disabled={swapDates.length !== 2 || isBusy}
                                 onClick={applySwap}
                                 type="button"
                                 variant="outline"
@@ -664,15 +729,21 @@ export function ScheduleEditor({
                         )}
                     </div>
 
-                    {hasChanges &&
-                    initialAssignments.some(
-                        (assignment) => assignment.shadows?.length,
+                    {members.some(
+                        (member) =>
+                            member.participationMode === "TRAINEE" ||
+                            member.participationMode === "MENTORED",
                     ) ? (
-                        <p className="border-primary/20 bg-primary/5 text-muted-foreground rounded-lg border px-3 py-2 text-xs">
-                            Shadow pairings will be recalculated and checked
-                            against availability and consecutive-day rules when
-                            this revision is saved.
-                        </p>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            disabled={isBusy}
+                            onClick={regenerateShadows}
+                        >
+                            {isRecalculating
+                                ? "Recalculating shadows…"
+                                : "Recalculate shadows"}
+                        </Button>
                     ) : null}
 
                     <div
@@ -685,6 +756,11 @@ export function ScheduleEditor({
                                 {feedback}
                             </p>
                         ) : null}
+                        {shadowErrors.slice(0, 5).map((error) => (
+                            <p className="text-destructive text-sm" key={error}>
+                                {error}
+                            </p>
+                        ))}
                         {!validation.ok
                             ? validation.errors.slice(0, 3).map((error) => (
                                   <p
@@ -731,20 +807,18 @@ export function ScheduleEditor({
                                         <span className="text-muted-foreground ml-auto shrink-0 text-right text-xs">
                                             {workloads.get(member.id) ?? 0}{" "}
                                             primary
-                                            {hasChanges ? (
-                                                <span className="block">
-                                                    shadow count updates on save
-                                                </span>
-                                            ) : (shadowWorkloads.get(
-                                                  member.id,
-                                              ) ?? 0) > 0 ? (
-                                                <span className="block">
-                                                    {shadowWorkloads.get(
+                                            <span className="block">
+                                                {shadowWorkloads.get(
+                                                    member.id,
+                                                ) ?? 0}{" "}
+                                                shadow ·{" "}
+                                                {(workloads.get(member.id) ??
+                                                    0) +
+                                                    (shadowWorkloads.get(
                                                         member.id,
-                                                    )}{" "}
-                                                    shadow
-                                                </span>
-                                            ) : null}
+                                                    ) ?? 0)}{" "}
+                                                duties
+                                            </span>
                                         </span>
                                     </li>
                                 ))}
@@ -825,7 +899,7 @@ export function ScheduleEditor({
                                   : "Save candidate revision"}
                         </Button>
                         <Button
-                            disabled={!hasChanges || isPending}
+                            disabled={!hasChanges || isBusy}
                             onClick={resetChanges}
                             type="button"
                             variant="outline"

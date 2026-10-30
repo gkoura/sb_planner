@@ -32,6 +32,16 @@ const state = (globalThis.__authTest = {
     query: null,
     transactionCalled: false,
     prisma: {
+        user: {
+            async findUnique() {
+                return (
+                    state.account ?? {
+                        isActive: true,
+                        role: state.session?.user.role,
+                    }
+                );
+            },
+        },
         planningMember: {
             async findUnique(query) {
                 state.query = query;
@@ -82,4 +92,11 @@ test("admin-assisted availability rejects an engineer before any write", async (
         /redirect:\/$/,
     );
     assert.equal(state.transactionCalled, false);
+});
+
+test("inactive accounts are denied even when a session still exists", async () => {
+    state.session = { user: { id: "departed", role: "ADMIN" } };
+    state.account = { isActive: false, role: "ADMIN" };
+    await assert.rejects(requireAdmin(), /redirect:\/sign-in/);
+    state.account = null;
 });

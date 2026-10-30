@@ -15,11 +15,7 @@ import {
     CardTitle,
 } from "@/components/ui/card";
 
-type MemberOption = {
-    email: string;
-    id: string;
-    name: string;
-};
+import { MemberPicker, type MemberOption } from "./member-picker";
 
 const initialState: PlanningMonthRosterState = {};
 
@@ -36,7 +32,6 @@ export function PlanningMonthRosterForm({
         savePlanningMonthRoster,
         initialState,
     );
-    const selected = new Set(selectedMemberIds);
 
     return (
         <Card>
@@ -56,39 +51,11 @@ export function PlanningMonthRosterForm({
                         value={planningMonthId}
                     />
                     <input name="rosterVersion" type="hidden" value="2" />
-                    <fieldset className="grid gap-3" disabled={isPending}>
-                        <legend className="mb-1 text-sm font-medium">
-                            Team members
-                        </legend>
-                        {members.length ? (
-                            members.map((member) => (
-                                <label
-                                    className="flex cursor-pointer items-start gap-3 rounded-lg border p-3"
-                                    key={member.id}
-                                >
-                                    <input
-                                        className="accent-primary mt-1 size-4"
-                                        defaultChecked={selected.has(member.id)}
-                                        name="memberIds"
-                                        type="checkbox"
-                                        value={member.id}
-                                    />
-                                    <span className="grid gap-0.5">
-                                        <span className="text-sm font-medium">
-                                            {member.name}
-                                        </span>
-                                        <span className="text-muted-foreground text-xs">
-                                            {member.email}
-                                        </span>
-                                    </span>
-                                </label>
-                            ))
-                        ) : (
-                            <p className="text-muted-foreground text-sm">
-                                There are no team members to add.
-                            </p>
-                        )}
-                    </fieldset>
+                    <MemberPicker
+                        members={members}
+                        disabled={isPending}
+                        selectedMemberIds={selectedMemberIds}
+                    />
 
                     <div aria-atomic="true" aria-live="polite">
                         {state.error ? (

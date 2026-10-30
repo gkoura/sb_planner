@@ -851,3 +851,53 @@ and authentication boundaries.
 **Mobile menu visibility and hover (2026-10-31):** the navigation trigger and portaled popup are explicitly hidden at 640px and above, and crossing that breakpoint closes the controlled menu so an open popup cannot remain alongside the visible header links. Base UI hover opening is enabled with short open/close delays; tap and keyboard opening remain available. TypeScript, focused ESLint, Prettier, and diff checks pass; interactive browser verification remains pending.
 
 **Instant menu hover (2026-10-31):** supersedes the hover-open delay above with zero delay so navigation appears immediately on hover. The 150ms close delay remains to allow pointer movement into the popup. Focused ESLint and diff checks pass.
+
+**Inactive team members (2026-10-31):** team access now supports deactivation
+and reactivation instead of deleting accounts. This adds an account-level
+`isActive` flag, independent of saved monthly membership. Inactive members are
+hidden by default in both roster pickers; “Include inactive members” allows an
+explicit historical selection, including July imports. Inactive members already
+selected in a month remain visible and selected. Deactivation never removes
+monthly snapshots, availability, assignments, shadows, runs, or call-outs, and
+does not silently remove someone from an existing future roster; admins adjust
+unstarted rosters explicitly. It disables new sign-in sessions, revokes existing
+sessions and calendar links, and removes admin privileges. Reactivation restores
+engineer access; an active admin can grant admin access separately. Current
+session authorization rechecks account status and role in the database, and
+calendar feeds require an active owner. Role/status mutations recheck the actor
+inside SERIALIZABLE transactions to guard concurrent admin changes. This
+supersedes the prior account lifecycle without changing scheduling rules or
+historical role snapshots. The migration was applied to the configured Neon
+development database; hosted databases need the same migration before deployment.
+Verification: all 84 unit/action/render tests, full ESLint, TypeScript, the
+webpack production build, and diff checks pass. Regression
+coverage includes inactive historical selection, preserved checked members,
+session creation rejection, revocation, reactivation, self-deactivation and stale
+admin rejection. Tests mock database boundaries; interactive browser and actual
+PostgreSQL account concurrency verification remain pending.
+
+**Admin shadow editing and calendar parity (2026-10-31):** the admin editor
+now uses the same month calendar as the published schedule, including mobile
+shadow/mentor labels, participant colors, today markers, and past-day styling.
+Admins can select a date and change its training shadow or mentor, add/remove a
+pair, or move a trainee duty by removing it from one date and adding it to another.
+Primary and shadow changes update the visible preview and workload counts before
+saving; shadow-only edits create immutable versions. Shared client/server edit
+validation enforces one pair per date, eligible participation modes, required
+mentors and trainee day counts, both participants' known availability, and no
+consecutive work involving a shadow. Published edits still require a reason;
+past primary or shadow changes still require the explicit correction override.
+
+This supersedes the earlier decision that every primary edit automatically
+regenerates shadows on save: the new editor saves exactly the previewed pairings
+so unrelated manual pairings are preserved. “Recalculate shadows” offers bounded
+automatic placement explicitly, with its result staged for review. Older forms
+without a shadow payload retain their automatic placement behavior. Existing
+runs, snapshots, algorithm versions, and historical pairings are unchanged.
+Verification: 93 unit/action/render tests, full ESLint, TypeScript, the webpack
+production build, and diff checks pass; added tests cover
+calendar mobile labels/colors, manual training and mentoring edits, preservation
+of unrelated pairs, snapshot provenance, candidate/published/no-op/stale-version
+handling, availability, mode/count/adjacency constraints, and past-date safeguards.
+Database boundaries and UI primitives are mocked in the new tests; interactive
+browser and actual PostgreSQL edit verification remain pending.

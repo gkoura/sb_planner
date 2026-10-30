@@ -39,36 +39,58 @@ export async function changeUserRole(
     }
 
     try {
-        const result = await prisma.$transaction(async (transaction) => {
-            const target = await transaction.user.findUnique({
-                where: { id: userId },
-                select: { id: true, name: true, role: true },
-            });
-            if (!target) return { error: "That account no longer exists." };
-            if (target.role === role)
-                return { success: `${target.name} already has that access.` };
-
-            if (target.role === "ADMIN" && role === "ENGINEER") {
-                const adminCount = await transaction.user.count({
-                    where: { role: "ADMIN" },
+        const result = await prisma.$transaction(
+            async (transaction) => {
+                const actor = await transaction.user.findUnique({
+                    where: { id: session.user.id },
+                    select: { isActive: true, role: true },
                 });
-                if (adminCount <= 1)
+                if (!actor?.isActive || actor.role !== "ADMIN")
                     return {
-                        error: "Promote another team member before removing the last admin.",
+                        error: "Your admin access has changed. Refresh the page.",
                     };
-            }
+                const target = await transaction.user.findUnique({
+                    where: { id: userId },
+                    select: {
+                        id: true,
+                        name: true,
+                        role: true,
+                        isActive: true,
+                    },
+                });
+                if (!target) return { error: "That account no longer exists." };
+                if (!target.isActive)
+                    return {
+                        error: "Reactivate this member before changing their access.",
+                    };
+                if (target.role === role)
+                    return {
+                        success: `${target.name} already has that access.`,
+                    };
 
-            await transaction.user.update({
-                where: { id: target.id },
-                data: { role },
-            });
-            return {
-                success:
-                    role === "ADMIN"
-                        ? `${target.name} is now an admin and can manage schedules and team access.`
-                        : `${target.name} is now an engineer.`,
-            };
-        });
+                if (target.role === "ADMIN" && role === "ENGINEER") {
+                    const adminCount = await transaction.user.count({
+                        where: { role: "ADMIN", isActive: true },
+                    });
+                    if (adminCount <= 1)
+                        return {
+                            error: "Promote another team member before removing the last admin.",
+                        };
+                }
+
+                await transaction.user.update({
+                    where: { id: target.id },
+                    data: { role },
+                });
+                return {
+                    success:
+                        role === "ADMIN"
+                            ? `${target.name} is now an admin and can manage schedules and team access.`
+                            : `${target.name} is now an engineer.`,
+                };
+            },
+            { isolationLevel: "Serializable" },
+        );
 
         if (result.error) return result;
         revalidatePath("/");
@@ -161,4 +183,65 @@ export async function createEngineer(
 
     revalidatePath("/admin/users");
     return { success: `${name} can now sign in.` };
+}
+
+export async function changeUserActiveState(
+    _previousState: ChangeUserRoleState,
+    formData: FormData,
+): Promise<ChangeUserRoleState> {
+    const session = await requireAdmin();
+    const userId = String(formData.get("userId") ?? "");
+    const rawActive = formData.get("isActive");
+    if (
+        !userId ||
+        userId.length > 200 ||
+        !["true", "false"].includes(String(rawActive))
+    ) {
+        return { error: "Choose a valid team member and status." };
+    }
+    if (userId === session.user.id)
+        return { error: "Ask another admin to deactivate your account." };
+    const isActive = rawActive === "true";
+    try {
+        const result = await prisma.$transaction(
+            async (transaction) => {
+                const actor = await transaction.user.findUnique({
+                    where: { id: session.user.id },
+                    select: { isActive: true, role: true },
+                });
+                if (!actor?.isActive || actor.role !== "ADMIN")
+                    return {
+                        error: "Your admin access has changed. Refresh the page.",
+                    };
+                const target = await transaction.user.findUnique({
+                    where: { id: userId },
+                    select: { id: true, name: true, isActive: true },
+                });
+                if (!target) return { error: "That account no longer exists." };
+                // Reactivation restores participation and sign-in, never old admin privileges.
+                await transaction.user.update({
+                    where: { id: userId },
+                    data: {
+                        isActive,
+                        ...(!isActive ? { role: "ENGINEER" } : {}),
+                    },
+                });
+                if (!isActive) {
+                    await transaction.session.deleteMany({ where: { userId } });
+                    await transaction.calendarSubscription.deleteMany({
+                        where: { userId },
+                    });
+                }
+                return {
+                    success: `${target.name} is now ${isActive ? "active" : "inactive"}.`,
+                };
+            },
+            { isolationLevel: "Serializable" },
+        );
+        if (result.error) return result;
+        revalidatePath("/", "layout");
+        return result;
+    } catch {
+        return { error: "Unable to update this member. Try again." };
+    }
 }

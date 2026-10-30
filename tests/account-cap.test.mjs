@@ -192,3 +192,16 @@ test("an old roster form cannot overwrite the roster", async () => {
     assert.equal(state.rosterAdded, null);
     assert.deepEqual(state.removedIds, []);
 });
+
+test("inactive members remain eligible for explicit historical roster selection", async () => {
+    resetUsers();
+    state.users[0].isActive = false;
+    let result = await createPlanningMonth({}, rosterForm(1));
+    assert.ok(result.success, result.error);
+    assert.equal(state.createdMonth.members.create[0].userId, "user-0");
+    state.monthMembers = [{ id: "historical-member", userId: "user-0" }];
+    result = await savePlanningMonthRoster({}, rosterForm(1));
+    assert.ok(result.success, result.error);
+    assert.deepEqual(state.removedIds, []);
+    assert.equal(state.rosterAdded, null);
+});

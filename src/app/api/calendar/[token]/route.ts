@@ -16,7 +16,7 @@ export async function GET(
         return new Response("Not found", { status: 404, headers });
     const tokenHash = createHash("sha256").update(token).digest("hex");
     const subscription = await prisma.calendarSubscription.findUnique({
-        where: { tokenHash },
+        where: { tokenHash, user: { isActive: true } },
         select: { userId: true, type: true },
     });
     if (!subscription)

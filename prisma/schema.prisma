@@ -48,6 +48,7 @@ model User {
   emailVerified         Boolean          @default(false)
   image                 String?
   role                  String           @default("ENGINEER")
+  isActive              Boolean          @default(true)
   createdAt             DateTime
   updatedAt             DateTime
   announcementDismissals AnnouncementDismissal[]

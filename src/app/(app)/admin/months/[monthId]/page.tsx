@@ -113,7 +113,7 @@ async function PlanningMonthContent({
         prisma.user.findMany({
             where: { role: { in: ["ADMIN", "ENGINEER"] } },
             orderBy: { name: "asc" },
-            select: { email: true, id: true, name: true },
+            select: { email: true, id: true, name: true, isActive: true },
         }),
     ]);
 
@@ -136,15 +136,21 @@ async function PlanningMonthContent({
     const scheduleSnapshot = scheduleRun
         ? parseScheduleInputSnapshot(scheduleRun.inputSnapshot)
         : null;
-    const editorMembers =
-        scheduleSnapshot?.members.flatMap((snapshotMember) => {
-            const member = month.members.find(
-                (candidate) => candidate.id === snapshotMember.id,
-            );
-            return member
-                ? [{ ...snapshotMember, roleSnapshot: member.roleSnapshot }]
-                : [];
-        }) ?? [];
+    // Keep participant colors aligned with the published calendar's roster order.
+    const editorMembers = month.members.flatMap((member) => {
+        const snapshotMember = scheduleSnapshot?.members.find(
+            (candidate) => candidate.id === member.id,
+        );
+        return snapshotMember
+            ? [
+                  {
+                      ...snapshotMember,
+                      roleSnapshot: member.roleSnapshot,
+                      phoneNumber: member.user.phoneNumber,
+                  },
+              ]
+            : [];
+    });
     const canEditParticipation =
         ["DRAFT", "COLLECTING", "READY"].includes(month.status) &&
         month.scheduleRuns.length === 0;

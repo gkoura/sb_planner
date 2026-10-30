@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { UsersRound } from "lucide-react";
 
 import { CreateEngineerForm } from "@/components/users/create-engineer-form";
+import { UserStatusForm } from "@/components/users/user-status-form";
 import { UserRoleForm } from "@/components/users/user-role-form";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -48,17 +49,18 @@ async function UsersContent() {
     const session = await requireAdmin();
 
     const users = await prisma.user.findMany({
-        orderBy: [{ role: "asc" }, { name: "asc" }],
+        orderBy: [{ isActive: "desc" }, { role: "asc" }, { name: "asc" }],
         select: {
             email: true,
             id: true,
             name: true,
             role: true,
+            isActive: true,
         },
     });
 
     const engineerCount = users.filter(
-        (user) => user.role === "ENGINEER",
+        (user) => user.role === "ENGINEER" && user.isActive,
     ).length;
 
     return (
@@ -83,7 +85,13 @@ async function UsersContent() {
 
                 <Card className="mt-4">
                     <CardHeader>
-                        <CardTitle>Current accounts</CardTitle>
+                        <CardTitle>Team members</CardTitle>
+                        <CardDescription>
+                            Deactivate members who have left to disable sign-in
+                            and calendar links and hide them from normal
+                            planning. Existing rosters and schedule history are
+                            preserved. Reactivated members return as engineers.
+                        </CardDescription>
                     </CardHeader>
 
                     <CardContent>
@@ -109,16 +117,26 @@ async function UsersContent() {
                                         </p>
                                     </div>
 
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex flex-wrap items-center gap-2">
                                         <Badge variant="secondary">
-                                            {user.role.toLowerCase()}
+                                            {user.isActive
+                                                ? user.role.toLowerCase()
+                                                : "inactive"}
                                         </Badge>
 
-                                        {user.id !== session.user.id ? (
+                                        {user.id !== session.user.id &&
+                                        user.isActive ? (
                                             <UserRoleForm
                                                 role={user.role}
                                                 userId={user.id}
                                                 userName={user.name}
+                                            />
+                                        ) : null}
+                                        {user.id !== session.user.id ? (
+                                            <UserStatusForm
+                                                userId={user.id}
+                                                userName={user.name}
+                                                isActive={user.isActive}
                                             />
                                         ) : null}
                                     </div>

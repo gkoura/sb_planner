@@ -150,7 +150,7 @@ async function getAdminOverview() {
                 },
             },
         }),
-        prisma.user.count({ where: { role: "ENGINEER" } }),
+        prisma.user.count({ where: { role: "ENGINEER", isActive: true } }),
     ]);
 
     return {

@@ -117,6 +117,7 @@ async function PlanningMonthsContent() {
                 email: true,
                 id: true,
                 name: true,
+                isActive: true,
             },
         }),
     ]);
