@@ -63,6 +63,14 @@ export function AppHeader({ name, role }: AppHeaderProps) {
                         </Button>
                         <Button
                             nativeButton={false}
+                            render={<Link href="/call-outs" />}
+                            size="sm"
+                            variant="ghost"
+                        >
+                            Call-outs
+                        </Button>
+                        <Button
+                            nativeButton={false}
                             render={<Link href="/account" />}
                             size="sm"
                             variant="ghost"
@@ -150,6 +158,15 @@ export function AppHeader({ name, role }: AppHeaderProps) {
                         variant="ghost"
                     >
                         Schedules
+                    </Button>
+                    <Button
+                        className="h-11 flex-1"
+                        nativeButton={false}
+                        render={<Link href="/call-outs" />}
+                        size="sm"
+                        variant="ghost"
+                    >
+                        Call-outs
                     </Button>
                     <Button
                         aria-label="Account settings"
