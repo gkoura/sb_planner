@@ -179,8 +179,8 @@ test("invalid inputs return structured validation failures", () => {
         [2024, 0, [validMember]],
         [0, 1, [validMember]],
         [2024, 1, []],
-        [2024, 1, [validMember, { ...validMember, id: "b", name: "Alice" }]],
         [2024, 1, [validMember, { ...validMember, id: "a", name: "Bob" }]],
+        [2024, 1, [{ ...validMember, name: "  " }]],
         [2024, 2, [{ ...validMember, mode: "INVALID" }]],
         [
             2024,
@@ -220,6 +220,57 @@ test("invalid inputs return structured validation failures", () => {
         assert.equal(result.code, "INVALID_INPUT");
         assert.ok(result.message.length > 0);
     }
+});
+
+test("duplicate names generate deterministically across reordered primary and shadow participants", () => {
+    const members = ["A", "B", "C", "D"].map((id) => ({
+        id,
+        name: "Alex",
+        mode: "UNAVAILABLE",
+        dates: [],
+        participationMode: id === "A" ? "MENTORED" : "NORMAL",
+    }));
+    members.push(
+        ...["T1", "T2"].map((id) => ({
+            id,
+            name: "Alex",
+            mode: "UNAVAILABLE",
+            dates: [],
+            participationMode: "TRAINEE",
+            shadowDayCount: 1,
+        })),
+    );
+    const result = generateSchedule(2026, 2, members);
+    const reversed = generateSchedule(2026, 2, [...members].reverse());
+    assert.equal(result.ok, true, result.ok ? undefined : result.message);
+    assert.equal(reversed.ok, true, reversed.ok ? undefined : reversed.message);
+    assert.deepEqual(result.assignments, reversed.assignments);
+    assert.deepEqual(result.shadows, reversed.shadows);
+    assert.deepEqual(result.workloads, reversed.workloads);
+    assert.equal(
+        new Set(result.assignments.map(({ memberId }) => memberId)).size,
+        4,
+    );
+    assert.deepEqual(
+        result.shadows
+            .filter(({ kind }) => kind === "TRAINING")
+            .map(({ shadowMemberId }) => shadowMemberId)
+            .sort(),
+        ["T1", "T2"],
+    );
+    const fixed = result.assignments.map(({ date, memberId }) => ({
+        date,
+        planningMemberId: memberId,
+    }));
+    const fixedResult = generateShadowsForAssignments(2026, 2, members, fixed);
+    const fixedReversed = generateShadowsForAssignments(
+        2026,
+        2,
+        [...members].reverse(),
+        fixed,
+    );
+    assert.equal(fixedResult.ok, true);
+    assert.deepEqual(fixedResult, fixedReversed);
 });
 
 function shadowCounterexample() {
@@ -301,6 +352,55 @@ test("fixed primary shadow generation preserves the chosen rotation", () => {
     assert.equal(
         result.shadows.find((shadow) => shadow.kind === "TRAINING").date,
         "2026-02-01",
+    );
+});
+
+test("fixed-primary shadow search avoids unavailable primaries and permits unknown availability", () => {
+    const fixed = Array.from({ length: 28 }, (_, index) => ({
+        date: `2026-02-${String(index + 1).padStart(2, "0")}`,
+        planningMemberId: "ABCD"[index % 4],
+    }));
+    const members = ["A", "B", "C", "D"].map((id) => ({
+        id,
+        name: id,
+        mode: "UNAVAILABLE",
+        dates: id === "A" ? ["2026-02-01"] : [],
+        participationMode: "NORMAL",
+    }));
+    members.push({
+        id: "T",
+        name: "T",
+        mode: "AVAILABLE",
+        dates: ["2026-02-01", "2026-02-03"],
+        participationMode: "TRAINEE",
+        shadowDayCount: 1,
+    });
+    let result = generateShadowsForAssignments(2026, 2, members, fixed);
+    assert.equal(result.ok, true);
+    assert.equal(result.shadows[0].date, "2026-02-03");
+    members[4].dates = ["2026-02-01"];
+    assert.equal(
+        generateShadowsForAssignments(2026, 2, members, fixed).ok,
+        false,
+    );
+    members[0].availabilitySubmitted = false;
+    assert.equal(
+        generateShadowsForAssignments(2026, 2, members, fixed).ok,
+        true,
+    );
+    members[4].dates = [];
+    members[4].availabilitySubmitted = false;
+    assert.equal(
+        generateShadowsForAssignments(2026, 2, members, fixed).ok,
+        true,
+    );
+
+    members.pop();
+    members[0].availabilitySubmitted = true;
+    members[0].participationMode = "MENTORED";
+    assert.equal(
+        generateShadowsForAssignments(2026, 2, members, fixed).ok,
+        false,
     );
 });
 

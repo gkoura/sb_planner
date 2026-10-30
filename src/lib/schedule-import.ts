@@ -2,6 +2,7 @@ import { daysInCalendarMonth } from "@/lib/calendar-date";
 import {
     getAvailableDates,
     validateScheduleEdit,
+    validateShadowAvailability,
     type ScheduleInputMember,
 } from "@/lib/schedule-edits";
 
@@ -434,6 +435,14 @@ export function validateScheduleCsvImport(
         }
     }
 
+    shadowErrors.push(
+        ...validateShadowAvailability(
+            year,
+            month,
+            inputMembers,
+            shadowAssignments,
+        ),
+    );
     if (shadowErrors.length > 0) {
         return { ok: false, errors: [...new Set(shadowErrors)].slice(0, 10) };
     }

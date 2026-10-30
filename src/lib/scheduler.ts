@@ -1,4 +1,4 @@
-export const SCHEDULER_ALGORITHM_VERSION = "v4-weekends-boundaries";
+export const SCHEDULER_ALGORITHM_VERSION = "v5-duplicate-names";
 
 export type ScheduleBoundaries = { previous?: string[]; next?: string[] };
 
@@ -10,6 +10,7 @@ export type SchedulerMemberInput = {
     name: string;
     mode: "AVAILABLE" | "UNAVAILABLE";
     dates: string[];
+    availabilitySubmitted?: boolean;
     participationMode?: "NORMAL" | "TRAINEE" | "MENTORED";
     shadowDayCount?: number;
 };
@@ -81,6 +82,31 @@ function visitState(budget: SearchBudget) {
     return true;
 }
 
+function compareMembers(
+    left: Pick<SchedulerMemberInput, "name" | "id">,
+    right: Pick<SchedulerMemberInput, "name" | "id">,
+) {
+    return left.name < right.name
+        ? -1
+        : left.name > right.name
+          ? 1
+          : left.id < right.id
+            ? -1
+            : left.id > right.id
+              ? 1
+              : 0;
+}
+
+function compareShadowMembers(
+    left: Pick<SchedulerMemberInput, "name" | "id">,
+    right: Pick<SchedulerMemberInput, "name" | "id">,
+) {
+    return (
+        left.name.localeCompare(right.name) ||
+        (left.id < right.id ? -1 : left.id > right.id ? 1 : 0)
+    );
+}
+
 function generatePrimarySchedule(
     year: number,
     month: number,
@@ -104,17 +130,11 @@ function generatePrimarySchedule(
     }
 
     const ids = new Set<string>();
-    const names = new Set<string>();
     for (const member of input) {
-        if (
-            !member.id ||
-            !member.name.trim() ||
-            ids.has(member.id) ||
-            names.has(member.name)
-        ) {
+        if (!member.id || !member.name.trim() || ids.has(member.id)) {
             return failure(
                 "INVALID_INPUT",
-                "Participant names and IDs must be unique and non-empty.",
+                "Participant names must be non-empty and IDs must be unique and non-empty.",
             );
         }
         if (member.mode !== "AVAILABLE" && member.mode !== "UNAVAILABLE") {
@@ -124,7 +144,6 @@ function generatePrimarySchedule(
             );
         }
         ids.add(member.id);
-        names.add(member.name);
     }
 
     const days = daysInMonth(year, month);
@@ -142,44 +161,34 @@ function generatePrimarySchedule(
         availableDays: Set<number>;
     })[];
     try {
-        normalizedMembers = [...input]
-            .sort((left, right) =>
-                left.name < right.name
-                    ? -1
-                    : left.name > right.name
-                      ? 1
-                      : left.id < right.id
-                        ? -1
-                        : 1,
-            )
-            .map((member) => {
-                const selected = new Set<number>();
-                for (const date of member.dates) {
-                    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
-                    if (
-                        !match ||
-                        Number(match[1]) !== year ||
-                        Number(match[2]) !== month ||
-                        Number(match[3]) < 1 ||
-                        Number(match[3]) > days ||
-                        selected.has(Number(match[3]))
-                    ) {
-                        throw new Error(
-                            `${member.name} has an invalid date in their availability.`,
-                        );
-                    }
-                    selected.add(Number(match[3]));
+        normalizedMembers = [...input].sort(compareMembers).map((member) => {
+            const selected = new Set<number>();
+            for (const date of member.dates) {
+                const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+                if (
+                    !match ||
+                    Number(match[1]) !== year ||
+                    Number(match[2]) !== month ||
+                    Number(match[3]) < 1 ||
+                    Number(match[3]) > days ||
+                    selected.has(Number(match[3]))
+                ) {
+                    throw new Error(
+                        `${member.name} has an invalid date in their availability.`,
+                    );
                 }
+                selected.add(Number(match[3]));
+            }
 
-                return {
-                    ...member,
-                    availableDays: new Set(
-                        member.mode === "AVAILABLE"
-                            ? selected
-                            : allDays.filter((day) => !selected.has(day)),
-                    ),
-                };
-            });
+            return {
+                ...member,
+                availableDays: new Set(
+                    member.mode === "AVAILABLE"
+                        ? selected
+                        : allDays.filter((day) => !selected.has(day)),
+                ),
+            };
+        });
     } catch (error) {
         return failure(
             "INVALID_INPUT",
@@ -451,9 +460,10 @@ function generatePrimarySchedule(
                     ? weekendWorkloads[left] - weekendWorkloads[right]
                     : 0) ||
                 workloads[left] - workloads[right] ||
-                (normalizedMembers[left].name < normalizedMembers[right].name
-                    ? -1
-                    : 1),
+                compareMembers(
+                    normalizedMembers[left],
+                    normalizedMembers[right],
+                ),
         );
 
         for (const memberIndex of chosenCandidates) {
@@ -556,17 +566,11 @@ function generateScheduleWithBudget(
         );
     }
     const ids = new Set<string>();
-    const names = new Set<string>();
     for (const member of input) {
-        if (
-            !member.id ||
-            !member.name.trim() ||
-            ids.has(member.id) ||
-            names.has(member.name)
-        ) {
+        if (!member.id || !member.name.trim() || ids.has(member.id)) {
             return failure(
                 "INVALID_INPUT",
-                "Participant names and IDs must be unique and non-empty.",
+                "Participant names must be non-empty and IDs must be unique and non-empty.",
             );
         }
         if (
@@ -580,7 +584,6 @@ function generateScheduleWithBudget(
             );
         }
         ids.add(member.id);
-        names.add(member.name);
     }
     if (
         !Number.isInteger(year) ||
@@ -642,12 +645,14 @@ function generateScheduleWithBudget(
         availabilityById.set(
             member.id,
             new Set(
-                member.mode === "AVAILABLE"
-                    ? selected
-                    : Array.from(
-                          { length: days },
-                          (_, index) => index + 1,
-                      ).filter((day) => !selected.has(day)),
+                member.availabilitySubmitted === false
+                    ? Array.from({ length: days }, (_, index) => index + 1)
+                    : member.mode === "AVAILABLE"
+                      ? selected
+                      : Array.from(
+                            { length: days },
+                            (_, index) => index + 1,
+                        ).filter((day) => !selected.has(day)),
             ),
         );
     }
@@ -786,7 +791,7 @@ function generateScheduleWithBudget(
     }
     const traineeMembers = input
         .filter((member) => member.participationMode === "TRAINEE")
-        .sort((left, right) => left.name.localeCompare(right.name));
+        .sort(compareShadowMembers);
     for (const trainee of traineeMembers) {
         for (let index = 0; index < (trainee.shadowDayCount ?? 0); index += 1) {
             tasks.push({ kind: "TRAINING", shadowMemberId: trainee.id });
@@ -838,11 +843,13 @@ function generateScheduleWithBudget(
         const task = orderedTasks[taskIndex];
 
         if (task.kind === "MENTORING") {
+            if (!availabilityById.get(task.shadowedMemberId)!.has(task.day))
+                return false;
             const candidates = mentorCandidatesFor(task).sort(
                 (left, right) =>
                     shadowCountByMember.get(left.id)! -
                         shadowCountByMember.get(right.id)! ||
-                    left.name.localeCompare(right.name),
+                    compareShadowMembers(left, right),
             );
             if (occupiedShadowDates.has(task.day)) return false;
             for (const mentor of candidates) {
@@ -877,6 +884,7 @@ function generateScheduleWithBudget(
             .filter(
                 (day) =>
                     availabilityById.get(traineeId)!.has(day) &&
+                    availabilityById.get(primaryByDay.get(day)!)!.has(day) &&
                     canWork(traineeId, day),
             )
             .sort((left, right) => {
@@ -952,7 +960,8 @@ function generateScheduleWithBudget(
         shadows: [...shadows].sort(
             (left, right) =>
                 left.date.localeCompare(right.date) ||
-                left.name.localeCompare(right.name),
+                left.name.localeCompare(right.name) ||
+                left.shadowMemberId.localeCompare(right.shadowMemberId),
         ),
         visitedStates: budget.visitedStates,
     };

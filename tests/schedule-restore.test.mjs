@@ -200,6 +200,27 @@ test("restore rejects an invalid source snapshot even if the current snapshot is
     assert.equal(state.created, null);
 });
 
+test("restore rejects a saved shadow pair with known unavailability", async () => {
+    setup();
+    const snapshot = JSON.parse(state.source.inputSnapshot);
+    snapshot.members.find((member) => member.id === "A").availabilitySubmitted =
+        true;
+    state.source.inputSnapshot = JSON.stringify(snapshot);
+    const result = await restoreScheduleRun({}, form());
+    assert.match(result.error, /A is unavailable for a shadow pair/);
+    assert.equal(state.created, null);
+});
+
+test("restore also rejects an unavailable saved shadow participant", async () => {
+    setup();
+    const snapshot = JSON.parse(state.source.inputSnapshot);
+    snapshot.members.find((member) => member.id === "T").dates = ["2999-02-01"];
+    state.source.inputSnapshot = JSON.stringify(snapshot);
+    const result = await restoreScheduleRun({}, form());
+    assert.match(result.error, /T is unavailable for a shadow pair/);
+    assert.equal(state.created, null);
+});
+
 test("past primary changes require explicit correction approval", async () => {
     setup({ year: 2001, published: true });
     state.current.assignments[1].planningMemberId = "A";

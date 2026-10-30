@@ -14,6 +14,7 @@ import {
     getOperationalDate,
     parseScheduleInputSnapshot,
     validateScheduleEdit,
+    validateShadowAvailability,
     type ScheduleEditAssignment,
 } from "@/lib/schedule-edits";
 import {
@@ -135,6 +136,15 @@ export async function restoreScheduleRun(
         );
         if (!validation.ok)
             return { error: validation.errors.slice(0, 3).join(" ") };
+
+        const shadowAvailabilityErrors = validateShadowAvailability(
+            month.year,
+            month.month,
+            snapshot.members,
+            source.assignments,
+        );
+        if (shadowAvailabilityErrors.length)
+            return { error: shadowAvailabilityErrors.slice(0, 3).join(" ") };
 
         const currentByDate = new Map(
             current.assignments.map((assignment) => [
@@ -469,6 +479,19 @@ export async function saveScheduleEdit(
                 error: `Could not place the required shadows: ${shadowPlan.message}`,
             };
         }
+        const shadowAvailabilityErrors = validateShadowAvailability(
+            snapshot.year,
+            snapshot.month,
+            snapshot.members,
+            assignments.map((assignment) => ({
+                ...assignment,
+                shadows: shadowPlan.shadows.filter(
+                    (shadow) => shadow.date === assignment.date,
+                ),
+            })),
+        );
+        if (shadowAvailabilityErrors.length)
+            return { error: shadowAvailabilityErrors.slice(0, 3).join(" ") };
         if (isPublished && !allowPastChanges) {
             const shadowSignature = (
                 shadows: { kind: string; shadowMemberId: string }[],
@@ -502,7 +525,7 @@ export async function saveScheduleEdit(
                     (assignment) =>
                         assignment.date < operationalDate &&
                         oldShadowsByDate.get(assignment.date) !==
-                            newShadowsByDate.get(assignment.date),
+                            (newShadowsByDate.get(assignment.date) ?? ""),
                 )
             ) {
                 return {

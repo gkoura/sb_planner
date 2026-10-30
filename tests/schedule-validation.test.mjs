@@ -132,6 +132,50 @@ test("CSV import rejects unavailable shadows and mismatched trainee counts", () 
     assert.match(result.errors.join(" "), /CSV contains 0/);
 });
 
+test("CSV import blocks known-unavailable primaries in training and mentoring pairs, but accepts unknown availability", () => {
+    for (const kind of ["TRAINING", "MENTORING"]) {
+        const data = rows();
+        const first = {
+            ...roster[0],
+            participationMode: kind === "MENTORING" ? "MENTORED" : "NORMAL",
+            availabilitySubmission: {
+                mode: "UNAVAILABLE",
+                dates: ["2026-02-01"],
+            },
+        };
+        const extra = kind === "TRAINING" ? [trainee] : [];
+        for (let i = 0; i < data.length; i += 4) {
+            if (kind === "MENTORING" || i === 0)
+                data[i] = [
+                    data[i][0],
+                    "a@example.com",
+                    kind === "TRAINING" ? "t@example.com" : "c@example.com",
+                    kind,
+                ];
+        }
+        let result = validateScheduleCsvImport(csv(data), 2026, 2, [
+            first,
+            ...roster.slice(1),
+            ...extra,
+        ]);
+        assert.equal(result.ok, false);
+        assert.match(
+            result.errors.join(" "),
+            /A is unavailable for a shadow pair on 2026-02-01/,
+        );
+        result = validateScheduleCsvImport(csv(data), 2026, 2, [
+            { ...first, availabilitySubmission: null },
+            ...roster.slice(1),
+            ...extra,
+        ]);
+        assert.equal(
+            result.ok,
+            true,
+            result.ok ? undefined : result.errors.join("; "),
+        );
+    }
+});
+
 test("CSV import blocks shadow duties on consecutive dates", () => {
     const data = rows();
     data[0] = ["2026-02-01", "a@example.com", "t@example.com", "TRAINING"];

@@ -110,6 +110,47 @@ export function getAvailableDates(
     return available;
 }
 
+/** Checks availability only for dates that actually contain a shadow pair. */
+export function validateShadowAvailability(
+    year: number,
+    month: number,
+    members: ScheduleInputMember[],
+    assignments: (ScheduleEditAssignment & {
+        shadows: { shadowMemberId: string }[];
+    })[],
+): string[] {
+    const memberById = new Map(members.map((member) => [member.id, member]));
+    const available = new Map(
+        members.map((member) => [
+            member.id,
+            getAvailableDates(year, month, member),
+        ]),
+    );
+    const errors = new Set<string>();
+    for (const assignment of assignments) {
+        if (!assignment.shadows.length) continue;
+        for (const id of [
+            assignment.planningMemberId,
+            ...assignment.shadows.map((shadow) => shadow.shadowMemberId),
+        ]) {
+            const member = memberById.get(id);
+            if (!member) {
+                errors.add(
+                    `A shadow pair on ${assignment.date} has an unknown participant.`,
+                );
+            } else if (
+                member.availabilitySubmitted !== false &&
+                !available.get(id)?.has(assignment.date)
+            ) {
+                errors.add(
+                    `${member.name} is unavailable for a shadow pair on ${assignment.date}.`,
+                );
+            }
+        }
+    }
+    return [...errors];
+}
+
 export function validateScheduleEdit(
     year: number,
     month: number,

@@ -243,6 +243,37 @@ state becomes invalid if the month status or current run changes.
 
 ## Delivery milestones
 
+**Duplicate-name scheduler correction (2026-10-30):** participant IDs must be
+unique, but equal display names are allowed. Primary and shadow searches use
+IDs to resolve name ties deterministically. New runs record
+`v5-duplicate-names`; historical runs and snapshots remain unchanged. A
+regression test covers duplicate names across primary, mentored, and trainee
+participants, roster reordering, and fixed-primary shadow placement. All 66
+unit/action tests, full ESLint, TypeScript, and `git diff --check` pass. Open:
+schedule displays and exports still show identical names identically; plan a
+consistent participant disambiguation before relying on them for namesakes.
+
+**Published edit correction (2026-10-30):** unchanged past dates with no
+shadow no longer trigger the past-shadow correction safeguard during a
+future-only edit. Actual changes to past shadow pairings and primary
+assignments still require the existing override. Four action tests reproduce
+the original failure and cover unchanged, added, removed, and changed shadow
+pairings and the past-primary guard. All 65 unit/action tests, full ESLint,
+TypeScript, and `git diff --check` pass. The action tests mock transaction
+boundaries; browser verification remains pending.
+
+**Shadow availability correction (2026-10-30):** import, manual edits, and
+restoration check both participants in each shadow pair against the applicable
+availability snapshot. Known-unavailable pairings are blocked; a missing
+submission remains unknown, and primary-only exceptions remain warnings.
+Fixed-primary shadow search tries other eligible training dates. Historical runs
+remain unchanged; an old run with a known-unavailable pair cannot be restored
+as a new version. Regression tests cover both shadow kinds, unknown availability,
+alternative training dates, and restoration.
+**Verified 2026-10-30:** all 61 unit/action tests, full ESLint, TypeScript,
+the webpack production build, and `git diff --check` pass. The restoration
+tests use mocked transaction boundaries; browser verification remains pending.
+
 **Schedule generation persistence (2026-10-29):** after a reported PostgreSQL
 foreign-key failure in Prisma's nested run creation, generation now inserts the
 run, assignments, and shadows in explicit parent-first batches within the same
