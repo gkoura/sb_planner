@@ -243,6 +243,10 @@ state becomes invalid if the month status or current run changes.
 
 ## Delivery milestones
 
+**Calendar subscription announcement (2026-10-30):** added a dismissible
+What’s New entry linking to the published schedules page. Focused announcement
+tests, ESLint, and `git diff --check` pass.
+
 **Calendar subscriptions (2026-10-30):** signed-in users can create, replace,
 and revoke private links for all primary standby dates or their own primary,
 training, and mentoring duties. Read-only iCalendar feeds use the latest

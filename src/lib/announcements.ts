@@ -8,4 +8,12 @@ export const announcements = [
         href: "/call-outs",
         linkLabel: "Go to call-outs",
     },
+    {
+        id: "calendar-subscriptions-2026-10",
+        title: "New: Calendar subscriptions",
+        description:
+            "Subscribe to all standby dates or your own duties in your calendar.",
+        href: "/schedules",
+        linkLabel: "View subscriptions",
+    },
 ] as const;
