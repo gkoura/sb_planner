@@ -24,11 +24,22 @@ const icons = {
 const itemClassName =
     "hover:bg-accent focus:bg-accent flex cursor-default items-center gap-2 rounded-lg px-3 py-2 text-sm outline-none";
 
-export function ExportMenu({ items }: { items: ExportItem[] }) {
+export function ExportMenu({
+    items,
+    label = "Export",
+    buttonText = "Export",
+}: {
+    items: ExportItem[];
+    label?: string;
+    buttonText?: string;
+}) {
     return (
         <Menu.Root>
-            <Menu.Trigger className={buttonVariants({ variant: "outline" })}>
-                Export <ChevronDown aria-hidden="true" />
+            <Menu.Trigger
+                aria-label={label}
+                className={buttonVariants({ variant: "outline" })}
+            >
+                {buttonText} <ChevronDown aria-hidden="true" />
             </Menu.Trigger>
             <Menu.Portal>
                 <Menu.Positioner align="end" sideOffset={6}>

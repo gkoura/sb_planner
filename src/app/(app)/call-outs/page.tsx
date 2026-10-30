@@ -159,10 +159,12 @@ async function CallOutsContent({ searchParams }: CallOutsPageProps) {
                     </div>
 
                     <ExportMenu
+                        buttonText="Export all"
+                        label="Export all call-outs"
                         items={[
                             {
                                 format: "csv",
-                                label: "Export CSV",
+                                label: "Export all as CSV",
                                 href: "/api/call-outs/export",
                             },
                         ]}
