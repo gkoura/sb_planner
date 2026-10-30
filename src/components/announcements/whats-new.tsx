@@ -22,12 +22,12 @@ export async function WhatsNew({ userId }: { userId: string }) {
                 <section
                     key={item.id}
                     aria-labelledby={`announcement-${item.id}`}
-                    className="bg-card flex flex-wrap items-start gap-4 rounded-2xl border p-5 shadow-sm"
+                    className="bg-card grid min-w-0 grid-cols-1 items-start gap-4 rounded-2xl border p-5 shadow-sm sm:grid-cols-[auto_minmax(0,1fr)]"
                 >
                     <span className="bg-primary/10 text-primary grid size-10 shrink-0 place-items-center rounded-xl">
                         <Sparkles aria-hidden="true" className="size-5" />
                     </span>
-                    <div className="min-w-0 flex-1">
+                    <div className="min-w-0">
                         <p className="text-primary text-xs font-semibold tracking-wide uppercase">
                             What’s new
                         </p>
@@ -43,7 +43,7 @@ export async function WhatsNew({ userId }: { userId: string }) {
                     </div>
                     <form
                         action={dismissAnnouncement}
-                        className="flex flex-wrap gap-2"
+                        className="flex min-w-0 flex-wrap gap-2 sm:col-start-2"
                     >
                         <input
                             type="hidden"
