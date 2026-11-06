@@ -138,9 +138,9 @@ async function SchedulesContent() {
                         <Link
                             key={month.id}
                             href={`/schedules/${month.id}`}
-                            className="focus-visible:outline-ring rounded-2xl focus-visible:outline-2 focus-visible:outline-offset-2"
+                            className="group focus-visible:outline-ring rounded-2xl transition-transform duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 motion-safe:hover:-translate-y-0.5 motion-safe:focus-visible:-translate-y-0.5 motion-reduce:transition-none"
                         >
-                            <Card className="hover:bg-card/70 transition-colors">
+                            <Card className="group-hover:bg-card/70 transition-[background-color,box-shadow] duration-200 group-hover:shadow-md group-focus-visible:shadow-md motion-reduce:transition-none">
                                 <CardContent className="flex flex-wrap items-center justify-between gap-4 py-4 sm:py-5">
                                     <div>
                                         <p className="font-semibold">

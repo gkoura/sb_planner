@@ -699,6 +699,20 @@ this environment.
 
 ## Architecture artifacts
 
+- **Architecture review (2026-10-31):** reviewed current routes, Server Actions,
+  authentication, Prisma schema, scheduling, revision/import/restore flows,
+  call-outs, subscriptions, and recent change history. The app remains a single
+  Next.js deployment with pure scheduling logic and PostgreSQL persistence.
+  Follow-ups identified: concentrate immutable run persistence, settle shared
+  duty-time/correction semantics, unify revision invariants and published-run
+  selection, and deepen staged editor state. These are review candidates, not
+  accepted architecture or scheduling-rule changes. README documents `DIRECT_URL`
+  while Prisma configuration reads `DATABASE_URL_UNPOOLED`; alignment remains open.
+  Verification: all 96 tests, TypeScript without incremental output, and full
+  ESLint pass. Browser, production build, live deployment, and PostgreSQL
+  integration checks were not run for this review. A visual HTML report was
+  generated in the OS temporary directory; no runtime files changed.
+
 - [Database schema diagram](docs/database-schema.drawio): editable diagrams.net
   ER diagram generated from the Prisma models. Update it when models or
   relations change; it documents each table, keys/indexes, and relationships.
@@ -905,3 +919,12 @@ of unrelated pairs, snapshot provenance, candidate/published/no-op/stale-version
 handling, availability, mode/count/adjacency constraints, and past-date safeguards.
 Database boundaries and UI primitives are mocked in the new tests; interactive
 browser and actual PostgreSQL edit verification remain pending.
+
+**Schedules page compact controls (2026-11-06):** calendar subscriptions now
+start collapsed behind a native keyboard-accessible disclosure with a rotating
+chevron. Expanding retains the existing subscription controls and instructions;
+collapsing preserves generated links in component state. Published month links
+lift subtly and gain a shadow on hover or keyboard focus, respecting reduced
+motion preferences. This supersedes the initially expanded subscriptions layout
+at the user's request. TypeScript, focused ESLint, Prettier, and diff checks pass;
+interactive browser verification remains pending.

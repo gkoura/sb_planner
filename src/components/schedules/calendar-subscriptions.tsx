@@ -1,18 +1,13 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { ChevronDown } from "lucide-react";
 import {
     manageCalendarSubscription,
     type CalendarSubscriptionState,
 } from "@/app/actions/calendar-subscriptions";
 import { Button, buttonVariants } from "@/components/ui/button";
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 
 const initialState: CalendarSubscriptionState = {};
 
@@ -134,32 +129,40 @@ export function CalendarSubscriptions({
     activeTypes: ("ALL" | "PERSONAL")[];
 }) {
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Calendar subscriptions</CardTitle>
-                <CardDescription>
-                    Follow published schedules in your calendar. Anyone with a
-                    link can read its calendar, so keep it private.
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-4">
-                <div className="grid gap-4 md:grid-cols-2">
-                    <Subscription
-                        type="ALL"
-                        active={activeTypes.includes("ALL")}
+        <Card className="gap-0 py-0">
+            <details className="group/subscriptions">
+                <summary className="hover:bg-muted/50 focus-visible:outline-ring flex cursor-pointer list-none items-center justify-between gap-3 rounded-xl p-4 focus-visible:outline-2 focus-visible:outline-offset-[-2px] [&::-webkit-details-marker]:hidden">
+                    <span className="font-heading text-base font-medium">
+                        Calendar subscriptions
+                    </span>
+                    <ChevronDown
+                        aria-hidden="true"
+                        className="text-muted-foreground size-5 shrink-0 transition-transform group-open/subscriptions:rotate-180 motion-reduce:transition-none"
                     />
-                    <Subscription
-                        type="PERSONAL"
-                        active={activeTypes.includes("PERSONAL")}
-                    />
-                </div>
-                <p className="text-muted-foreground text-sm">
-                    On iPhone, tap Subscribe on iPhone, or copy the URL and in
-                    Calendar choose Calendars → Add Calendar → Add Subscription
-                    Calendar. Calendar apps refresh on their own schedule, so
-                    changes may take time to appear.
-                </p>
-            </CardContent>
+                </summary>
+                <CardContent className="grid gap-4 pb-4">
+                    <p className="text-muted-foreground text-sm">
+                        Follow published schedules in your calendar. Anyone with
+                        a link can read its calendar, so keep it private.
+                    </p>
+                    <div className="grid gap-4 md:grid-cols-2">
+                        <Subscription
+                            type="ALL"
+                            active={activeTypes.includes("ALL")}
+                        />
+                        <Subscription
+                            type="PERSONAL"
+                            active={activeTypes.includes("PERSONAL")}
+                        />
+                    </div>
+                    <p className="text-muted-foreground text-sm">
+                        On iPhone, tap Subscribe on iPhone, or copy the URL and
+                        in Calendar choose Calendars → Add Calendar → Add
+                        Subscription Calendar. Calendar apps refresh on their
+                        own schedule, so changes may take time to appear.
+                    </p>
+                </CardContent>
+            </details>
         </Card>
     );
 }
