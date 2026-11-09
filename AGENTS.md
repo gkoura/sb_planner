@@ -243,6 +243,20 @@ state becomes invalid if the month status or current run changes.
 
 ## Delivery milestones
 
+**Admin team call-out reporting (2026-11-09):** admins can open “View team
+call-outs” from their personal call-outs page to review `/admin/call-outs`.
+Member and optional Athens start-month filters apply to counts, rounded hours,
+per-member totals, history, and CSV exports; each month also has a scoped export.
+Inactive accounts remain selectable and members are identified by name and email.
+The new CSV includes member name/email on each daily row and shares the existing
+rounding, overnight splitting, and spreadsheet formula escaping with personal
+exports. Blank filters select all members/months. No migration or package is needed.
+Verified: all 104 unit/action/render tests, TypeScript, webpack production build,
+and diff checks pass. ESLint has no errors; an existing unused `availabilityNeeded`
+warning remains in the home page. New tests mock authentication, Prisma, and UI
+primitives. Interactive browser review was unavailable because the Mac was locked;
+actual PostgreSQL reporting verification remains pending. Changes remain local.
+
 **Calendar subscription announcement (2026-10-30):** added a dismissible
 What’s New entry linking to the published schedules page. Focused announcement
 tests, ESLint, and `git diff --check` pass.
@@ -733,6 +747,16 @@ this environment.
   part of the design.
 
 ## Decision log
+
+**2026-11-09 — Admin access to team call-outs.** Extend call-out read/export
+access to admins for the single team, including inactive accounts, so admins can
+review other members' worked hours. This supersedes the personal-only reporting
+scope; engineer access remains scoped to their own logs. The new team page is
+read-only and existing create/edit/delete/import ownership rules are unchanged.
+Reporting preserves the recorded Athens start-month grouping: an overnight or
+cross-month entry includes all its daily portions in its start month. Admin CSVs
+include member names and emails to disambiguate equal display names. This does
+not change saved call-outs, schedule rules, or historical records.
 
 **2026-10-29 — Emergency contact on the team hub.** Show the MR Operators
 emergency contact (`2103578130`) on every signed-in home dashboard as a

@@ -10,6 +10,7 @@ type MonthGroup = {
     count: number;
     totalHours: number;
     content: ReactNode;
+    exportHref?: string;
 };
 
 export function CallOutMonthGroups({ groups }: { groups: MonthGroup[] }) {
@@ -92,7 +93,9 @@ export function CallOutMonthGroups({ groups }: { groups: MonthGroup[] }) {
                                     {
                                         format: "csv",
                                         label: "Export month as CSV",
-                                        href: `/api/call-outs/export?month=${group.month}`,
+                                        href:
+                                            group.exportHref ??
+                                            `/api/call-outs/export?month=${group.month}`,
                                     },
                                 ]}
                             />

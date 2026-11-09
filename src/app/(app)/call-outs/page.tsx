@@ -59,6 +59,24 @@ async function CallOutsContent({ searchParams }: CallOutsPageProps) {
 
     return (
         <>
+            {session.user.role === "ADMIN" && (
+                <section className="bg-card flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-5">
+                    <div>
+                        <h2 className="font-semibold">Team call-outs</h2>
+                        <p className="text-muted-foreground text-sm">
+                            Review other members&apos; logs and export team
+                            hours.
+                        </p>
+                    </div>
+                    <Button
+                        nativeButton={false}
+                        render={<Link href="/admin/call-outs" />}
+                        variant="outline"
+                    >
+                        View team call-outs
+                    </Button>
+                </section>
+            )}
             <section className="bg-card rounded-2xl border p-6">
                 <div className="grid gap-1">
                     <h2 className="text-xl font-semibold">Log a call-out</h2>

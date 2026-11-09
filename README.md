@@ -20,13 +20,14 @@ team members, regardless of whether they are admins or engineers.
 - Lets administrators review, edit, publish, restore, and export versioned schedules.
 - Supports validated CSV schedule imports for past, current, and future months.
 - Keeps historical schedule versions and their assignment snapshots available for audit.
+- Lets admins review team call-outs by member and Athens start month, with member totals and CSV exports, including inactive members' history.
 
 ## Roles
 
-| Role     | Capabilities                                                                                                                                                       |
-| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Engineer | View published schedules, submit availability for months they join, and view their own assigned days.                                                              |
-| Admin    | All engineer capabilities when participating in a month, plus user management, planning-month setup, schedule generation/import, review, editing, and publication. |
+| Role     | Capabilities                                                                                                                                                                                         |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Engineer | View published schedules, submit availability for months they join, and view their own assigned days.                                                                                                |
+| Admin    | All engineer capabilities when participating in a month, plus user management, planning-month setup, schedule generation/import, review, editing, publication, and viewing/exporting team call-outs. |
 
 There is no public self-registration. An administrator creates engineer
 accounts, and the initial administrator is created with the seed command.
