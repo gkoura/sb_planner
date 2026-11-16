@@ -243,6 +243,18 @@ state becomes invalid if the month status or current run changes.
 
 ## Delivery milestones
 
+**Call-out export sections (2026-11-16):** personal formatted text downloads
+now contain “Normal call-outs” followed by “Overtime” in the same file, for
+both all-entry and monthly exports. This supersedes the earlier unsectioned
+formatted output at the user's request. Primary, trainee, mentor, and support logs
+belong to normal call-outs; only `OVERTIME` logs belong to overtime. Each
+section retains chronological order and the existing Athens date/time/reason
+line format; an empty section reads “No entries.” No duty field is added.
+CSV exports and saved logs retain their existing behavior. No migration or
+package is needed. Verified: all 14 focused personal/team export and reporting
+tests, TypeScript, focused ESLint, Prettier, and diff checks pass. Tests mock
+database boundaries; interactive download verification remains pending.
+
 **Overtime logging (2026-11-16):** added a distinct `OVERTIME` call-out role
 for extra work unrelated to standby, as requested. It has no stored duty date
 and bypasses schedule validation even when the user has a standby assignment;

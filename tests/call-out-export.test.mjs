@@ -26,6 +26,14 @@ registerHooks({
 const entries = [
     {
         userId: "user",
+        reason: "October overtime",
+        startedAt: parseAthensDateTime("2026-10-31T22:00"),
+        endedAt: parseAthensDateTime("2026-10-31T23:00"),
+        role: "OVERTIME",
+        dutyDate: null,
+    },
+    {
+        userId: "user",
         reason: "Overnight",
         startedAt: parseAthensDateTime("2026-10-31T23:30"),
         endedAt: parseAthensDateTime("2026-11-01T00:30"),
@@ -38,6 +46,14 @@ const entries = [
         startedAt: parseAthensDateTime("2026-11-01T00:30"),
         endedAt: parseAthensDateTime("2026-11-01T01:30"),
         role: "SUPPORT",
+        dutyDate: null,
+    },
+    {
+        userId: "user",
+        reason: "November overtime",
+        startedAt: parseAthensDateTime("2026-11-01T01:45"),
+        endedAt: parseAthensDateTime("2026-11-01T02:15"),
+        role: "OVERTIME",
         dutyDate: null,
     },
     {
@@ -74,7 +90,7 @@ test("monthly CSV follows Athens start-month grouping and retains overnight port
         /call-outs-2026-10.csv/,
     );
     const csv = await response.text();
-    assert.equal(csv.split("\r\n").length, 3);
+    assert.equal(csv.split("\r\n").length, 4);
     assert.match(csv, /"2026-10-31","1","30"/);
     assert.match(csv, /"2026-11-01","1","30"/);
     assert.doesNotMatch(csv, /November support|Other user/);
@@ -98,7 +114,7 @@ test("unfiltered export still includes all of the user's data; empty months have
     assert.equal(empty.split("\r\n").length, 1);
 });
 
-test("formatted exports retain one row per log, Athens dates, and unsplit overnight times", async () => {
+test("formatted exports separate normal call-outs and overtime with Athens month filtering and unsplit logs", async () => {
     const response = await GET(request("?month=2026-10&format=formatted"));
     assert.equal(response.status, 200);
     assert.equal(
@@ -110,7 +126,10 @@ test("formatted exports retain one row per log, Athens dates, and unsplit overni
         response.headers.get("Content-Disposition"),
         /call-outs-2026-10-formatted\.txt/,
     );
-    assert.equal(await response.text(), "31/10/26 | 23:30 - 00:30 | Overnight");
+    assert.equal(
+        await response.text(),
+        "Normal call-outs\r\n31/10/26 | 23:30 - 00:30 | Overnight\r\n\r\nOvertime\r\n31/10/26 | 22:00 - 23:00 | October overtime",
+    );
     const all = await GET(request("?format=formatted"));
     assert.match(
         all.headers.get("Content-Disposition"),
@@ -118,20 +137,20 @@ test("formatted exports retain one row per log, Athens dates, and unsplit overni
     );
     assert.equal(
         await all.text(),
-        "31/10/26 | 23:30 - 00:30 | Overnight\r\n01/11/26 | 00:30 - 01:30 | November support",
+        "Normal call-outs\r\n31/10/26 | 23:30 - 00:30 | Overnight\r\n01/11/26 | 00:30 - 01:30 | November support\r\n\r\nOvertime\r\n31/10/26 | 22:00 - 23:00 | October overtime\r\n01/11/26 | 01:45 - 02:15 | November overtime",
     );
     assert.equal(
         await (await GET(request("?month=2026-09&format=formatted"))).text(),
-        "",
+        "Normal call-outs\r\nNo entries.\r\n\r\nOvertime\r\nNo entries.",
     );
 });
 
 test("formatted exports preserve separate logs with the same reason and flatten multiline reasons", async () => {
     const { callOutFormatted } = await import("../src/lib/call-out-export.ts");
-    const entry = { ...entries[0], reason: "Investigate\r\nRestore | verify" };
+    const entry = { ...entries[1], reason: "Investigate\r\nRestore | verify" };
     assert.equal(
         callOutFormatted([entry, entry]),
-        "31/10/26 | 23:30 - 00:30 | Investigate Restore | verify\r\n31/10/26 | 23:30 - 00:30 | Investigate Restore | verify",
+        "Normal call-outs\r\n31/10/26 | 23:30 - 00:30 | Investigate Restore | verify\r\n31/10/26 | 23:30 - 00:30 | Investigate Restore | verify\r\n\r\nOvertime\r\nNo entries.",
     );
 });
 
@@ -171,6 +190,6 @@ test("overtime CSV exports keep the distinct role and omit standby dates", async
     }
     assert.equal(
         callOutFormatted([entry]),
-        "16/11/26 | 18:00 - 19:30 | Extra project work",
+        "Normal call-outs\r\nNo entries.\r\n\r\nOvertime\r\n16/11/26 | 18:00 - 19:30 | Extra project work",
     );
 });
