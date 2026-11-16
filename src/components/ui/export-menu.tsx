@@ -6,19 +6,21 @@ import {
     Clipboard,
     FileImage,
     FileSpreadsheet,
+    FileText,
 } from "lucide-react";
 
 import { buttonVariants } from "@/components/ui/button";
 
 type ExportItem = {
     label: string;
-    format: "markdown" | "png" | "csv";
+    format: "markdown" | "png" | "csv" | "formatted";
 } & ({ href: string; onClick?: never } | { href?: never; onClick: () => void });
 
 const icons = {
     markdown: Clipboard,
     png: FileImage,
     csv: FileSpreadsheet,
+    formatted: FileText,
 };
 
 const itemClassName =

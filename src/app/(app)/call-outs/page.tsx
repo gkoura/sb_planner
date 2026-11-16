@@ -185,6 +185,11 @@ async function CallOutsContent({ searchParams }: CallOutsPageProps) {
                                 label: "Export all as CSV",
                                 href: "/api/call-outs/export",
                             },
+                            {
+                                format: "formatted",
+                                label: "Formatted",
+                                href: "/api/call-outs/export?format=formatted",
+                            },
                         ]}
                     />
                 </div>

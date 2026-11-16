@@ -98,7 +98,44 @@ test("unfiltered export still includes all of the user's data; empty months have
     assert.equal(empty.split("\r\n").length, 1);
 });
 
-test("invalid months and anonymous requests are rejected before querying data", async () => {
+test("formatted exports retain one row per log, Athens dates, and unsplit overnight times", async () => {
+    const response = await GET(request("?month=2026-10&format=formatted"));
+    assert.equal(response.status, 200);
+    assert.equal(
+        response.headers.get("Content-Type"),
+        "text/plain; charset=utf-8",
+    );
+    assert.equal(response.headers.get("Cache-Control"), "private, no-store");
+    assert.match(
+        response.headers.get("Content-Disposition"),
+        /call-outs-2026-10-formatted\.txt/,
+    );
+    assert.equal(await response.text(), "31/10/26 | 23:30 - 00:30 | Overnight");
+    const all = await GET(request("?format=formatted"));
+    assert.match(
+        all.headers.get("Content-Disposition"),
+        /call-outs-formatted\.txt/,
+    );
+    assert.equal(
+        await all.text(),
+        "31/10/26 | 23:30 - 00:30 | Overnight\r\n01/11/26 | 00:30 - 01:30 | November support",
+    );
+    assert.equal(
+        await (await GET(request("?month=2026-09&format=formatted"))).text(),
+        "",
+    );
+});
+
+test("formatted exports preserve separate logs with the same reason and flatten multiline reasons", async () => {
+    const { callOutFormatted } = await import("../src/lib/call-out-export.ts");
+    const entry = { ...entries[0], reason: "Investigate\r\nRestore | verify" };
+    assert.equal(
+        callOutFormatted([entry, entry]),
+        "31/10/26 | 23:30 - 00:30 | Investigate Restore | verify\r\n31/10/26 | 23:30 - 00:30 | Investigate Restore | verify",
+    );
+});
+
+test("invalid months and formats and anonymous requests are rejected before querying data", async () => {
     const before = queries;
     for (const month of [
         "",
@@ -109,7 +146,9 @@ test("invalid months and anonymous requests are rejected before querying data", 
         "garbage",
     ])
         assert.equal((await GET(request(`?month=${month}`))).status, 400);
+    assert.equal((await GET(request("?format=unknown"))).status, 400);
     state.session = null;
     assert.equal((await GET(request("?month=2026-10"))).status, 401);
+    assert.equal((await GET(request("?format=formatted"))).status, 401);
     assert.equal(queries, before);
 });

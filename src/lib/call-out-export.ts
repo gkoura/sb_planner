@@ -11,6 +11,18 @@ function cell(value: string | number) {
     return `"${text.replace(/^[\s]*[=+@\-\t\r]/, "'$&").replace(/"/g, '""')}"`;
 }
 
+export function callOutFormatted(entries: ExportEntry[]) {
+    return entries
+        .map((entry) => {
+            const start = athensParts(entry.startedAt);
+            const end = athensParts(entry.endedAt);
+            const date = `${start.slice(8, 10)}/${start.slice(5, 7)}/${start.slice(2, 4)}`;
+            const reason = entry.reason.replace(/[\r\n\u2028\u2029]+/g, " ");
+            return `${date} | ${start.slice(11)} - ${end.slice(11)} | ${reason}`;
+        })
+        .join("\r\n");
+}
+
 export function callOutCsv(entries: ExportEntry[], includeMember = false) {
     const rows = [
         [

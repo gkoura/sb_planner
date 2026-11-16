@@ -97,6 +97,15 @@ export function CallOutMonthGroups({ groups }: { groups: MonthGroup[] }) {
                                             group.exportHref ??
                                             `/api/call-outs/export?month=${group.month}`,
                                     },
+                                    ...(!group.exportHref
+                                        ? [
+                                              {
+                                                  format: "formatted" as const,
+                                                  label: "Formatted",
+                                                  href: `/api/call-outs/export?month=${group.month}&format=formatted`,
+                                              },
+                                          ]
+                                        : []),
                                 ]}
                             />
                         </div>

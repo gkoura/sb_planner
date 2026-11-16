@@ -243,6 +243,18 @@ state becomes invalid if the month status or current run changes.
 
 ## Delivery milestones
 
+**Formatted call-out exports (2026-11-16):** personal call-outs now offer
+“Formatted” alongside CSV in both all-entry and monthly export menus. This
+supersedes the earlier CSV-only personal export decision at the user's request.
+The plain-text download uses `dd/mm/yy | HH:mm - HH:mm | reason`, with Athens
+start dates and 24-hour times confirmed by the user. Each saved entry produces
+one line, including overnight/cross-month entries; repeated reasons remain
+separate logs and reason line breaks become spaces. Monthly filtering retains
+Athens start-month grouping. CSV daily portions and admin team exports retain
+their existing behavior. No migration or package is needed. Verified: all 106
+tests, TypeScript, focused ESLint, Prettier, and diff checks pass. Export tests
+mock the database; interactive download verification remains pending.
+
 **Admin team call-out reporting (2026-11-09):** admins can open “View team
 call-outs” from their personal call-outs page to review `/admin/call-outs`.
 Member and optional Athens start-month filters apply to counts, rounded hours,
