@@ -243,6 +243,21 @@ state becomes invalid if the month status or current run changes.
 
 ## Delivery milestones
 
+**Overtime logging (2026-11-16):** added a distinct `OVERTIME` call-out role
+for extra work unrelated to standby, as requested. It has no stored duty date
+and bypasses schedule validation even when the user has a standby assignment;
+Support retains its existing validation and means helping another standby member.
+This extends the prior four-role decision without changing historical logs or
+schedule rules. Creation, editing, CSV import, personal/team history, and exports
+support the new role; existing Athens times, start-month grouping, and rounded
+hours still apply. The additive PostgreSQL enum migration is prepared and the
+Prisma Client is regenerated. Verification: all 109 tests, TypeScript, focused
+ESLint, Prettier, and diff checks pass. Tests mock database boundaries. The
+webpack production build also passes. The configured database connection timed
+out, so the migration remains unapplied;
+apply it before using Overtime in any environment. Interactive browser and
+actual database verification remain pending.
+
 **Formatted call-out exports (2026-11-16):** personal call-outs now offer
 “Formatted” alongside CSV in both all-entry and monthly export menus. This
 supersedes the earlier CSV-only personal export decision at the user's request.

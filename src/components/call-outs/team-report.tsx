@@ -21,6 +21,7 @@ const roleLabels = {
     TRAINEE: "Trainee",
     MENTOR: "Mentor",
     SUPPORT: "Support",
+    OVERTIME: "Overtime",
 };
 
 export function MemberHoursSummary({ members }: { members: MemberTotal[] }) {

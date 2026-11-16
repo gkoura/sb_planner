@@ -44,7 +44,9 @@ export function callOutCsv(entries: ExportEntry[], includeMember = false) {
                 day.date,
                 day.roundedHours,
                 day.minutes,
-                entry.role === "SUPPORT" ? "" : (entry.dutyDate ?? ""),
+                entry.role === "SUPPORT" || entry.role === "OVERTIME"
+                    ? ""
+                    : (entry.dutyDate ?? ""),
                 entry.role,
                 athensParts(entry.startedAt),
                 athensParts(entry.endedAt),

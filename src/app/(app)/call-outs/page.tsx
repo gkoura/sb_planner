@@ -18,6 +18,7 @@ const labels = {
     TRAINEE: "Trainee",
     MENTOR: "Mentor",
     SUPPORT: "Support",
+    OVERTIME: "Overtime",
 };
 
 type CallOutsPageProps = {
@@ -83,14 +84,15 @@ async function CallOutsContent({ searchParams }: CallOutsPageProps) {
 
                     <p className="text-muted-foreground text-sm">
                         Standby runs from 09:00 to 09:00 the next day. Choose
-                        support when helping outside your assigned duty.
+                        Support when helping another standby member. Choose
+                        Overtime for extra work unrelated to standby.
                     </p>
                 </div>
 
                 {params.error && (
                     <p role="alert" className="text-destructive mt-4 text-sm">
                         {params.error === "schedule" ? (
-                            "Your role must match your assignment on the derived duty date in the latest published schedule. Before 09:00 Athens, that is the previous date. Support is only available when you have no scheduled duty for that date. A published schedule is required for primary, trainee, and mentor call-outs."
+                            "Your role must match your assignment on the derived duty date in the latest published schedule. Before 09:00 Athens, that is the previous date. Support is only available when you have no scheduled duty for that date. A published schedule is required for primary, trainee, and mentor call-outs. Overtime is unrelated to standby and does not require a scheduled duty."
                         ) : (
                             <>
                                 Check the reason, role and times. End must be
@@ -143,6 +145,7 @@ async function CallOutsContent({ searchParams }: CallOutsPageProps) {
                             <option value="MENTOR">Mentor</option>
 
                             <option value="SUPPORT">Support</option>
+                            <option value="OVERTIME">Overtime</option>
                         </select>
                     </label>
 

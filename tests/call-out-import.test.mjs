@@ -166,3 +166,26 @@ test("preview and import reject unscheduled duties, while support needs no sched
     });
     scheduleAvailable = true;
 });
+
+test("overtime imports without a standby date, with or without scheduled duty", async () => {
+    rows.clear();
+    state.session = { user: { id: "first" } };
+    const overtime = csv.replace("primary", "overtime");
+    for (const available of [true, false]) {
+        scheduleAvailable = available;
+        const preview = await previewCallOutImport(overtime);
+        assert.deepEqual(preview.errors, []);
+        assert.equal(preview.entries[0].role, "OVERTIME");
+        assert.equal(preview.entries[0].dutyDate, null);
+    }
+    assert.deepEqual(await importCallOuts(overtime), {
+        imported: 1,
+        skipped: 0,
+    });
+    assert.equal([...rows.values()][0].dutyDate, null);
+    assert.deepEqual(await importCallOuts(overtime), {
+        imported: 0,
+        skipped: 1,
+    });
+    scheduleAvailable = true;
+});

@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { dutyDate } from "@/lib/call-outs";
 
 type DutyEntry = {
-    role: "PRIMARY" | "TRAINEE" | "MENTOR" | "SUPPORT";
+    role: "PRIMARY" | "TRAINEE" | "MENTOR" | "SUPPORT" | "OVERTIME";
     startedAt: Date;
 };
 
@@ -12,9 +12,15 @@ export async function validateCallOutDuties(
 ): Promise<string[]> {
     const checked = entries.map((entry) => ({
         ...entry,
-        dutyDate: dutyDate(entry.startedAt)!,
+        dutyDate: entry.role === "OVERTIME" ? null : dutyDate(entry.startedAt)!,
     }));
-    const dates = [...new Set(checked.map((entry) => entry.dutyDate))];
+    const dates = [
+        ...new Set(
+            checked.flatMap((entry) =>
+                entry.dutyDate ? [entry.dutyDate] : [],
+            ),
+        ),
+    ];
     const monthKeys = [...new Set(dates.map((date) => date.slice(0, 7)))];
     const months = monthKeys.length
         ? await prisma.planningMonth.findMany({
@@ -59,6 +65,7 @@ export async function validateCallOutDuties(
         ),
     );
     return checked.flatMap((entry, index) => {
+        if (entry.role === "OVERTIME") return [];
         const assignment = entry.dutyDate
             ? assignments.get(entry.dutyDate)
             : undefined;

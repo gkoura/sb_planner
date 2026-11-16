@@ -7,7 +7,7 @@ export const CALL_OUT_IMPORT_TEMPLATE =
         "Example: helping a colleague,SUPPORT,2026-10-24T10:15,2026-10-24T10:45",
     ].join("\r\n") + "\r\n";
 const headers = ["reason", "duty_role", "start_athens", "end_athens"];
-type Role = "PRIMARY" | "TRAINEE" | "MENTOR" | "SUPPORT";
+type Role = "PRIMARY" | "TRAINEE" | "MENTOR" | "SUPPORT" | "OVERTIME";
 export type ImportEntry = {
     reason: string;
     role: Role;
@@ -107,12 +107,18 @@ export function validateCallOutImport(text: string): {
             return;
         }
         if (
-            !(["PRIMARY", "TRAINEE", "MENTOR", "SUPPORT"] as string[]).includes(
-                role,
-            )
+            !(
+                [
+                    "PRIMARY",
+                    "TRAINEE",
+                    "MENTOR",
+                    "SUPPORT",
+                    "OVERTIME",
+                ] as string[]
+            ).includes(role)
         ) {
             errors.push(
-                `Row ${number}: duty role must be PRIMARY, TRAINEE, MENTOR or SUPPORT.`,
+                `Row ${number}: duty role must be PRIMARY, TRAINEE, MENTOR, SUPPORT or OVERTIME.`,
             );
             return;
         }

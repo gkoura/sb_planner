@@ -57,6 +57,7 @@ export function EditCallOutForm({
                     <option value="TRAINEE">Trainee (shadow)</option>
                     <option value="MENTOR">Mentor</option>
                     <option value="SUPPORT">Support</option>
+                    <option value="OVERTIME">Overtime</option>
                 </select>
             </label>
             <div className="grid gap-4 sm:grid-cols-2">
@@ -72,8 +73,9 @@ export function EditCallOutForm({
                 />
             </div>
             <p className="text-muted-foreground text-xs">
-                The standby date and rounded daily hours are recalculated when
-                you save.
+                Choose Support when helping another standby member, or Overtime
+                for extra work unrelated to standby. Overtime has no standby
+                date. Rounded daily hours are recalculated when you save.
             </p>
             <div className="flex justify-end gap-2 border-t pt-5">
                 <Button

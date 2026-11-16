@@ -152,3 +152,25 @@ test("invalid months and formats and anonymous requests are rejected before quer
     assert.equal((await GET(request("?format=formatted"))).status, 401);
     assert.equal(queries, before);
 });
+
+test("overtime CSV exports keep the distinct role and omit standby dates", async () => {
+    const { callOutCsv, callOutFormatted } =
+        await import("../src/lib/call-out-export.ts");
+    const entry = {
+        role: "OVERTIME",
+        dutyDate: "2026-11-15",
+        reason: "Extra project work",
+        startedAt: new Date("2026-11-16T16:00:00Z"),
+        endedAt: new Date("2026-11-16T17:30:00Z"),
+        user: { name: "Engineer", email: "engineer@example.com" },
+    };
+    for (const includeMember of [false, true]) {
+        const csv = callOutCsv([entry], includeMember);
+        assert.match(csv, /"2026-11-16","2","90","","OVERTIME"/);
+        assert.doesNotMatch(csv, /2026-11-15/);
+    }
+    assert.equal(
+        callOutFormatted([entry]),
+        "16/11/26 | 18:00 - 19:30 | Extra project work",
+    );
+});

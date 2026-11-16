@@ -161,8 +161,8 @@ export function CallOutImportForm() {
                         </p>
                         <p className="text-muted-foreground text-xs">
                             Use YYYY-MM-DDTHH:mm for dates and times. Roles:
-                            PRIMARY, TRAINEE, MENTOR or SUPPORT. The daily-hours
-                            export cannot be imported directly.
+                            PRIMARY, TRAINEE, MENTOR, SUPPORT or OVERTIME. The
+                            daily-hours export cannot be imported directly.
                         </p>
                     </div>
                     <Button

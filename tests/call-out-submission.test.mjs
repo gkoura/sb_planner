@@ -240,3 +240,33 @@ test("edits validate and only update the owner's record", async () => {
         "2026-10-22T05:00:00.000Z",
     );
 });
+
+test("overtime creation and edits are independent of published standby duties", async () => {
+    state.session = { user: { id: "user" } };
+    const id = "77777777-7777-4777-8777-777777777777";
+    const data = form(id);
+    data.set("role", "OVERTIME");
+    for (const duties of [[assignment()], []]) {
+        scheduled = duties;
+        scheduleQuery = null;
+        await assert.rejects(
+            createCallOut(data),
+            /redirect:\/call-outs\?saved=1/,
+        );
+        assert.equal(rows.get(id).role, "OVERTIME");
+        assert.equal(rows.get(id).dutyDate, null);
+        assert.equal(scheduleQuery, null);
+    }
+    // Changing a previously scheduled entry to overtime clears its duty date.
+    const existingId = "11111111-1111-4111-8111-111111111111";
+    assert.ok(rows.get(existingId).dutyDate);
+    data.set("id", existingId);
+    await assert.rejects(
+        updateCallOut({}, data),
+        /redirect:\/call-outs\?saved=1/,
+    );
+    assert.equal(rows.get(existingId).role, "OVERTIME");
+    assert.equal(rows.get(existingId).dutyDate, null);
+    state.session = { user: { id: "other" } };
+    assert.match((await updateCallOut({}, data)).error, /could not be found/);
+});
