@@ -243,6 +243,12 @@ state becomes invalid if the month status or current run changes.
 
 ## Delivery milestones
 
+**Next.js security upgrade (2026-11-21):** upgraded Next.js and its ESLint
+configuration from 16.4.3 to 16.4.6 and set `experimental.agentUpgrade` to
+`security`. Frozen pnpm install, all 113 tests, TypeScript, and the webpack
+production build pass. ESLint passes with the existing unused-variable warning
+in the home page. No migration is needed.
+
 **Call-out export sections (2026-11-16):** personal formatted text downloads
 now contain “Normal call-outs” followed by “Overtime” in the same file, for
 both all-entry and monthly exports. This supersedes the earlier unsectioned
