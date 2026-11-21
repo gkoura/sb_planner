@@ -1,4 +1,4 @@
-import { dutyDate, parseAthensDateTime, splitCallOut } from "./call-outs";
+import { dutyDate, parseAthensDateTime, callOutDuration } from "./call-outs";
 
 export const CALL_OUT_IMPORT_TEMPLATE =
     [
@@ -14,7 +14,7 @@ export type ImportEntry = {
     start: string;
     end: string;
     dutyDate: string | null;
-    days: ReturnType<typeof splitCallOut>;
+    duration: ReturnType<typeof callOutDuration>;
 };
 
 // Strict CSV parser: quoted fields may contain commas, line breaks and escaped quotes.
@@ -145,7 +145,7 @@ export function validateCallOutImport(text: string): {
             start,
             end,
             dutyDate: dutyDate(startDate, role),
-            days: splitCallOut(startDate, endDate),
+            duration: callOutDuration(startDate, endDate),
         });
     });
     return { entries: errors.length ? [] : entries, errors };

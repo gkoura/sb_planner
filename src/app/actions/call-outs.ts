@@ -32,6 +32,9 @@ function parseCallOut(form: FormData) {
     };
 }
 
+const invalidCallOut =
+    "Check the reason, role and times. End must be after start, within seven days. Times during a daylight-saving clock change may be ambiguous or unavailable.";
+
 export type EditCallOutState = { error?: string };
 
 export async function updateCallOut(
@@ -43,7 +46,7 @@ export async function updateCallOut(
     const values = parseCallOut(form);
     if (!values)
         return {
-            error: "Check the reason, role and times. End must be after start, within seven days. Times during a daylight-saving clock change may be ambiguous or unavailable.",
+            error: invalidCallOut,
         };
     const existing = await prisma.callOut.findFirst({
         where: { id: String(form.get("id") ?? ""), userId: session.user.id },
@@ -67,7 +70,10 @@ export async function updateCallOut(
     redirect("/call-outs?saved=1");
 }
 
-export async function createCallOut(form: FormData) {
+export async function createCallOut(
+    _state: { error?: string },
+    form: FormData,
+): Promise<{ error?: string }> {
     const session = await getCurrentSession();
     if (!session) redirect("/sign-in");
     const submissionId = String(form.get("submissionId") ?? "");
@@ -78,10 +84,10 @@ export async function createCallOut(form: FormData) {
         ) ||
         !values
     ) {
-        redirect("/call-outs?error=invalid");
+        return { error: invalidCallOut };
     }
     const errors = await validateCallOutDuties(session.user.id, [values]);
-    if (errors.length) redirect("/call-outs?error=schedule");
+    if (errors.length) return { error: errors[0] };
     await prisma.callOut.createMany({
         skipDuplicates: true,
         data: {

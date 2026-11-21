@@ -82,6 +82,44 @@ const { GET } = await import("../src/app/api/call-outs/export/route.ts");
 const request = (query = "") =>
     new Request(`https://example.test/api/call-outs/export${query}`);
 
+test("daily CSV allocates before filtering by Athens work month", async () => {
+    const october = await GET(request("?month=2026-10&format=daily"));
+    assert.equal(october.status, 200);
+    assert.match(
+        october.headers.get("Content-Disposition"),
+        /call-outs-2026-10-daily-hours.csv/,
+    );
+    const csv = await october.text();
+    assert.match(csv, /^"work_date","hours_to_log","minutes_worked"/);
+    assert.match(csv, /"2026-10-31","1","30","PRIMARY"[^\r\n]*"Overnight"/);
+    assert.doesNotMatch(csv, /November support|Other user/);
+    assert.deepEqual(csv.split("\r\n").slice(3), [
+        '""',
+        '""',
+        '"Normal call-outs"',
+        '"31/10/26 | 23:30 - 00:30 | Overnight"',
+        '""',
+        '"Overtime"',
+        '"31/10/26 | 22:00 - 23:00 | October overtime"',
+    ]);
+
+    const november = await (
+        await GET(request("?month=2026-11&format=daily"))
+    ).text();
+    assert.match(
+        november,
+        /"2026-11-01","0","30","PRIMARY"[^\r\n]*"Overnight"/,
+    );
+    assert.match(november, /"OVERTIME"/);
+    assert.doesNotMatch(november, /October overtime|Other user/);
+    assert.doesNotMatch(november, /\| Overnight"/);
+
+    const all = await (await GET(request("?format=daily"))).text();
+    assert.equal(all.split("\r\n").indexOf('"Normal call-outs"'), 8);
+    assert.equal(all.match(/Overnight"/g).length, 3);
+    assert.doesNotMatch(all, /Other user/);
+});
+
 test("monthly CSV follows Athens start-month grouping and retains overnight portions", async () => {
     const response = await GET(request("?month=2026-10"));
     assert.equal(response.status, 200);
@@ -90,9 +128,9 @@ test("monthly CSV follows Athens start-month grouping and retains overnight port
         /call-outs-2026-10.csv/,
     );
     const csv = await response.text();
-    assert.equal(csv.split("\r\n").length, 4);
-    assert.match(csv, /"2026-10-31","1","30"/);
-    assert.match(csv, /"2026-11-01","1","30"/);
+    assert.equal(csv.split("\r\n").length, 3);
+    assert.match(csv, /"2026-10-31","1","60"/);
+    assert.doesNotMatch(csv, /"2026-11-01","1","30"/);
     assert.doesNotMatch(csv, /November support|Other user/);
     const november = await (await GET(request("?month=2026-11"))).text();
     assert.match(november, /November support/);

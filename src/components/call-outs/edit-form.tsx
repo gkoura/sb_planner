@@ -75,7 +75,7 @@ export function EditCallOutForm({
             <p className="text-muted-foreground text-xs">
                 Choose Support when helping another standby member, or Overtime
                 for extra work unrelated to standby. Overtime has no standby
-                date. Rounded daily hours are recalculated when you save.
+                date. Rounded hours are recalculated when you save.
             </p>
             <div className="flex justify-end gap-2 border-t pt-5">
                 <Button

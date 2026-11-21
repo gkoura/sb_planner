@@ -1,5 +1,9 @@
 import type { CallOut } from "@prisma/client";
-import { athensParts, splitCallOut } from "@/lib/call-outs";
+import {
+    athensParts,
+    callOutDailyHours,
+    callOutDuration,
+} from "@/lib/call-outs";
 
 type ExportEntry = Pick<
     CallOut,
@@ -47,23 +51,71 @@ export function callOutCsv(entries: ExportEntry[], includeMember = false) {
             "end_athens",
             "reason",
         ],
-        ...entries.flatMap((entry) =>
-            splitCallOut(entry.startedAt, entry.endedAt).map((day) => [
+        ...entries.map((entry) => {
+            const { minutes, roundedHours } = callOutDuration(
+                entry.startedAt,
+                entry.endedAt,
+            );
+            const start = athensParts(entry.startedAt);
+            return [
                 ...(includeMember
                     ? [entry.user?.name ?? "", entry.user?.email ?? ""]
                     : []),
-                day.date,
-                day.roundedHours,
-                day.minutes,
+                start.slice(0, 10),
+                roundedHours,
+                minutes,
                 entry.role === "SUPPORT" || entry.role === "OVERTIME"
                     ? ""
                     : (entry.dutyDate ?? ""),
                 entry.role,
-                athensParts(entry.startedAt),
+                start,
                 athensParts(entry.endedAt),
                 entry.reason,
-            ]),
-        ),
+            ];
+        }),
     ];
     return rows.map((row) => row.map(cell).join(",")).join("\r\n");
+}
+
+export function callOutDailyCsv(entries: ExportEntry[], month: string | null) {
+    const rows: (string | number)[][] = [
+        [
+            "work_date",
+            "hours_to_log",
+            "minutes_worked",
+            "duty_role",
+            "start_athens",
+            "end_athens",
+            "reason",
+        ],
+    ];
+    for (const entry of entries) {
+        const start = athensParts(entry.startedAt);
+        const end = athensParts(entry.endedAt);
+        for (const day of callOutDailyHours(entry.startedAt, entry.endedAt)) {
+            // Allocate the full entry before filtering by work month.
+            if (month !== null && day.date.slice(0, 7) !== month) continue;
+            rows.push([
+                day.date,
+                day.hours,
+                day.minutes,
+                entry.role,
+                start,
+                end,
+                entry.reason,
+            ]);
+        }
+    }
+    const formattedEntries = entries.filter(
+        (entry) =>
+            month === null ||
+            athensParts(entry.startedAt).slice(0, 7) === month,
+    );
+    const formattedRows = callOutFormatted(formattedEntries).split("\r\n");
+    return [
+        ...rows.map((row) => row.map(cell).join(",")),
+        cell(""),
+        cell(""),
+        ...formattedRows.map(cell),
+    ].join("\r\n");
 }

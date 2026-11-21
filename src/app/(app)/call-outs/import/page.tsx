@@ -25,7 +25,7 @@ export default function ImportCallOutsPage() {
                 </h1>
                 <p className="text-muted-foreground max-w-2xl">
                     Upload a CSV of your call-outs. Review the entries and their
-                    daily hours before importing.
+                    elapsed minutes and rounded hours before importing.
                 </p>
             </section>
             <CallOutImportForm />

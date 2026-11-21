@@ -36,22 +36,49 @@ export function dutyDate(start: Date, role?: string): string | null {
     return previous.toISOString().slice(0, 10);
 }
 
-export function splitCallOut(start: Date, end: Date) {
-    const result: { date: string; minutes: number; roundedHours: number }[] =
-        [];
-    let cursor = start.getTime();
-    while (cursor < end.getTime()) {
+export function callOutDuration(start: Date, end: Date) {
+    const minutes = (end.getTime() - start.getTime()) / 60000;
+    return { minutes, roundedHours: Math.ceil(minutes / 60) };
+}
+
+export function callOutDailyHours(start: Date, end: Date) {
+    const days: { date: string; minutes: number; hours: number }[] = [];
+    const endTime = end.getTime();
+
+    for (let cursor = start.getTime(); cursor < endTime;) {
         const date = athensParts(new Date(cursor)).slice(0, 10);
-        const next = new Date(`${date}T12:00:00Z`);
-        next.setUTCDate(next.getUTCDate() + 1);
+        const nextDate = new Date(`${date}T12:00:00Z`);
+        nextDate.setUTCDate(nextDate.getUTCDate() + 1);
         const midnight = parseAthensDateTime(
-            `${next.toISOString().slice(0, 10)}T00:00`,
+            `${nextDate.toISOString().slice(0, 10)}T00:00`,
         );
         if (!midnight) throw new Error("Unable to calculate Athens midnight");
-        const until = Math.min(end.getTime(), midnight.getTime());
+        const until = Math.min(midnight.getTime(), endTime);
         const minutes = (until - cursor) / 60000;
-        result.push({ date, minutes, roundedHours: Math.ceil(minutes / 60) });
+        days.push({ date, minutes, hours: Math.floor(minutes / 60) });
         cursor = until;
     }
-    return result;
+
+    const wholeHours = days.reduce((sum, day) => sum + day.hours, 0);
+    const extraHours = callOutDuration(start, end).roundedHours - wholeHours;
+    const partialDays = days
+        .map((day) => {
+            const weekday = new Date(`${day.date}T12:00:00Z`).getUTCDay();
+            return {
+                day,
+                remainder: day.minutes % 60,
+                weekend: weekday === 0 || weekday === 6,
+            };
+        })
+        .filter(({ remainder }) => remainder > 0)
+        .sort(
+            (a, b) =>
+                Number(b.weekend) - Number(a.weekend) ||
+                b.remainder - a.remainder ||
+                a.day.date.localeCompare(b.day.date),
+        );
+    for (const { day } of partialDays.slice(0, extraHours)) {
+        day.hours++;
+    }
+    return days;
 }

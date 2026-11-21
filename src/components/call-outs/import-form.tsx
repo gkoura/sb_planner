@@ -204,7 +204,7 @@ export function CallOutImportForm() {
                             <CardTitle>Imported call-outs preview</CardTitle>
                             <CardDescription>
                                 {preview.length} call-outs. Hours are rounded up
-                                separately for each call-out and calendar day.
+                                once per call-out.
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
@@ -228,12 +228,9 @@ export function CallOutImportForm() {
                                             {entry.end.replace("T", " ")}
                                         </p>
                                         <p className="mt-1">
-                                            {entry.days
-                                                .map(
-                                                    (day) =>
-                                                        `${day.date}: ${day.roundedHours}h`,
-                                                )
-                                                .join(" · ")}
+                                            {entry.duration.roundedHours}h
+                                            rounded ({entry.duration.minutes}{" "}
+                                            minutes worked)
                                         </p>
                                     </article>
                                 ))}

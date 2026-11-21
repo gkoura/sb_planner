@@ -243,11 +243,58 @@ state becomes invalid if the month status or current run changes.
 
 ## Delivery milestones
 
+**Call-out draft retention (2026-11-21):** create-form validation now displays
+errors inline and retains the reason, duty role, and date/time selections for
+correction. A retry uses the same submission ID. Successful saves keep their
+existing redirect and receive a fresh form. Verified in Chrome with an
+invalid date range and through an action test for a rejected primary role
+followed by a corrected retry. All 114 tests, TypeScript, focused lint, and
+diff checks pass.
+
+**Personal export menus (2026-11-21):** Export all and Export month now
+offer only the combined Daily hours + formatted CSV, at the user's request.
+Existing export URLs remain compatible and the admin team CSV stays available.
+Verified both personal menus in the browser. All 113 tests, TypeScript,
+focused lint and formatting checks, and diff checks pass.
+
+**Combined call-out export (2026-11-21):** Daily hours CSV now appends the
+existing formatted call-out and overtime sections in column A, two blank
+rows below the daily table. Daily rows use the Athens work month and
+formatted lines use the Athens start month, matching the standalone formatted
+download. Verified by route tests for monthly, all-entry, and cross-month
+exports. All 113 tests, TypeScript, focused lint and formatting checks, and
+diff checks pass. Excel rendering was not checked interactively.
+
 **Next.js security upgrade (2026-11-21):** upgraded Next.js and its ESLint
 configuration from 16.4.3 to 16.4.6 and set `experimental.agentUpgrade` to
 `security`. Frozen pnpm install, all 113 tests, TypeScript, and the webpack
 production build pass. ESLint passes with the existing unused-variable warning
 in the home page. No migration is needed.
+
+**Daily call-out export (2026-11-21):** personal all-entry and monthly export
+menus now offer a Daily hours CSV for Excel. Each Athens calendar date worked
+gets a row with elapsed minutes and whole hours to log, including dates
+allocated zero hours. Allocation preserves each entry's rounded total. Credit
+whole hours first, then assign extra hours to partial dates with Saturday and
+Sunday first, larger remainders next, and earlier dates as the final tie-break.
+Monthly daily exports filter by work date after allocation, with a download
+link for months containing only carryover work. The existing CSV and formatted
+exports retain their start-month grouping and formats. No migration is needed.
+Verified: all 113 tests, TypeScript, focused ESLint, and diff checks pass.
+The monthly menu was checked in the browser. CSV content was verified by
+route tests.
+
+**Call-out rounding (2026-11-21):** round the full elapsed duration of each
+call-out up to a whole hour once. This supersedes rounding each Athens
+calendar-day portion because crossing midnight could add an extra hour.
+Personal and team totals and the import preview use the shared calculation
+for all duty roles, including existing logs. CSV exports now use one row per
+call-out, with its Athens start date in `work_date`. Month grouping still uses
+the Athens start month. No migration is needed. Verified: all 111 tests,
+TypeScript, focused ESLint, and diff checks pass. The reported overnight
+entry shows 1 rounded hour and 60 minutes worked in the browser, and its
+November total dropped from 15 to 14 hours. Team reports, import preview, and
+CSV output were checked by automated tests.
 
 **Call-out export sections (2026-11-16):** personal formatted text downloads
 now contain “Normal call-outs” followed by “Overtime” in the same file, for

@@ -188,7 +188,7 @@ test("admins export all members, including inactive members, with member identit
     assert.match(csv, /Admin support/);
     assert.match(csv, /"Alex","former@example.test"/);
     assert.match(csv, /Historical support/);
-    assert.equal(csv.split("\r\n").length, 6);
+    assert.equal(csv.split("\r\n").length, 5);
 });
 
 test("member and month filters retain cross-month daily portions and exclude other members", async () => {
@@ -199,9 +199,9 @@ test("member and month filters retain cross-month daily portions and exclude oth
         response.headers.get("Content-Disposition"),
         /team-call-outs-member-2026-10.csv/,
     );
-    assert.equal(csv.split("\r\n").length, 3);
-    assert.match(csv, /"2026-10-31","1","30"/);
-    assert.match(csv, /"2026-11-01","1","30"/);
+    assert.equal(csv.split("\r\n").length, 2);
+    assert.match(csv, /"2026-10-31","1","60"/);
+    assert.doesNotMatch(csv, /\r?\n[^\r\n]*"2026-11-01","1","30"/);
     assert.doesNotMatch(
         csv,
         /Historical support|Admin support|November support/,
@@ -245,9 +245,9 @@ test("admin page renders distinct member identities, hours, history, and matchin
     assert.match(html, /Alex \(inactive\)/);
     assert.match(html, /alex@example.test/);
     assert.match(html, /former@example.test/);
-    assert.match(html, /Rounded hours<\/dt><dd[^>]*>4<\/dd>/);
+    assert.match(html, /Rounded hours<\/dt><dd[^>]*>3<\/dd>/);
     assert.match(html, /3 call-outs/);
-    assert.match(html, /4 hours logged/);
+    assert.match(html, /3 hours logged/);
     assert.match(html, /\/api\/admin\/call-outs\/export\?month=2026-10/);
     assert.doesNotMatch(
         html,
@@ -255,9 +255,9 @@ test("admin page renders distinct member identities, hours, history, and matchin
     );
 
     const member = await renderPage({ userId: "engineer", month: "2026-10" });
-    assert.match(member, /Rounded hours<\/dt><dd[^>]*>2<\/dd>/);
+    assert.match(member, /Rounded hours<\/dt><dd[^>]*>1<\/dd>/);
     assert.match(member, /userId=engineer&amp;month=2026-10/);
-    assert.match(member, /2026-11-01: 1 hour/);
+    assert.match(member, /1 hour rounded.*60 minutes worked/);
     assert.doesNotMatch(
         member,
         /Historical support|Admin support|November support/,

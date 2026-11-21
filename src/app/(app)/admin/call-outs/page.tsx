@@ -9,7 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ExportMenu } from "@/components/ui/export-menu";
 import { requireAdmin } from "@/lib/auth-guard";
-import { athensParts, splitCallOut } from "@/lib/call-outs";
+import { athensParts, callOutDuration } from "@/lib/call-outs";
 import { prisma } from "@/lib/prisma";
 import {
     filterCallOutMonth,
@@ -64,23 +64,16 @@ async function TeamCallOutsContent({ searchParams }: TeamCallOutsPageProps) {
                   orderBy: [{ startedAt: "desc" }, { id: "asc" }],
               }),
               filters.month,
-          ).map((entry) => {
-              const days = splitCallOut(entry.startedAt, entry.endedAt);
-              return {
-                  ...entry,
-                  days,
-                  totalHours: days.reduce(
-                      (sum, day) => sum + day.roundedHours,
-                      0,
-                  ),
-              };
-          });
+          ).map((entry) => ({
+              ...entry,
+              ...callOutDuration(entry.startedAt, entry.endedAt),
+          }));
     const entriesByMember = Map.groupBy(entries, (entry) => entry.userId);
     const entriesByMonth = Map.groupBy(entries, (entry) =>
         athensParts(entry.startedAt).slice(0, 7),
     );
     const totalHours = entries.reduce(
-        (sum, entry) => sum + entry.totalHours,
+        (sum, entry) => sum + entry.roundedHours,
         0,
     );
 
@@ -136,10 +129,9 @@ async function TeamCallOutsContent({ searchParams }: TeamCallOutsPageProps) {
                     />
                 </label>
                 <p className="text-muted-foreground text-xs sm:col-span-2">
-                    Leave the month blank for all months. Overnight call-outs
-                    stay in their Athens start month, with all daily hours
-                    included. Hours round up separately for each call-out and
-                    calendar day.
+                    Leave the month blank for all months. Call-outs are grouped
+                    by their Athens start month. Hours round up once per
+                    call-out.
                 </p>
                 <div className="flex flex-wrap gap-2 sm:col-span-2">
                     <Button type="submit">Apply filters</Button>
@@ -222,7 +214,7 @@ async function TeamCallOutsContent({ searchParams }: TeamCallOutsPageProps) {
                                             count: memberEntries.length,
                                             totalHours: memberEntries.reduce(
                                                 (sum, entry) =>
-                                                    sum + entry.totalHours,
+                                                    sum + entry.roundedHours,
                                                 0,
                                             ),
                                         };
@@ -244,7 +236,7 @@ async function TeamCallOutsContent({ searchParams }: TeamCallOutsPageProps) {
                                             count: monthEntries.length,
                                             totalHours: monthEntries.reduce(
                                                 (sum, entry) =>
-                                                    sum + entry.totalHours,
+                                                    sum + entry.roundedHours,
                                                 0,
                                             ),
                                             exportHref: teamCallOutExportUrl({

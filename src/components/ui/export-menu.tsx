@@ -13,13 +13,14 @@ import { buttonVariants } from "@/components/ui/button";
 
 type ExportItem = {
     label: string;
-    format: "markdown" | "png" | "csv" | "formatted";
+    format: "markdown" | "png" | "csv" | "formatted" | "daily";
 } & ({ href: string; onClick?: never } | { href?: never; onClick: () => void });
 
 const icons = {
     markdown: Clipboard,
     png: FileImage,
     csv: FileSpreadsheet,
+    daily: FileSpreadsheet,
     formatted: FileText,
 };
 

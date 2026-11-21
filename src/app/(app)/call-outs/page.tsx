@@ -3,14 +3,13 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 
-import { createCallOut, deleteCallOut } from "@/app/actions/call-outs";
+import { deleteCallOut } from "@/app/actions/call-outs";
 import { Button } from "@/components/ui/button";
 import { ExportMenu } from "@/components/ui/export-menu";
 import { CallOutMonthGroups } from "@/components/call-outs/month-groups";
-import { SaveCallOutButton } from "@/components/call-outs/save-button";
-import { DateTimePicker } from "@/components/ui/date-time-picker";
+import { CreateCallOutForm } from "@/components/call-outs/create-form";
 import { getCurrentSession } from "@/lib/auth-guard";
-import { athensParts, splitCallOut } from "@/lib/call-outs";
+import { athensParts, callOutDuration } from "@/lib/call-outs";
 import { prisma } from "@/lib/prisma";
 
 const labels = {
@@ -23,7 +22,6 @@ const labels = {
 
 type CallOutsPageProps = {
     searchParams: Promise<{
-        error?: string;
         saved?: string;
     }>;
 };
@@ -44,6 +42,7 @@ async function CallOutsContent({ searchParams }: CallOutsPageProps) {
     }
 
     const params = await searchParams;
+    const submissionId = randomUUID();
 
     const entries = await prisma.callOut.findMany({
         where: {
@@ -54,9 +53,24 @@ async function CallOutsContent({ searchParams }: CallOutsPageProps) {
         },
     });
 
-    const entriesByMonth = Map.groupBy(entries, (entry) =>
-        athensParts(entry.startedAt).slice(0, 7),
+    const entriesByMonth = Map.groupBy(
+        entries.map((entry) => ({
+            ...entry,
+            ...callOutDuration(entry.startedAt, entry.endedAt),
+        })),
+        (entry) => athensParts(entry.startedAt).slice(0, 7),
     );
+
+    const carryoverMonths = Array.from(
+        new Set(
+            entries.map((entry) =>
+                athensParts(new Date(entry.endedAt.getTime() - 1)).slice(0, 7),
+            ),
+        ),
+    )
+        .filter((month) => !entriesByMonth.has(month))
+        .sort()
+        .reverse();
 
     return (
         <>
@@ -89,81 +103,16 @@ async function CallOutsContent({ searchParams }: CallOutsPageProps) {
                     </p>
                 </div>
 
-                {params.error && (
-                    <p role="alert" className="text-destructive mt-4 text-sm">
-                        {params.error === "schedule" ? (
-                            "Your role must match your assignment on the derived duty date in the latest published schedule. Before 09:00 Athens, that is the previous date. Support is only available when you have no scheduled duty for that date. A published schedule is required for primary, trainee, and mentor call-outs. Overtime is unrelated to standby and does not require a scheduled duty."
-                        ) : (
-                            <>
-                                Check the reason, role and times. End must be
-                                after start, within seven days. Times during a
-                                daylight-saving clock change may be ambiguous or
-                                unavailable.
-                            </>
-                        )}
-                    </p>
-                )}
-
                 {params.saved && (
                     <p role="status" className="mt-4 text-sm text-green-700">
                         Call-out saved.
                     </p>
                 )}
 
-                <form action={createCallOut} className="mt-6 grid gap-5">
-                    <input
-                        type="hidden"
-                        name="submissionId"
-                        value={randomUUID()}
-                    />
-                    <label className="grid gap-1.5 text-sm font-medium">
-                        Reason
-                        <textarea
-                            name="reason"
-                            required
-                            maxLength={2000}
-                            rows={3}
-                            placeholder={
-                                "Describe the reason for the call-out...\n" +
-                                "e.g. Job: P.JW.GR.CMS.COSMOS.MASSISSKA.MASS_KA_8.BAT Ended NOT Ok"
-                            }
-                            className="border-input bg-background placeholder:text-muted-foreground rounded-md border p-3 text-sm"
-                        />
-                    </label>
-
-                    <label className="grid gap-1.5 text-sm font-medium">
-                        Duty role
-                        <select
-                            name="role"
-                            required
-                            className="border-input bg-background h-10 rounded-md border px-3 text-sm"
-                        >
-                            <option value="PRIMARY">Primary</option>
-
-                            <option value="TRAINEE">Trainee (shadow)</option>
-
-                            <option value="MENTOR">Mentor</option>
-
-                            <option value="SUPPORT">Support</option>
-                            <option value="OVERTIME">Overtime</option>
-                        </select>
-                    </label>
-
-                    <div className="grid gap-4 sm:grid-cols-2">
-                        <DateTimePicker name="start" label="Start" />
-
-                        <DateTimePicker name="end" label="End" />
-                    </div>
-
-                    <p className="text-muted-foreground text-xs">
-                        All dates and times are interpreted in Europe/Athens
-                        (24-hour format).
-                    </p>
-
-                    <div className="flex justify-end border-t pt-5">
-                        <SaveCallOutButton />
-                    </div>
-                </form>
+                <CreateCallOutForm
+                    key={submissionId}
+                    submissionId={submissionId}
+                />
             </section>
 
             <section className="grid gap-4">
@@ -174,8 +123,8 @@ async function CallOutsContent({ searchParams }: CallOutsPageProps) {
                         </h2>
 
                         <p className="text-muted-foreground text-sm">
-                            Each call-out is rounded up separately for each
-                            calendar day. Grouped by the Athens start month.
+                            Hours round up once per call-out. Grouped by the
+                            Athens start month.
                         </p>
                     </div>
 
@@ -184,18 +133,29 @@ async function CallOutsContent({ searchParams }: CallOutsPageProps) {
                         label="Export all call-outs"
                         items={[
                             {
-                                format: "csv",
-                                label: "Export all as CSV",
-                                href: "/api/call-outs/export",
-                            },
-                            {
-                                format: "formatted",
-                                label: "Formatted",
-                                href: "/api/call-outs/export?format=formatted",
+                                format: "daily",
+                                label: "Daily hours + formatted CSV",
+                                href: "/api/call-outs/export?format=daily",
                             },
                         ]}
                     />
                 </div>
+
+                {carryoverMonths.map((month) => (
+                    <Button
+                        key={month}
+                        nativeButton={false}
+                        render={
+                            <Link
+                                href={`/api/call-outs/export?month=${month}&format=daily`}
+                            />
+                        }
+                        variant="outline"
+                        className="justify-self-start"
+                    >
+                        Daily hours + formatted CSV for {month}
+                    </Button>
+                ))}
 
                 {entries.length === 0 ? (
                     <p className="text-muted-foreground">
@@ -210,15 +170,7 @@ async function CallOutsContent({ searchParams }: CallOutsPageProps) {
                                 count: monthEntries.length,
                                 totalHours: monthEntries.reduce(
                                     (total, entry) =>
-                                        total +
-                                        splitCallOut(
-                                            entry.startedAt,
-                                            entry.endedAt,
-                                        ).reduce(
-                                            (hours, day) =>
-                                                hours + day.roundedHours,
-                                            0,
-                                        ),
+                                        total + entry.roundedHours,
                                     0,
                                 ),
                                 content: monthEntries.map((entry) => (
@@ -285,24 +237,16 @@ async function CallOutsContent({ searchParams }: CallOutsPageProps) {
                                             (Athens)
                                         </p>
 
-                                        <ul className="text-sm">
-                                            {splitCallOut(
-                                                entry.startedAt,
-                                                entry.endedAt,
-                                            ).map((day) => (
-                                                <li key={day.date}>
-                                                    {day.date}:{" "}
-                                                    {day.roundedHours}{" "}
-                                                    {day.roundedHours === 1
-                                                        ? "hour"
-                                                        : "hours"}{" "}
-                                                    <span className="text-muted-foreground">
-                                                        ({day.minutes} minutes
-                                                        worked)
-                                                    </span>
-                                                </li>
-                                            ))}
-                                        </ul>
+                                        <p className="text-sm">
+                                            {entry.roundedHours}{" "}
+                                            {entry.roundedHours === 1
+                                                ? "hour"
+                                                : "hours"}{" "}
+                                            rounded{" "}
+                                            <span className="text-muted-foreground">
+                                                ({entry.minutes} minutes worked)
+                                            </span>
+                                        </p>
                                     </article>
                                 )),
                             }),

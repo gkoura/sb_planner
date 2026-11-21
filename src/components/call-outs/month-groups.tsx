@@ -90,22 +90,17 @@ export function CallOutMonthGroups({ groups }: { groups: MonthGroup[] }) {
                                 buttonText="Export month"
                                 label={`Export month ${month}-${year}`}
                                 items={[
-                                    {
-                                        format: "csv",
-                                        label: "Export month as CSV",
-                                        href:
-                                            group.exportHref ??
-                                            `/api/call-outs/export?month=${group.month}`,
-                                    },
-                                    ...(!group.exportHref
-                                        ? [
-                                              {
-                                                  format: "formatted" as const,
-                                                  label: "Formatted",
-                                                  href: `/api/call-outs/export?month=${group.month}&format=formatted`,
-                                              },
-                                          ]
-                                        : []),
+                                    group.exportHref
+                                        ? {
+                                              format: "csv",
+                                              label: "Export month as CSV",
+                                              href: group.exportHref,
+                                          }
+                                        : {
+                                              format: "daily",
+                                              label: "Daily hours + formatted CSV",
+                                              href: `/api/call-outs/export?month=${group.month}&format=daily`,
+                                          },
                                 ]}
                             />
                         </div>

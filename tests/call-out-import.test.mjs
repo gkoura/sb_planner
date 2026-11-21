@@ -85,14 +85,24 @@ const { importCallOuts, previewCallOutImport } =
 const csv =
     'reason,duty_role,start_athens,end_athens\n"Alarm, server",primary,2026-10-21T23:00,2026-10-22T01:30';
 
-test("validates quoted fields and previews split calendar days", () => {
+test("validates quoted fields and previews one rounded duration", () => {
     const result = validateCallOutImport(csv);
     assert.deepEqual(result.errors, []);
     assert.equal(result.entries[0].reason, "Alarm, server");
-    assert.deepEqual(
-        result.entries[0].days.map((day) => day.roundedHours),
-        [1, 2],
+    assert.deepEqual(result.entries[0].duration, {
+        minutes: 150,
+        roundedHours: 3,
+    });
+});
+test("previews an overnight hour without rounding either portion separately", () => {
+    const result = validateCallOutImport(
+        csv.replace("T23:00", "T23:30").replace("T01:30", "T00:30"),
     );
+    assert.deepEqual(result.errors, []);
+    assert.deepEqual(result.entries[0].duration, {
+        minutes: 60,
+        roundedHours: 1,
+    });
 });
 test("blocks malformed, duplicate and invalid rows", () => {
     for (const invalid of [

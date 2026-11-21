@@ -79,8 +79,8 @@ test("repeated submissions create one record; a new form can create another", as
     state.session = { user: { id: "user" } };
     const id = "11111111-1111-4111-8111-111111111111";
     const results = await Promise.allSettled([
-        createCallOut(form(id)),
-        createCallOut(form(id)),
+        createCallOut({}, form(id)),
+        createCallOut({}, form(id)),
     ]);
     assert.ok(
         results.every(
@@ -91,7 +91,7 @@ test("repeated submissions create one record; a new form can create another", as
     );
     assert.equal(rows.size, 1);
     await assert.rejects(
-        createCallOut(form("22222222-2222-4222-8222-222222222222")),
+        createCallOut({}, form("22222222-2222-4222-8222-222222222222")),
         /redirect:\/call-outs\?saved=1/,
     );
     assert.equal(rows.size, 2);
@@ -101,7 +101,7 @@ test("a submission identifier belonging to another user cannot be reused", async
     state.session = { user: { id: "other" } };
     const data = form("11111111-1111-4111-8111-111111111111");
     data.set("role", "SUPPORT");
-    await assert.rejects(createCallOut(data), /Unable to save/);
+    await assert.rejects(createCallOut({}, data), /Unable to save/);
     assert.equal(rows.size, 2);
 });
 
@@ -111,7 +111,10 @@ test("creation checks the derived duty date and published schedule query", async
     const data = form("33333333-3333-4333-8333-333333333333");
     data.set("start", "2026-10-30T00:30");
     data.set("end", "2026-10-30T01:30");
-    await assert.rejects(createCallOut(data), /redirect:\/call-outs\?saved=1/);
+    await assert.rejects(
+        createCallOut({}, data),
+        /redirect:\/call-outs\?saved=1/,
+    );
     assert.equal(rows.get(data.get("submissionId")).dutyDate, "2026-10-29");
     assert.deepEqual(scheduleQuery.where, {
         status: "PUBLISHED",
@@ -127,9 +130,9 @@ test("creation checks the derived duty date and published schedule query", async
     assert.deepEqual(runs.select.assignments.where.date.in, ["2026-10-29"]);
     scheduled = [];
     const missing = form("44444444-4444-4444-8444-444444444444");
-    await assert.rejects(
-        createCallOut(missing),
-        /redirect:\/call-outs\?error=schedule/,
+    assert.match(
+        (await createCallOut({}, missing)).error,
+        /no published duty exists/,
     );
     assert.equal(rows.has(missing.get("submissionId")), false);
 });
@@ -175,7 +178,10 @@ test("duty validation matches each user's exact role and support needs no schedu
     state.session = { user: { id: "user" } };
     const data = form("55555555-5555-4555-8555-555555555555");
     data.set("role", "SUPPORT");
-    await assert.rejects(createCallOut(data), /redirect:\/call-outs\?saved=1/);
+    await assert.rejects(
+        createCallOut({}, data),
+        /redirect:\/call-outs\?saved=1/,
+    );
     assert.equal(rows.get(data.get("submissionId")).dutyDate, null);
 });
 
@@ -204,9 +210,9 @@ test("scheduled users cannot create or edit call-outs as support", async () => {
         ]),
     ]) {
         scheduled = [duty];
-        await assert.rejects(
-            createCallOut(data),
-            /redirect:\/call-outs\?error=schedule/,
+        assert.match(
+            (await createCallOut({}, data)).error,
+            /scheduled role instead of support/,
         );
         assert.equal(rows.has(data.get("submissionId")), false);
         data.set("id", "11111111-1111-4111-8111-111111111111");
@@ -250,7 +256,7 @@ test("overtime creation and edits are independent of published standby duties", 
         scheduled = duties;
         scheduleQuery = null;
         await assert.rejects(
-            createCallOut(data),
+            createCallOut({}, data),
             /redirect:\/call-outs\?saved=1/,
         );
         assert.equal(rows.get(id).role, "OVERTIME");
@@ -269,4 +275,22 @@ test("overtime creation and edits are independent of published standby duties", 
     assert.equal(rows.get(existingId).dutyDate, null);
     state.session = { user: { id: "other" } };
     assert.match((await updateCallOut({}, data)).error, /could not be found/);
+});
+
+test("a rejected call-out can be corrected and retried with the same submission ID", async () => {
+    state.session = { user: { id: "user" } };
+    scheduled = [assignment("2026-10-21", "other")];
+    const id = "88888888-8888-4888-8888-888888888888";
+    const data = form(id);
+    const failure = await createCallOut({}, data);
+    assert.match(failure.error, /not scheduled as primary/);
+    assert.equal(rows.has(id), false);
+
+    data.set("role", "SUPPORT");
+    await assert.rejects(
+        createCallOut(failure, data),
+        /redirect:\/call-outs\?saved=1/,
+    );
+    assert.equal(rows.get(id).reason, "Incident");
+    assert.equal(rows.get(id).role, "SUPPORT");
 });

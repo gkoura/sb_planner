@@ -1,5 +1,5 @@
 import type { CallOut } from "@prisma/client";
-import { athensParts, splitCallOut } from "@/lib/call-outs";
+import { athensParts, type callOutDuration } from "@/lib/call-outs";
 
 type Member = { name: string; email: string; isActive: boolean };
 type MemberTotal = {
@@ -13,8 +13,7 @@ type ReportEntry = Pick<
     "reason" | "role" | "startedAt" | "endedAt"
 > & {
     user: Member;
-    days: ReturnType<typeof splitCallOut>;
-};
+} & ReturnType<typeof callOutDuration>;
 
 const roleLabels = {
     PRIMARY: "Primary",
@@ -100,17 +99,13 @@ export function TeamCallOutCard({ entry }: { entry: ReportEntry }) {
                 {athensParts(entry.startedAt).replace("T", " ")} –{" "}
                 {athensParts(entry.endedAt).replace("T", " ")} (Athens)
             </p>
-            <ul className="text-sm">
-                {entry.days.map((day) => (
-                    <li key={day.date}>
-                        {day.date}: {day.roundedHours}{" "}
-                        {day.roundedHours === 1 ? "hour" : "hours"}{" "}
-                        <span className="text-muted-foreground">
-                            ({day.minutes} minutes worked)
-                        </span>
-                    </li>
-                ))}
-            </ul>
+            <p className="text-sm">
+                {entry.roundedHours}{" "}
+                {entry.roundedHours === 1 ? "hour" : "hours"} rounded{" "}
+                <span className="text-muted-foreground">
+                    ({entry.minutes} minutes worked)
+                </span>
+            </p>
         </article>
     );
 }
